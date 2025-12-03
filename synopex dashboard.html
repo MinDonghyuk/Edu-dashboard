@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교육 현황 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        .custom-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}.custom-scroll::-webkit-scrollbar{width:8px}.custom-scroll::-webkit-scrollbar-thumb{background-color:#cbd5e1;border-radius:4px}.custom-scroll::-webkit-webkit-scrollbar-track{background-color:#f1f5f9}.detail-content{transition:max-height .3s ease-out,opacity .3s ease-out,padding .3s ease-out;max-height:0;overflow:hidden;opacity:0;padding:0 1rem}.detail-content.show{max-height:500px;opacity:1;padding-top:1rem;padding-bottom:1rem}
+    </style>
+    <script>
+        tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','Noto Sans KR','sans-serif']},}}}
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+        let app, db, auth;
+        if(firebaseConfig){
+            app=initializeApp(firebaseConfig);
+            db=getFirestore(app);
+            auth=getAuth(app);
+            setLogLevel('Debug');
+            async function authenticate(){
+                try{
+                    if(initialAuthToken){await signInWithCustomToken(auth,initialAuthToken)}
+                    else{await signInAnonymously(auth)}
+                }catch(error){console.error("Firebase authentication error:",error)}
+            }
+            authenticate();
+        }else{console.warn("Firebase config not found. Skipping Firebase initialization.")}
+    </script>
+
+    <div id="app" class="max-w-6xl mx-auto bg-white shadow-xl rounded-xl p-4 sm:p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-3">교육 현황 대시보드</h1>
+        <div class="mb-6 flex flex-wrap gap-3">
+            <button data-dept="ALL" class="dept-btn px-6 py-2 rounded-full font-semibold text-white bg-blue-600 hover:bg-blue-700 transition shadow-md">전체 보기</button>
+            <button data-dept="FPCB사업본부" class="dept-btn px-6 py-2 rounded-full font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition">FPCB사업본부</button>
+            <button data-dept="FS사업본부" class="dept-btn px-6 py-2 rounded-full font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition">FS사업본부</button>
+            <button data-dept="경영지원본부" class="dept-btn px-6 py-2 rounded-full font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition">경영지원본부</button>
+            <button data-dept="인공신장사업본부" class="dept-btn px-6 py-2 rounded-full font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition">인공신장사업본부</button>
+        </div>
+        
+        <h2 class="text-xl font-semibold text-gray-700 mb-4 mt-8">교육 주요 지표 현황</h2>
+        
+        <!-- [고정] 사업부별 인원 분포 상세 -->
+        <div id="employeeChartDetailContainer" class="bg-gray-100 rounded-xl shadow-inner border border-gray-200 mt-0 mx-2 mb-6 p-4">
+            <h3 id="employeeChartDetailTitle" class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">총원 (...)</h3>
+            
+            <div class="flex flex-col lg:flex-row h-72 sm:h-80 w-full p-2">
+                <div class="relative w-full lg:w-1/2 flex justify-center items-center p-2 mb-4 lg:mb-0">
+                    <canvas id="deptPieChartInline" class="max-w-md"></canvas>
+                </div>
+                <div id="employeeListDetail" class="w-full lg:w-1/2 p-2 bg-white rounded-lg shadow-md custom-scroll border border-gray-200">
+                    <p class="text-center text-gray-500 p-4 font-semibold text-sm">
+                        원형 그래프 위에 마우스를 올려 사업부별 상세 명단을 확인하세요.
+                    </p>
+                </div>
+            </div>
+            <p id="employeeChartInfoTextInline" class="text-sm text-gray-500 mt-4 text-center">현재 필터링된 데이터(총 ...명) 기준입니다.</p>
+        </div>
+        
+        <!-- [2열] KPI 박스 -->
+        <section id="trainingDashboard" class="grid grid-cols-2 gap-4 mb-0">
+            <!-- KPI 1: 사용 예산 / 편성 예산 -->
+            <div id="kpi-budget-status-card" class="kpi-card bg-green-50 p-3 rounded-lg shadow-md border-l-4 border-green-500 transition">
+                <p class="text-xs text-gray-600 font-medium">사용 예산 / 편성 예산</p>
+                <h3 id="kpi-budget-status" class="text-lg font-bold text-gray-800 mt-0.5">...</h3>
+            </div>
+            
+            <!-- KPI 2: 부대비용 총액 -->
+            <div id="kpi-incidental-cost-card" class="kpi-card bg-purple-50 p-3 rounded-lg shadow-md border-l-4 border-purple-500 cursor-pointer hover:bg-purple-100 transition" onclick="toggleChart('incidentalCost')">
+                <p class="text-xs text-gray-600 font-medium">부대비용 총액</p>
+                <h3 id="kpi-incidental-cost" class="text-lg font-bold text-gray-800 mt-0.5">...</h3>
+            </div>
+
+            <!-- Detail 1: 사외교육 총액 상세 -->
+            <div id="externalCostChartDetailContainer" class="detail-content col-span-2 bg-yellow-50 rounded-xl shadow-inner border border-yellow-200 mt-0 mx-2">
+                <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">사업부별 사외교육 예산사용 총액 상세</h3>
+                <div class="relative h-64 sm:h-80 w-full p-2">
+                    <canvas id="deptExternalCostBarChart"></canvas>
+                </div>
+                <p id="externalCostChartInfoTextInline" class="text-sm font-semibold text-gray-700 mt-4 text-center"></p>
+            </div>
+
+            <!-- Detail 2: 상시학습지원 총액 상세 -->
+            <div id="alwaysOnCostChartDetailContainer" class="detail-content col-span-2 bg-red-50 rounded-xl shadow-inner border border-red-200 mt-0 mx-2">
+                <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">사업부별 상시학습지원 예산사용 총액 상세</h3>
+                <div class="relative h-64 sm:h-80 w-full p-2">
+                    <canvas id="deptAlwaysOnCostBarChart"></canvas>
+                </div>
+                <p id="alwaysOnCostChartInfoTextInline" class="text-sm font-semibold text-gray-700 mt-4 text-center"></p>
+            </div>
+            
+            <!-- Detail 3: 부대비용 상세 내역 -->
+            <div id="incidentalCostChartDetailContainer" class="detail-content col-span-2 bg-purple-50 rounded-xl shadow-inner border border-purple-200 mt-0 mx-2">
+                <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">부대비용 상세 내역 (사외교육 및 상시학습지원)</h3>
+                <div id="incidentalCostDetails" class="space-y-3">
+                    <!-- 상세 항목이 여기에 표시됩니다. --></div>
+            </div>
+        </section>
+        
+        <!-- 시노펙스 교육 목표 항목 -->
+        <div id="synopexTrainingGoal" class="mt-8 mb-8 p-4 sm:p-6 bg-white border-2 border-dashed border-gray-300 rounded-xl shadow-inner">
+            <h2 class="text-xl font-bold text-gray-800 mb-3 flex items-center space-x-2">
+                <svg class="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span>시노펙스 교육 목표</span>
+            </h2>
+            
+            <h3 class="text-lg font-bold text-gray-700 mb-3">세부 목표</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-6">
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="font-semibold text-indigo-600">1. 비전 공유 및 공감대 형성</p>
+                    <p class="text-gray-600 mt-1">회사의 비전과 전략 방향을 명확히 전달하고, 모든 임직원의 공감대를 형성하여 내재화한다.</p>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="font-semibold text-blue-600">2. 직무 전문성 및 실행 역량 강화</p>
+                    <p class="text-gray-600 mt-1">핵심 인재 육성과 직무별 전문 지식 습득을 통해 업무 실행 능력을 극대화한다.</p>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="font-semibold text-green-600">3. 조직 문화 및 리더십 역량 제고</p>
+                    <p class="text-gray-600 mt-1">변화와 혁신을 주도할 수 있는 리더십을 확보하고, 수평적이고 창의적인 조직 문화를 구축한다.</p>
+                </div>
+            </div>
+
+            <!-- MOVED KPI CARD: 사업본부 별 상세 -->
+            <div id="kpi-target-achievement-card" class="kpi-card bg-blue-50 p-3 rounded-lg shadow-md border-l-4 border-blue-500 cursor-pointer hover:bg-blue-100 transition w-full border-t border-gray-200 pt-3" onclick="toggleChart('achievement')">
+                <p class="text-xs text-gray-600 font-medium">사업본부 별 상세</p>
+                <h3 id="kpi-target-achievement" class="text-lg font-bold text-gray-800 mt-0.5"></h3> 
+            </div>
+            
+            <!-- Detail for Achievement Chart: 해당 카드를 클릭했을 때 바로 아래에 표시됨 -->
+            <div id="achievementChartDetailContainer" class="detail-content bg-blue-50 rounded-xl shadow-inner border border-blue-200 mt-0 mx-2 col-span-3">
+                <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">사업본부별 교육 목표 및 달성율 상세</h3>
+                
+                <div id="goalAccordionContainer" class="mb-4">
+                    <h4 class="cursor-pointer p-3 bg-white rounded-t-lg shadow-md border-b-2 border-blue-200 flex justify-between items-center" onclick="toggleDetail(this.closest('#goalAccordionContainer').querySelector('.detail-content'))">
+                        <span class="font-bold text-blue-700">사업본부별 교육 목표</span>
+                        <svg class="w-5 h-5 text-gray-500 toggle-icon transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </h4>
+                    <div id="deptGoalSummary" class="detail-content bg-white p-4 border border-t-0 rounded-b-lg">
+                        <div class="space-y-3">
+                            <!-- Goal HTML content generated by JS will be placed here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="chartAccordionContainer" class="mb-4">
+                    <h4 class="cursor-pointer p-3 bg-white rounded-t-lg shadow-md border-b-2 border-blue-200 flex justify-between items-center" onclick="toggleDetail(this.closest('#chartAccordionContainer').querySelector('.detail-content'))">
+                        <span class="font-bold text-blue-700">사업본부별 교육 목표 달성률</span>
+                        <svg class="w-5 h-5 text-gray-500 toggle-icon transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </h4>
+                    <div id="chartContent" class="detail-content bg-white p-4 border border-t-0 rounded-b-lg">
+                        <div class="relative h-64 sm:h-80 w-full p-2">
+                            <canvas id="deptAchievementBarChart"></canvas>
+                        </div>
+                        <p id="achievementChartInfoTextInline" class="text-sm text-gray-500 mt-4 text-center">현재 필터링된 데이터 기준 목표 달성율 현황입니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div id="keyInterestsContainer">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">주요 교육 관심사 (<span id="currentDeptKeywords">전체</span>)</h2>
+                <div id="keyInterestsList" class="custom-scroll max-h-96 border border-gray-200 rounded-lg p-4 bg-white space-y-2">
+                    <p class="text-center text-gray-500 p-4" id="keywordLoading">부서별 키워드를 분석 중입니다...</p>
+                </div>
+            </div>
+            <div id="topEmployeeContainer">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">최고 이수 시간 직원 현황 (<span id="topEmployeeCount">0</span>명)</h2>
+                <div id="topEmployeesList" class="custom-scroll max-h-96 border border-gray-200 rounded-lg p-4 bg-white space-y-3">
+                    <p class="text-center text-gray-500 p-4">데이터 로딩 중...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="mandatoryComplianceContainer" class="mt-8">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4 cursor-pointer p-4 bg-white rounded-lg shadow-md border-l-4 border-gray-300 hover:bg-gray-100 transition" onclick="toggleDetail(this)">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xl font-bold text-gray-800">의무교육 미완료 인원 현황</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-red-700 font-bold text-lg"><span id="mandatoryCount">0</span>명</span>
+                         <svg class="w-5 h-5 text-gray-500 toggle-icon inline-block transition-transform duration-300 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                         </svg>
+                    </div>
+                </div>
+            </h2>
+            <div id="mandatoryComplianceList" class="detail-content custom-scroll max-h-96 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-2">
+                
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY='AIzaSyAybqaxn2n1BTB8GKql0c2xBaktc7QkLD0';
+        const SPREADSHEET_ID='1JaxcSgP7amAT8N1sM2aa9TbxFAXjY6k9NAay49TyIyc';
+        const EXTERNAL_RANGE='사외교육!A1:V100';
+        const ALWAYS_ON_RANGE='상시학습지원!A1:V100';
+        const ERP_RANGE='ERP!A1:D100';
+        const MANDATORY_MINIMUM_HOURS=12;
+        const ALLOCATED_BUDGET=100000000; 
+        let currentDepartment='ALL';
+        let allEducationData=[];
+        let allAlwaysOnData=[];
+        const MAIN_DEPARTMENTS=['FPCB사업본부','FS사업본부','경영지원본부','인공신장사업본부'];
+        const DEPARTMENT_COLORS={'FS사업본부':'rgb(59, 130, 246)','FPCB사업본부':'rgb(16, 185, 129)','경영지원본부':'rgb(250, 204, 21)','인공신장사업본부':'rgb(99, 102, 241)','기타':'rgb(107, 114, 128)'};
+        const MOCK_KEYWORD_DATA = {
+            'FPCB사업본부': ['Flexible PCB', '회로 설계', '생산 효율화', '품질 관리', '첨단 소재'],
+            'FS사업본부': ['클라우드 네이티브', 'AI 모델링', '데이터 분석', 'Microservices', '백엔드 최적화'],
+            '경영지원본부': ['재무회계', '개인정보보호', 'HR 트렌드', '전략 기획', '리스크 관리'],
+            '인공신장사업본부': ['의료기기 인허가', 'ISO 13485', '생체 재료', '임상 시험', '품질 보증'],
+            'ALL': ['기술 트렌드', '리더십 역량', '직무 전문성', '협업 스킬', '미래 전략'],
+            '기타': ['교양', '자기계발', '어학', '직장 문화', '기타 기술'],
+        };
+        const MOCK_DEPT_GOALS = {
+            'FPCB사업본부': ["친환경 제조 기술 역량 강화", "원가 절감형 설계 전문 인력 육성", "고객사 맞춤형 솔루션 제공 역량 확보"],
+            'FS사업본부': ["클라우드 및 AI 기반 서비스 아키텍처 설계 역량 확보", "신기술 적용을 위한 선행 학습 집중", "데이터 중심 의사결정 문화 정착"],
+            '경영지원본부': ["ESG 경영 체제 확립을 위한 법규 준수 교육 강화", "전략적 인적 자원 관리 역량 배양", "효율적인 재무 회계 시스템 구축 지원"],
+            '인공신장사업본부': ["의료 기기 품질 시스템(GMP/ISO) 심화 교육 이수", "바이오 소재 개발 관련 R&D 역량 확보", "임상 및 인허가 프로세스 전문성 강화"],
+            '기타': ["공통 직무 역량 및 자기 주도 학습 지원 확대"],
+            'ALL': ["미래 성장 동력 확보를 위한 직무 전문성 100% 달성", "리더십 역량 강화 및 조직 활성화"],
+        };
+
+        const achievementChartContainer=document.getElementById('achievementChartDetailContainer');
+        const externalCostChartContainer=document.getElementById('externalCostChartDetailContainer');
+        const alwaysOnCostChartContainer=document.getElementById('alwaysOnCostChartDetailContainer');
+        const incidentalCostChartContainer=document.getElementById('incidentalCostChartDetailContainer');
+        
+        window.onerror=function(message,source,lineno,colno,error){
+            console.error("FATAL UI ERROR:",message,error);
+            const appElement=document.getElementById('app');
+            if(appElement){appElement.innerHTML='<div class="p-8 text-center bg-red-100 rounded-lg shadow-lg"><h2 class="text-xl font-bold text-red-700">🚨 애플리케이션 초기화 실패 (치명적 JS 오류)</h2><p class="text-red-600 mt-2">콘솔에서 자세한 오류를 확인해주세요. (코드 Line: '+lineno+')</p></div>'}
+            return true;
+        };
+        
+        function formatCurrency(number){return new Intl.NumberFormat('ko-KR',{style:'currency',currency:'KRW',minimumFractionDigits:0}).format(number)}
+
+        window.toggleDetail=function(element){
+            const container=element.closest('.education-item') || element.closest('#mandatoryComplianceContainer') || element.closest('#goalAccordionContainer') || element.closest('#chartAccordionContainer');
+            if (!container) return; 
+            const detailContainer = container.querySelector('.detail-content');
+            const arrowIcon = container.querySelector('.toggle-icon');
+            if (!detailContainer) return;
+            if(detailContainer.classList.contains('show')){
+                detailContainer.classList.remove('show');
+                if(arrowIcon) arrowIcon.classList.remove('rotate-180');
+            } else {
+                document.querySelectorAll('.education-item .detail-content.show, #mandatoryComplianceContainer .detail-content.show, #goalAccordionContainer .detail-content.show, #chartAccordionContainer .detail-content.show').forEach(openDetail => {
+                    openDetail.classList.remove('show');
+                    const parent = openDetail.closest('.education-item, #mandatoryComplianceContainer, #goalAccordionContainer, #chartAccordionContainer');
+                    if (parent) {
+                        const openArrow = parent.querySelector('.toggle-icon');
+                        if (openArrow) openArrow.classList.remove('rotate-180');
+                    }
+                });
+                detailContainer.classList.add('show');
+                if(arrowIcon) arrowIcon.classList.add('rotate-180');
+            }
+        }
+
+        function toggleChart(chartType){
+            const containers={
+                'achievement':achievementChartContainer,
+                'externalCost':externalCostChartContainer,
+                'alwaysOnCost':alwaysOnCostChartContainer,
+                'incidentalCost':incidentalCostChartContainer
+            };
+            const currentContainer=containers[chartType];
+            if(!currentContainer)return; 
+            const isCurrentlyOpen = currentContainer.classList.contains('show');
+            if (currentDepartment !== 'ALL' && chartType !== 'incidentalCost' && chartType !== 'externalCost' && chartType !== 'alwaysOnCost') {
+                return; 
+            }
+            document.querySelectorAll('#trainingDashboard .detail-content.show').forEach(openDetail=>{
+                openDetail.classList.remove('show');
+            });
+            if (!isCurrentlyOpen) {
+                currentContainer.classList.add('show');
+                if (chartType === 'achievement') {
+                    // [MODIFIED] achievement 차트가 열릴 때, 하위 아코디언도 열기
+                    const goalDetail = document.getElementById('deptGoalSummary');
+                    const chartDetail = document.getElementById('chartContent');
+                    const goalArrow = document.querySelector('#goalAccordionContainer .toggle-icon');
+                    const chartArrow = document.querySelector('#chartAccordionContainer .toggle-icon');
+
+                    if (goalDetail) { goalDetail.classList.add('show'); if (goalArrow) goalArrow.classList.add('rotate-180'); }
+                    if (chartDetail) { chartDetail.classList.add('show'); if (chartArrow) chartArrow.classList.add('rotate-180'); }
+                }
+            } else {
+                // [NEW LOGIC] achievement 차트가 닫힐 때, 하위 아코디언도 닫기
+                if (chartType === 'achievement') {
+                    const goalDetail = document.getElementById('deptGoalSummary');
+                    const chartDetail = document.getElementById('chartContent');
+                    const goalArrow = document.querySelector('#goalAccordionContainer .toggle-icon');
+                    const chartArrow = document.querySelector('#chartAccordionContainer .toggle-icon');
+
+                    if (goalDetail) { goalDetail.classList.remove('show'); if (goalArrow) goalArrow.classList.remove('rotate-180'); }
+                    if (chartDetail) { chartDetail.classList.remove('show'); if (chartArrow) chartArrow.classList.remove('rotate-180'); }
+                }
+            }
+            if(chartType==='incidentalCost'&&currentContainer.classList.contains('show')){
+                const currentlyFilteredData = filterAndSortData(); 
+                renderIncidentalCostDetails(currentlyFilteredData);
+            }
+            if (chartType === 'externalCost' && !isCurrentlyOpen) {
+                document.getElementById('externalCostChartDetailContainer').classList.add('show');
+            } else if (chartType === 'alwaysOnCost' && !isCurrentlyOpen) {
+                document.getElementById('alwaysOnCostChartDetailContainer').classList.add('show');
+            }
+        }
+        
+        function parseDateSort(periodString){
+            const match=periodString.match(/(\d{4})\.(\d{2})/);
+            if(match){return parseInt(match[1]+match[2],10)}
+            return 0;
+        }
+
+        function processERPData(sheetValues){
+            const map={};
+            const dataRows=sheetValues.slice(1);
+            dataRows.forEach(row=>{
+                const employeeId=row[0]?.trim();
+                const dept=row[2]?.trim();
+                const email=row[3]?.trim()?.toLowerCase()||'이메일 미등록';
+                if(employeeId){map[employeeId]={dept:dept||'기타',email:email}}
+            });
+            return map;
+        }
+
+        function parseHours(hoursString){
+            if(!hoursString)return 0;
+            let totalHours=0;
+            let match;
+            match=hoursString.match(/(\d+(\.\d+)?)\s*시간/);
+            if(match){totalHours+=parseFloat(match[1])}
+            match=hoursString.match(/(\d+)\s*분/);
+            if(match){totalHours+=parseInt(match[1])/60}
+            if(totalHours===0){
+                match=hoursString.match(/^(\d+(\.\d+)?)$/); 
+                if(match){totalHours=parseFloat(match[1])}
+            }
+            return parseFloat(totalHours.toFixed(2));
+        }
+        
+        function parseCurrency(costString){
+             if(!costString)return 0;
+             const cleaned=costString.trim().toLowerCase();
+             if(cleaned.includes('무료')||cleaned.includes('무상')||cleaned==='0원'){return 0}
+             const numericString=cleaned.replace(/원/g,'').replace(/,/g,'');
+             const cost=parseFloat(numericString);
+             return isNaN(cost)?0:cost;
+        }
+
+        function processSheetData(sheetValues,sourceName,erpMap={}){
+            const C={
+                completionStatusText:0,employeeName:1,employeeId:2,dept:3,position:4,
+                subject:5,type:6,period:7,actualHoursString:8,actualCostString:9,
+                isRefundableRaw:10,content:11,purpose:12,expectedEffect:13,summary:14,
+                linkage:15,difficulty:16,implementationDate:17,carCostString:18,
+                publicTransitCostString:19,lodgingEtcCostString:20,incidentalCostString:21,
+                email:18,targetHours:777,budgetedCost:888
+            };
+            const dataRows=sheetValues.slice(1);
+            if(dataRows.length===0){return []}
+            return dataRows.map((row,index)=>{
+                const employeeId=row[C.employeeId]||`E${index+1}`;
+                const erpInfo=erpMap[employeeId];
+                let finalDept=row[C.dept]||'기타';
+                let finalEmail=row[C.email]||'이메일 미등록'; 
+                if(erpInfo){finalDept=erpInfo.dept||finalDept;finalEmail=erpInfo.email||finalEmail}
+                const incidentalCosts={
+                    carCost:parseCurrency(row[C.carCostString] || '0'),
+                    publicTransitCost:parseCurrency(row[C.publicTransitCostString] || '0'),
+                    lodgingEtcCost:parseCurrency(row[C.lodgingEtcCostString] || '0'),
+                    incidentalCostTotal:parseCurrency(row[C.incidentalCostString] || '0'),
+                };
+                return{
+                    id:`${sourceName}-${index+1}`,period:row[C.period]||'N/A',position:row[C.position]||'미정',
+                    type:row[C.type]||'미정',subject:row[C.subject]||'제목 없음',
+                    dept:finalDept,source:sourceName,isCompleted:(row[C.completionStatusText]||'').toUpperCase()==='완료',
+                    completionStatusText:row[C.completionStatusText]||'신청',employeeName:row[C.employeeName]||'이름 없음',
+                    employeeId:employeeId,targetHours:12,actualHours:parseHours(row[C.actualHoursString] || '0'),
+                    budgetedCost:0,actualCost:parseCurrency(row[C.actualCostString] || '0'),
+                    ...incidentalCosts,isRefundableRaw:row[C.isRefundableRaw]||'N/A',
+                    content:row[C.content]||'내용이 등록되지 않았습니다.',
+                    purpose:row[C.purpose]||'목적이 등록되지 않았습니다.',
+                    expectedEffect:row[C.expectedEffect]||'기대효과가 등록되지 않았습니다.',
+                    summary:row[C.summary]||'교육 요약이 등록되지 않았습니다.',
+                    linkage:row[C.linkage]||'업무적용 계획이 등록되지 않았습니다.',
+                    difficulty:row[C.difficulty]||'업무적용 애로사항이 등록되지 않았습니다.',
+                    implementationDate:row[C.implementationDate]||'예상 업무적용 발현시점',
+                    email:finalEmail,dateSort:parseDateSort(row[C.period]||'N/A'),
+                };
+            });
+        }
+        
+        function getMockEducationData(sourceName, erpMap) {
+            const mockEmployees = Object.keys(erpMap);
+            const mockData = [];
+            const isExternal = sourceName === '사외교육';
+            mockEmployees.forEach((id, index) => {
+                const erpInfo = erpMap[id];
+                const dept = erpInfo.dept;
+                const employeeName = dept.charAt(0) + id.slice(-4);
+                const actualHours = isExternal ? Math.max(1, Math.round(Math.random() * 20 + 5)) : Math.round(Math.random() * 10);
+                const actualCost = isExternal ? Math.round(Math.random() * 300000 + 500000) : Math.max(0, Math.round(Math.random() * 100000 - 50000));
+                const incidentalCostTotal = isExternal ? Math.round(Math.random() * 10000 + 50000) : 0;
+                mockData.push({
+                    id: `${sourceName}-MOCK-${index + 1}`,period: `2024.0${(index % 6) + 1}~2024.0${(index % 6) + 1}`,position: '사원',
+                    type: isExternal ? '직무 전문' : '자기계발',subject: isExternal ? `${dept} 전문 교육 ${index + 1}` : `상시 학습 모듈 ${index + 1}`,
+                    dept: dept,source: sourceName,isCompleted: true,completionStatusText: '완료',employeeName: employeeName,
+                    employeeId: id,targetHours: 12,actualHours: actualHours,budgetedCost: 0,actualCost: actualCost,
+                    carCost: isExternal ? incidentalCostTotal * 0.5 : 0,publicTransitCost: isExternal ? incidentalCostTotal * 0.3 : 0,
+                    lodgingEtcCost: isExternal ? incidentalCostTotal * 0.2 : 0,incidentalCostTotal: incidentalCostTotal,
+                    isRefundableRaw: 'Y',content: 'Mock 교육 내용',purpose: 'Mock 목적',expectedEffect: 'Mock 기대효과',
+                    summary: 'Mock 요약',linkage: 'Mock 업무적용 계획',difficulty: 'Mock 애로사항',
+                    implementationDate: 'Mock 시점',email: erpInfo.email,dateSort: parseDateSort(`2024.0${(index % 6) + 1}`),
+                });
+            });
+            return mockData;
+        }
+
+        async function fetchEducationData(range,sourceName,erpMap){
+            const URL=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+            try{
+                if(!API_KEY||!SPREADSHEET_ID){throw new Error(`API 키 또는 스프레드시트 ID가 비어있습니다. [${sourceName}]`)}
+                const response=await fetch(URL);
+                if(!response.ok){
+                     return getMockEducationData(sourceName, erpMap);
+                }
+                const data=await response.json();
+                return processSheetData(data.values||[],sourceName,erpMap);
+            }catch(error){
+                if(error.message.includes("Failed to fetch") || error.message.includes("API 키 또는 스프레드시트 ID가 비어있습니다.") || error.message.includes("API 요청 실패")){
+                    return getMockEducationData(sourceName, erpMap);
+                }
+                //document.getElementById('app').innerHTML=`<div class="p-8 text-center bg-red-100 rounded-lg shadow-lg"><h2 class="text-xl font-bold text-red-700">🚨 데이터 로딩 실패: ${error.message}</h2><p class="text-red-600 mt-2">콘솔에서 자세한 오류를 확인해주세요.</p></div>`;
+                return[]
+            }
+        }
+
+        async function fetchERPData(){
+            const range=ERP_RANGE;
+            const sourceName='ERP';
+            const URL=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+            const MOCK_ERP_DATA_LOCAL={
+                '202320458':{dept:'FS사업본부',email:'jdh@company.com'},'202120458':{dept:'인공신장사업본부',email:'jdh2@company.com'},'202020458':{dept:'FS사업본부',email:'ldh@company.com'},'202220458':{dept:'FPCB사업본부',email:'pdh@company.com'},'202420458':{dept:'인공신장사업본부',email:'kdh@company.com'},'201920458':{dept:'FPCB사업본부',email:'kdh2@company.com'},'201820458':{dept:'경영지원본부',email:'mdh@company.com'},'201720458':{dept:'경영지원본부',email:'adh@company.com'},'201620458':{dept:'FS사업본부',email:'bdh@company.com'},'201520458':{dept:'FPCB사업본부',email:'cdh@company.com'},'201420458':{dept:'인공신장사업본부',email:'edh@company.com'},'201320458':{dept:'경영지원본부',email:'fdh@company.com'},
+            };
+            try{
+                if(!API_KEY||!SPREADSHEET_ID){throw new Error(`API 키 또는 스프레드시트 ID가 비어있습니다. [${sourceName}]`)}
+                const response=await fetch(URL);
+                if(!response.ok){throw new Error(`API 요청 실패: ${response.status}. ERP 시트 로딩 실패. [${sourceName}]`)}
+                const data=await response.json();
+                return processERPData(data.values||[]);
+            }catch(error){
+                if(error.message.includes("API 키 또는 스프레드시트 ID가 비어있습니다.") || error.message.includes("API 요청 실패")){
+                    return MOCK_ERP_DATA_LOCAL;
+                }else{
+                    return{}
+                }
+            }
+        }
+        
+        function getAggregatedEmployeeTargets(data) {
+            const employeeMap = {};
+            data.forEach(item => {
+                const id = item.employeeId;
+                const deptKey = MAIN_DEPARTMENTS.includes(item.dept) ? item.dept : '기타';
+                if (!employeeMap[id]) {
+                    employeeMap[id] = {
+                        dept: deptKey, actualHours: 0, externalHours: 0, plannedTargetHours: 0,
+                    };
+                }
+                employeeMap[id].actualHours += item.actualHours;
+                if (item.source === '사외교육') { employeeMap[id].externalHours += item.actualHours; }
+                employeeMap[id].plannedTargetHours = Math.max(employeeMap[id].plannedTargetHours, item.targetHours || 0);
+            });
+            return employeeMap;
+        }
+
+        function getAggregatedEmployeeData(data){
+            const aggregated={};
+            data.forEach(item=>{
+                if(!aggregated[item.employeeId]){
+                    aggregated[item.employeeId]={
+                        employeeId:item.employeeId,employeeName:item.employeeName,dept:item.dept,
+                        email:item.email,totalHours:0,externalHours:0,items:[]
+                    };
+                }
+                aggregated[item.employeeId].totalHours+=item.actualHours;
+                if(item.source==='사외교육'){aggregated[item.employeeId].externalHours+=item.actualHours}
+                aggregated[item.employeeId].items.push({subject:item.subject,actualHours:item.actualHours,source:item.source,dateSort:item.dateSort,period:item.period});
+            });
+            return Object.values(aggregated);
+        }
+
+        function calculateDeptStats(data){
+            const allCombinedData=[...data.filter(item=>item.source==='사외교육'), ...data.filter(item=>item.source==='상시학습지원')];
+            const employeeTargets = getAggregatedEmployeeTargets(data); 
+            const deptStats={};
+            MAIN_DEPARTMENTS.forEach(dept=>{
+                deptStats[dept]={totalHours:0,externalHours:0,costTotal:0,alwaysOnCostTotal:0,incidentalCostTotal:0,employeeCount:0,employeeIds:new Set(), plannedTargetTotal: 0, mandatoryTargetTotal: 0, alwaysOnHours: 0}
+            });
+            deptStats['기타']={totalHours:0,externalHours:0,costTotal:0,alwaysOnCostTotal:0,incidentalCostTotal:0,employeeCount:0,employeeIds:new Set(), plannedTargetTotal: 0, mandatoryTargetTotal: 0, alwaysOnHours: 0};
+
+            Object.keys(employeeTargets).forEach(id => {
+                const employee = employeeTargets[id];
+                const dept = employee.dept;
+                if (deptStats[dept]) {
+                    deptStats[dept].employeeIds.add(id);
+                    deptStats[dept].totalHours += employee.actualHours;
+                    deptStats[dept].externalHours += employee.externalHours;
+                    deptStats[dept].alwaysOnHours += (employee.actualHours - employee.externalHours); 
+                    deptStats[dept].plannedTargetTotal += employee.plannedTargetHours;
+                    deptStats[dept].mandatoryTargetTotal += MANDATORY_MINIMUM_HOURS; 
+                }
+            });
+
+            allCombinedData.forEach(item=>{
+                const dept = MAIN_DEPARTMENTS.includes(item.dept) ? item.dept : '기타';
+                if (deptStats[dept]) {
+                    if (item.source === '사외교육') {
+                        deptStats[dept].costTotal += item.actualCost;
+                        deptStats[dept].incidentalCostTotal += item.incidentalCostTotal;
+                    } else if (item.source === '상시학습지원') {
+                        deptStats[dept].alwaysOnCostTotal += item.actualCost;
+                        deptStats[dept].incidentalCostTotal += item.incidentalCostTotal;
+                    }
+                }
+            });
+            MAIN_DEPARTMENTS.concat(['기타']).forEach(dept=>{deptStats[dept].employeeCount=deptStats[dept].employeeIds.size});
+            return deptStats;
+        }
+
+        function renderEmployeeListDetail(deptName, deptColor, totalCount, employeeList) {
+            const container = document.getElementById('employeeListDetail');
+            if (!container) return;
+            const headerBg = deptColor.replace('rgb', 'rgba').replace(')', '), 0.1)');
+            const headerColor = deptColor;
+            const listHtml = employeeList.map(emp => `
+                <div class="flex justify-between items-center text-xs p-2 border-b border-gray-100 last:border-b-0">
+                    <span class="font-bold text-gray-700">${emp.employeeName}</span>
+                    <span class="text-gray-500">${emp.employeeId}</span>
+                    <span class="font-semibold text-green-600">${emp.totalHours.toFixed(1)}h</span>
+                </div>
+            `).join('');
+            container.innerHTML = `
+                <div class="h-full flex flex-col">
+                    <h4 class="text-lg font-bold p-3 rounded-t-lg mb-2 flex justify-between items-center flex-shrink-0 border-b" style="background-color: ${headerBg}; border-color: ${headerColor}; color: ${headerColor};">
+                        <span>${deptName} 명단</span>
+                        <span class="text-base font-extrabold">${totalCount}명</span>
+                    </h4>
+                    <div class="space-y-1 flex-grow overflow-y-auto">
+                        ${listHtml || '<p class="text-center text-gray-500 p-4">해당 사업본부의 직원 데이터가 없습니다.</p>'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        let allAggregatedEmployeeData = null; 
+        function renderAllCharts(filteredData){
+            const deptStats=calculateDeptStats(filteredData);
+            const deptNames=MAIN_DEPARTMENTS.concat(['기타']).filter(d=>deptStats[d].employeeCount>0);
+            const deptColors=deptNames.map(d=>DEPARTMENT_COLORS[d]);
+            const allCombinedData=[...allEducationData,...allAlwaysOnData];
+            const totalEmployees=new Set(allCombinedData.map(item=>item.employeeId)).size;
+
+            allAggregatedEmployeeData = getAggregatedEmployeeData(allCombinedData); 
+            renderEmployeeChart(deptStats,deptNames,deptColors,filteredData.length);
+            renderAchievementChart(deptStats,deptNames,deptColors);
+            renderCostChart('deptExternalCostBarChart',deptStats,deptNames,deptColors,'costTotal','사외교육 예산사용 총액',totalEmployees); 
+            renderCostChart('deptAlwaysOnCostBarChart',deptStats,deptNames,deptColors,'alwaysOnCostTotal','상시학습지원 예산사용 총액',totalEmployees); 
+        }
+
+        let employeeChartInstance = null;
+        function renderEmployeeChart(deptStats,deptNames,deptColors,totalItems){
+            const employeeCounts=deptNames.map(dept=>deptStats[dept].employeeCount);
+            const totalUniqueEmployees = employeeCounts.reduce((a,b)=>a+b,0);
+            document.getElementById('employeeChartDetailTitle').textContent=`총원 (${totalUniqueEmployees}명)`;
+            document.getElementById('employeeChartInfoTextInline').textContent=`현재 데이터 (총 ${totalItems}건) 기준 고유 인원(${totalUniqueEmployees}명) 분포입니다.`;
+            if(employeeChartInstance)employeeChartInstance.destroy();
+            const ctx=document.getElementById('deptPieChartInline').getContext('2d');
+            employeeChartInstance=new Chart(ctx,{
+                type:'pie',
+                data:{
+                    labels:deptNames,
+                    datasets:[{data:employeeCounts,backgroundColor:deptColors,hoverOffset:16}]
+                },
+                options:{
+                    responsive:true,
+                    maintainAspectRatio:false,
+                    plugins:{
+                        legend:{position:'right'},
+                        tooltip: { enabled: true, callbacks: { } }
+                    },
+                    onHover: (event, elements, chart) => {
+                        const container = document.getElementById('employeeListDetail');
+                        if (!container) return;
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const deptName = chart.data.labels[index];
+                            const deptColor = chart.data.datasets[0].backgroundColor[index];
+                            const deptCount = chart.data.datasets[0].data[index];
+                            const employeeList = Object.values(allAggregatedEmployeeData).filter(
+                                emp => emp.dept === deptName
+                            ).sort((a, b) => b.totalHours - a.totalHours);
+                            renderEmployeeListDetail(deptName, deptColor, deptCount, employeeList);
+                        } else {
+                            container.innerHTML = `<p class="text-center text-gray-500 p-4 font-semibold text-sm">원형 그래프 위에 마우스를 올려 사업부별 상세 명단을 확인하세요.</p>`;
+                        }
+                    }
+                }
+            });
+        }
+        
+        let achievementChartInstance = null;
+        function renderAchievementChart(deptStats,deptNames,deptColors){
+            const externalHours=deptNames.map(dept=>deptStats[dept].externalHours);
+            const alwaysOnHours=deptNames.map(dept=>deptStats[dept].alwaysOnHours);
+            const plannedTargetHours=deptNames.map(dept=>deptStats[dept].plannedTargetTotal);
+            const mandatoryTargetHours=deptNames.map(dept=>deptStats[dept].mandatoryTargetTotal);
+            const totalActualHours = externalHours.map((h, i) => h + alwaysOnHours[i]);
+            const maxTarget = plannedTargetHours.map((p, index) => Math.max(p, mandatoryTargetHours[index]));
+            const achievementRates=totalActualHours.map((h, i) => maxTarget[i] > 0 ? (h / maxTarget[i]) * 100 : 0);
+            const totalEmployees=deptNames.reduce((sum,dept)=>sum+deptStats[dept].employeeCount,0);
+            
+            document.getElementById('achievementChartInfoTextInline').textContent=`총원 ${totalEmployees}명 기준, 사업부별 (총 이수 시간 / 최대 목표 시간) 달성율 현황입니다.`;
+            if(achievementChartInstance)achievementChartInstance.destroy();
+            const ctx=document.getElementById('deptAchievementBarChart').getContext('2d');
+            
+            achievementChartInstance=new Chart(ctx,{
+                type:'bar', 
+                data:{
+                    labels:deptNames,
+                    datasets:[
+                        {
+                            type: 'bar',label:'목표 달성율 (%)',data:achievementRates,
+                            backgroundColor: deptColors.map(c => c.replace('rgb', 'rgba').replace(')', '), 0.8)')), 
+                            borderColor: deptColors,borderWidth: 1,yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options:{
+                    responsive:true,maintainAspectRatio:false,interaction: { mode: 'index', intersect: false },
+                    scales:{
+                        x: { stacked: false },
+                        y1:{ 
+                            type: 'linear',display: true,position: 'left',beginAtZero:true,max: 150, 
+                            title:{display:true,text:'달성율 (%)'},
+                            ticks: { callback: function(value) { return value + '%'; } }
+                        }
+                    },
+                    plugins:{
+                        legend:{display:false},title:{display:false}, 
+                        tooltip: { 
+                            mode: 'index', intersect: false,
+                            callbacks: { 
+                                title: function(context) { return deptNames[context[0].dataIndex]; },
+                                label: function(context) { 
+                                    const index = context.dataIndex;
+                                    const achieved = totalActualHours[index];
+                                    const plannedMax = maxTarget[index];
+                                    const external = externalHours[index];
+                                    let lines = [];
+                                    lines.push(`달성율: ${context.parsed.y.toFixed(1)}%`);
+                                    lines.push(`총 목표시간: ${plannedMax.toFixed(1)}h (최대 목표)`);
+                                    lines.push(`총 이수시간: ${achieved.toFixed(1)}h`);
+                                    lines.push(`사외(의무) 이수시간: ${external.toFixed(1)}h`);
+                                    return lines;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        let externalCostChartInstance = null;
+        let alwaysOnCostChartInstance = null;
+        function renderCostChart(chartId,deptStats,deptNames,deptColors,dataKey,title,totalEmployees){
+            const totalCosts=deptNames.map(dept=>deptStats[dept][dataKey]);
+            const totalSum=totalCosts.reduce((a,b)=>a+b,0);
+            const averageCost=totalEmployees>0?totalSum/totalEmployees:0;
+            const infoElementId=chartId.includes('External')?'externalCostChartInfoTextInline':'alwaysOnCostChartInfoTextInline';
+            const infoElement=document.getElementById(infoElementId);
+            if(infoElement){infoElement.textContent=`1인 평균 교육 비용: ${formatCurrency(averageCost)} (총원 ${totalEmployees}명 기준)`}
+            let instanceToDestroy = chartId.includes('External') ? externalCostChartInstance : alwaysOnCostChartInstance;
+            if(instanceToDestroy)instanceToDestroy.destroy();
+            const canvasCtx = document.getElementById(chartId).getContext('2d');
+            const newChart=new Chart(canvasCtx,{
+                type:'bar',data:{labels:deptNames,datasets:[{label:'사용 금액 (원)',data:totalCosts,backgroundColor:deptColors.map(c=>c.replace('rgb','rgba').replace(')','), 0.6)')),borderColor:deptColors,borderWidth:1}]},
+                options:{
+                    responsive:true,maintainAspectRatio:false,
+                    scales:{
+                        y:{
+                            beginAtZero:true,title:{display:true,text:'금액 (원)'},
+                            ticks:{callback:function(value){if(value>=1000000){return(value/1000000).toFixed(1)+'백만'}else if(value>=1000){return(value/1000).toFixed(0)+'천'}return value}}
+                        }
+                    },
+                    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(context){let label=context.dataset.label||'';if(label){label+=': '}if(context.parsed.y!==null){label+=formatCurrency(context.parsed.y)}return label}}}}
+                }
+            });
+            if(chartId.includes('External')) externalCostChartInstance = newChart;
+            else if(chartId.includes('AlwaysOn')) alwaysOnCostChartInstance = newChart;
+        }
+
+        function renderIncidentalCostDetails(data){
+            const listContainer=document.getElementById('incidentalCostDetails');
+            const aggregatedCosts=data.reduce((acc,item)=>{
+                acc.carCost+=item.carCost;acc.publicTransitCost+=item.publicTransitCost;acc.lodgingEtcCost+=item.lodgingEtcCost;return acc;
+            },{carCost:0,publicTransitCost:0,lodgingEtcCost:0});
+            const totalSum=aggregatedCosts.carCost+aggregatedCosts.publicTransitCost+aggregatedCosts.lodgingEtcCost;
+            const totalEmployees=new Set(data.map(item=>item.employeeId)).size; 
+            const items=[
+                {title:'자차 합계',key:'carCost',cost:aggregatedCosts.carCost},
+                {title:'대중교통/항공 합계',key:'publicTransitCost',cost:aggregatedCosts.publicTransitCost},
+                {title:'식대/숙박/기타 합계',key:'lodgingEtcCost',cost:aggregatedCosts.lodgingEtcCost},
+            ];
+            listContainer.innerHTML=`
+                <div class="space-y-3 p-4 bg-purple-100 rounded-lg">
+                    <p class="text-lg font-bold text-gray-800 border-b pb-2">총 부대비용 합계: <span class="text-purple-600">${formatCurrency(totalSum)}</span></p>
+                    ${items.map(item=>{
+                        const avgCost=totalEmployees>0?item.cost/totalEmployees:0;
+                        return`
+                            <div class="flex justify-between text-base border-b border-purple-200 pb-1">
+                                <span class="text-gray-700">${item.title}</span>
+                                <div class="text-right">
+                                    <span class="font-semibold text-purple-700 block">${formatCurrency(item.cost)}</span>
+                                    <span class="text-xs text-purple-500">1인 평균: ${formatCurrency(avgCost)}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                    <div class="flex justify-between text-base pt-2">
+                        <span class="text-gray-900 font-bold">전체 1인 평균 부대비용 (총원 ${totalEmployees}명 기준)</span>
+                        <span class="font-bold text-purple-800">${formatCurrency(totalSum/(totalEmployees>0?totalEmployees:1))}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderDeptGoalSummary(department) {
+            const goalSummaryContainer = document.getElementById('deptGoalSummary');
+            if (!goalSummaryContainer) return;
+            let departmentsToRender = [];
+            if (department === 'ALL') { departmentsToRender = MAIN_DEPARTMENTS; } else { departmentsToRender = [department]; }
+            const goalHtml = departmentsToRender.map(dept => {
+                const goals = MOCK_DEPT_GOALS[dept] || MOCK_DEPT_GOALS['기타'];
+                const color = DEPARTMENT_COLORS[dept];
+                const bgColor = color.replace('rgb', 'rgba').replace(')', '), 0.1)');
+                const goalLine = goals.map((goal, index) => 
+                    `<span class="font-medium text-gray-700 whitespace-nowrap">${index + 1}. ${goal}</span>`
+                ).join('<span class="text-gray-400 mx-1">/</span> ');
+                return `
+                    <div class="p-3 rounded-lg border-l-4 shadow-sm mb-2 last:mb-0" style="border-color: ${color}; background-color: ${bgColor};">
+                        <p class="font-bold text-sm mb-2" style="color: ${color};">${dept} 교육 목표:</p>
+                        <div class="text-xs leading-relaxed flex flex-wrap gap-x-2">
+                            ${goalLine}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            goalSummaryContainer.innerHTML = `<div class="space-y-3">${goalHtml}</div>`;
+        }
+
+        function renderKeyTrainingInterests(department){
+            const listContainer = document.getElementById('keyInterestsList');
+            const deptSpan = document.getElementById('currentDeptKeywords');
+            const dept = MOCK_KEYWORD_DATA[department] ? department : 'ALL';
+            if (!listContainer || !deptSpan) return;
+            deptSpan.textContent = dept === 'ALL' ? '전체' : dept;
+            let itemsToRender = [];
+            const isAllMode = dept === 'ALL';
+            if (isAllMode) {
+                MAIN_DEPARTMENTS.forEach(sourceDept => {
+                    const keywords = MOCK_KEYWORD_DATA[sourceDept] || [];
+                    const limitedKeywords = keywords.slice(0, 3);
+                    if (limitedKeywords.length > 0) { itemsToRender.push({ department: sourceDept, keywords: limitedKeywords }); }
+                });
+                if (itemsToRender.length === 0) { itemsToRender.push({ department: '공통', keywords: MOCK_KEYWORD_DATA['ALL'].slice(0, 5) }); }
+            } else {
+                const keywords = MOCK_KEYWORD_DATA[dept] || [];
+                itemsToRender = keywords.slice(0, 5).map(keyword => ({ keyword: keyword, department: dept }));
+            }
+            if (itemsToRender.length === 0) {
+                listContainer.innerHTML = '<p class="text-center text-gray-500 p-4">등록된 주요 관심 키워드가 없습니다.</p>';
+                listContainer.classList.remove('flex', 'flex-wrap', 'gap-1.5', 'p-3');
+                listContainer.classList.add('space-y-2', 'p-4'); 
+                return;
+            }
+            if (isAllMode) {
+                listContainer.classList.remove('flex', 'flex-wrap', 'gap-1.5', 'p-3');
+                listContainer.classList.add('space-y-1', 'p-4'); 
+                listContainer.innerHTML = itemsToRender.map(item => {
+                    const deptKey = MAIN_DEPARTMENTS.includes(item.department) ? item.department : '기타';
+                    const deptHex = DEPARTMENT_COLORS[deptKey] || DEPARTMENT_COLORS['기타'];
+                    const textColor = deptHex;
+                    const bgColorRgba = deptHex.replace('rgb', 'rgba').replace(')','), 0.1)'); 
+                    const keywordTags = item.keywords.map(keyword => `
+                        <span class="px-3 py-1 text-sm font-semibold rounded-full shadow-sm inline-block"
+                            style="color: ${textColor}; background-color: ${bgColorRgba}; border: 1px solid ${textColor.replace('rgb', 'rgba').replace(')','), 0.3)')};">
+                            #${keyword}
+                        </span>
+                    `).join('');
+                    return `
+                        <div class="p-2 hover:bg-gray-50 rounded-lg transition duration-150 border-b border-gray-100 last:border-b-0">
+                            <div class="flex flex-col space-y-2">
+                                <div class="flex items-center">
+                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-md text-white flex-shrink-0" style="background-color: ${textColor};">
+                                        ${item.department}
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap gap-1 pl-2">
+                                    ${keywordTags}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                listContainer.classList.remove('space-y-1', 'p-4');
+                listContainer.classList.add('flex', 'flex-wrap', 'gap-1.5', 'p-3');
+                listContainer.innerHTML = itemsToRender.map(item => {
+                    const colors = ['bg-indigo-100 text-indigo-700', 'bg-blue-100 text-blue-700', 'bg-green-100 text-green-700', 'bg-yellow-100 text-yellow-700', 'bg-red-100 text-red-700'];
+                    const randomColorClass = colors[Math.floor(Math.random() * colors.length)]; 
+                    return `
+                        <div>
+                            <span class="px-3 py-1 text-sm font-semibold rounded-full ${randomColorClass} shadow-sm inline-block transition-all duration-300 hover:scale-[1.02]">
+                                #${item.keyword}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+        
+        function renderTopEmployees(filteredData){
+            const topEmployeeContainerTitle = document.querySelector('#topEmployeeContainer h2');
+            const listContainer = document.getElementById('topEmployeesList');
+            const resultCountSpan = document.getElementById('topEmployeeCount');
+            const allCombinedData = [...allEducationData, ...allAlwaysOnData];
+            let targetData = allCombinedData;
+            
+            if (currentDepartment !== 'ALL') {
+                targetData = targetData.filter(item => item.dept === currentDepartment);
+            }
+
+            if (currentDepartment !== 'ALL') {
+                const departmentEmployees = getAggregatedEmployeeData(targetData);
+                departmentEmployees.sort((a, b) => b.totalHours - a.totalHours); 
+                topEmployeeContainerTitle.innerHTML = `${currentDepartment} 임직원 교육 현황 (${departmentEmployees.length}명)`;
+                listContainer.innerHTML = departmentEmployees.map(employee => {
+                    const totalHours = employee.totalHours.toFixed(1);
+                    const hoursColor = employee.externalHours < MANDATORY_MINIMUM_HOURS ? 'text-red-600 font-extrabold' : 'text-green-600 font-bold';
+                    employee.items.sort((a, b) => b.dateSort - a.dateSort);
+                    const courseDetailHtml = employee.items.map(item => {
+                        const periodHtml = item.period ? item.period.replace('~', '<br>~') : 'N/A';
+                        return `
+                            <div class="flex justify-between text-xs text-gray-700 py-1 border-b border-gray-100 last:border-b-0">
+                                <span class="font-medium text-gray-600 w-1/4">${periodHtml}</span>
+                                <span class="font-medium text-indigo-600 w-1/6">${item.source === '사외교육' ? '사외' : '상시'}</span>
+                                <span class="flex-1 truncate mx-2">${item.subject}</span>
+                                <span class="font-semibold text-gray-800">${item.actualHours.toFixed(1)}h</span>
+                            </div>
+                        `;
+                    }).join('');
+                    return `
+                        <div class="education-item p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition cursor-pointer" onclick="toggleDetail(this)">
+                            <div class="flex justify-between items-center">
+                                <div class="flex flex-col">
+                                    <span class="font-bold text-gray-800">${employee.employeeName}</span>
+                                    <span class="text-xs text-gray-500">${employee.employeeId} / ${employee.dept}</span>
+                                </div>
+                                <div class="text-right flex items-center space-x-2">
+                                    <div>
+                                        <span class="text-xs text-gray-500 block">총 이수 시간</span>
+                                        <span class="text-lg ${hoursColor} block">${totalHours} 시간</span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-gray-500 toggle-icon transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="detail-content pt-3 mt-2 border-t border-gray-100 space-y-1">
+                                <h4 class="font-bold text-gray-700 mb-2">총 교육 이력 (${employee.items.length}건, 최신순):</h4>
+                                <div class="bg-gray-50 p-3 rounded-lg space-y-1">
+                                    <div class="flex justify-between text-xs font-bold text-gray-700 border-b pb-1 mb-1">
+                                        <span class="w-1/4">기간</span>
+                                        <span class="w-1/6">구분</span>
+                                        <span class="flex-1 mx-2">교육명</span>
+                                        <span>시간</span>
+                                    </div>
+                                    ${courseDetailHtml || '<p class="text-xs text-center text-gray-400 p-2">기록이 없습니다.</p>'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                if (departmentEmployees.length === 0) {
+                    listContainer.innerHTML = '<p class="text-center text-gray-500 p-4">현재 조건에 해당하는 임직원 교육 기록이 없습니다.</p>';
+                }
+                if(resultCountSpan) resultCountSpan.textContent = ''; 
+                return;
+            }
+            topEmployeeContainerTitle.innerHTML = `최고 이수 시간 직원 현황 (<span id="topEmployeeCount">0</span>명)`;
+            const aggregatedData=getAggregatedEmployeeData(targetData);
+            const topEmployees={};
+            aggregatedData.forEach(employee=>{
+                const dept=employee.dept||'기타';
+                if(!topEmployees[dept]||employee.totalHours>topEmployees[dept].totalHours){topEmployees[dept]=employee}
+            });
+            const topList=Object.values(topEmployees).sort((a,b)=>b.totalHours-a.totalHours);
+            document.getElementById('topEmployeeCount').textContent=topList.length;
+            listContainer.innerHTML='';
+            if(topList.length===0){listContainer.innerHTML='<p class="text-center text-gray-500 p-4">해당하는 직원이 없습니다.</p>';return}
+            topList.forEach(employee=>{
+                const totalHours=employee.totalHours.toFixed(1);
+                employee.items.sort((a,b)=>b.dateSort-a.dateSort);
+                const detailHtml=employee.items.map(item=>`
+                    <p class="text-xs text-gray-600 border-b border-gray-200 py-1">
+                        <span class="font-semibold text-indigo-600">${item.source==='사외교육'?'사외':'상시'}</span>: 
+                        ${item.subject} (${item.actualHours.toFixed(1)}시간)
+                    </p>
+                `).join('');
+                listContainer.innerHTML+=`
+                    <div class="education-item bg-gray-50 p-3 rounded-lg shadow-sm border border-indigo-200 hover:shadow-md transition duration-200 cursor-pointer" onclick="toggleDetail(this)">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs font-semibold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full">${employee.dept}</span>
+                                <span class="font-bold text-gray-800">${employee.employeeName}</span>
+                            </div>
+                            <div class="flex items-center text-sm font-semibold text-green-600">
+                                ${totalHours} 시간
+                                <svg class="w-4 h-4 text-gray-500 toggle-icon transition-transform duration-300 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="detail-content pt-2 pb-2 mt-2 space-y-1">
+                            <h4 class="font-bold text-gray-700 mb-1">총 교육 이력 (총 ${employee.items.length}건):</h4>
+                            ${detailHtml}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderMandatoryComplianceList(filteredData){
+            const aggregatedData=getAggregatedEmployeeData(filteredData);
+            const nonCompliant=aggregatedData.filter(employee=>employee.externalHours<MANDATORY_MINIMUM_HOURS).sort((a,b)=>a.externalHours-b.externalHours);
+            const listContainer=document.getElementById('mandatoryComplianceList');
+            document.getElementById('mandatoryCount').textContent=nonCompliant.length;
+            listContainer.innerHTML='';
+            if(nonCompliant.length===0){
+                listContainer.innerHTML='<p class="text-center text-gray-500 p-4 w-full">미완료 인원이 없습니다.</p>';
+                return;
+            }
+            const groupedByDept=nonCompliant.reduce((acc,employee)=>{
+                const dept=employee.dept||'기타';
+                if(!acc[dept]){acc[dept]=[]}
+                acc[dept].push(employee);
+                return acc;
+            },{});
+            const departments=Object.keys(groupedByDept).sort();
+            let departmentHtml='';
+            departments.forEach(dept=>{
+                const employees=groupedByDept[dept];
+                const deptColorHex=DEPARTMENT_COLORS[dept]||DEPARTMENT_COLORS['기타'];
+                const bgColorRgba=deptColorHex.replace('rgb','rgba').replace(')','), 0.1)');
+                const textColor=deptColorHex; 
+                const borderColorRgba=textColor.replace('rgb','rgba').replace(')','), 0.3)');
+                const sectionBorderColor=textColor.replace('rgb','rgba').replace(')','), 0.4)');
+                const dividerColor=textColor.replace('rgb','rgba').replace(')','), 0.2)');
+                const employeeTags=employees.map(employee=>`
+                    <div class="px-2 py-1 text-xs rounded-full border flex items-center space-x-1" 
+                        style="border-color:${borderColorRgba} !important;color:${textColor};" 
+                        title="${employee.employeeId} / ${employee.email}">
+                        <span class="font-bold">${employee.employeeName}</span>
+                        <span class="text-gray-600 font-medium ml-0">(${employee.externalHours.toFixed(1)}h)</span>
+                        <span class="text-gray-500 text-[10px] truncate ml-1">${employee.email}</span>
+                    </div>
+                `).join('');
+                departmentHtml+=`
+                    <div class="w-full p-3 rounded-lg shadow-sm border mb-4" style="border-color:${sectionBorderColor};background-color:${bgColorRgba};">
+                        <h4 class="text-sm font-extrabold mb-2 pb-1 border-b" style="color:${textColor};border-color:${dividerColor}">
+                            ${dept} (${employees.length}명)
+                        </h4>
+                        <div class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                            ${employeeTags}
+                        </div>
+                    </div>
+                `;
+            });
+            listContainer.innerHTML=departmentHtml;
+        }
+
+        function calculateDashboardMetrics(data){
+            const employeeTargets = getAggregatedEmployeeTargets(data);
+            const uniqueEmployees = new Set(Object.keys(employeeTargets));
+            let totalActualHours = Object.values(employeeTargets).reduce((sum, e) => sum + e.actualHours, 0);
+            let sumOfIndividualTargetHours = Object.values(employeeTargets).reduce((sum, e) => sum + e.plannedTargetHours, 0);
+            let externalCostTotal=0;
+            let alwaysOnCostTotal=0;
+            let incidentalCostTotal=0;
+            data.forEach(item=>{
+                if(item.source==='사외교육'){
+                    externalCostTotal+=item.actualCost;
+                    incidentalCostTotal+=item.incidentalCostTotal;
+                }else if(item.source==='상시학습지원'){
+                    alwaysOnCostTotal+=item.actualCost;
+                    incidentalCostTotal+=item.incidentalCostTotal;
+                }
+            });
+            const totalEmployees=uniqueEmployees.size;
+            const mandatoryTotalGoal = totalEmployees * MANDATORY_MINIMUM_HOURS;
+            const targetHoursGoal = Math.max(sumOfIndividualTargetHours, mandatoryTotalGoal);
+            const targetAchievementRate=targetHoursGoal>0?((totalActualHours/targetHoursGoal)*100).toFixed(1)+'%':'N/A';
+            const avgExternalCostPerPerson = totalEmployees > 0 ? externalCostTotal / totalEmployees : 0; 
+            const avgAlwaysOnCostPerPerson = totalEmployees > 0 ? alwaysOnCostTotal / totalEmployees : 0;
+            const actualBudgetUsed = externalCostTotal + alwaysOnCostTotal;
+            const budgetUsageRate = (actualBudgetUsed / ALLOCATED_BUDGET) * 100;
+            return{
+                totalEmployees,targetAchievementRate,externalCostTotal,alwaysOnCostTotal,incidentalCostTotal,
+                avgExternalCostPerPerson,avgAlwaysOnCostPerPerson,actualBudgetUsed,budgetUsageRate,
+            };
+        }
+        
+        function renderDashboard(metrics,data){
+            const achievementCard = document.getElementById('kpi-target-achievement-card');
+            if (achievementCard) {
+                if (currentDepartment === 'ALL') {
+                    achievementCard.querySelector('#kpi-target-achievement').textContent = '';
+                } else {
+                    achievementCard.querySelector('#kpi-target-achievement').textContent = metrics.targetAchievementRate;
+                }
+            }
+            document.getElementById('kpi-incidental-cost').textContent=formatCurrency(metrics.incidentalCostTotal);
+            document.getElementById('kpi-incidental-cost-card').querySelector('p').textContent = '부대비용 총액';
+
+            const kpiBudgetStatusCard = document.getElementById('kpi-budget-status-card');
+            if (currentDepartment === 'ALL') {
+                kpiBudgetStatusCard.querySelector('p').textContent = '사용 예산 / 편성 예산';
+                kpiBudgetStatusCard.querySelector('h3').innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-bold text-gray-800">${formatCurrency(metrics.actualBudgetUsed)}</span>
+                        <span class="text-base font-extrabold ${metrics.budgetUsageRate > 100 ? 'text-red-600' : 'text-green-600'}">
+                            ${metrics.budgetUsageRate.toFixed(1)}%
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1 mb-2">편성 예산: ${formatCurrency(ALLOCATED_BUDGET)}</div>
+                    <div class="mt-2 space-y-0.5 text-xs pt-1 border-t border-green-200">
+                        <div class="flex justify-between items-center cursor-pointer hover:bg-green-100 p-0.5 -mx-0.5 rounded" onclick="toggleChart('externalCost')">
+                            <span class="font-medium text-yellow-700 flex items-center text-[10px]">
+                                사외교육 사용
+                                <svg class="w-3 h-3 text-yellow-500 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            </span>
+                            <span class="font-bold text-sm text-gray-800">${formatCurrency(metrics.externalCostTotal)}</span>
+                        </div>
+                        <div class="flex justify-between items-center cursor-pointer hover:bg-green-100 p-0.5 -mx-0.5 rounded" onclick="toggleChart('alwaysOnCost')">
+                            <span class="font-medium text-red-700 flex items-center text-[10px]">
+                                상시학습지원 사용
+                                <svg class="w-3 h-3 text-red-500 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7-7" /></svg>
+                            </span>
+                            <span class="font-bold text-sm text-gray-800">${formatCurrency(metrics.alwaysOnCostTotal)}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                kpiBudgetStatusCard.querySelector('p').textContent = '교육 총액 및 1인 평균 비용 (사외/상시)'; 
+                kpiBudgetStatusCard.querySelector('h3').innerHTML = `
+                    <div class="space-y-0.5 text-xs pt-0">
+                        <div class="border-b border-gray-200 pb-0.5">
+                            <h4 class="font-bold text-sm text-gray-700 mb-0.5">총액 (${currentDepartment})</h4>
+                            <div class="flex justify-between items-center text-yellow-700">
+                                <span class="font-medium text-[11px]">사외교육 사용:</span>
+                                <span class="font-bold text-sm">${formatCurrency(metrics.externalCostTotal)}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-red-700">
+                                <span class="font-medium text-[11px]">상시학습지원 사용:</span>
+                                <span class="font-bold text-sm">${formatCurrency(metrics.alwaysOnCostTotal)}</span>
+                            </div>
+                        </div>
+                        <div class="pt-0">
+                            <h4 class="font-bold text-sm text-gray-700 mb-0.5">1인 평균 비용</h4>
+                            <div class="flex justify-between items-center text-orange-700">
+                                <span class="font-medium text-[11px]">사외교육 사용:</span>
+                                <span class="font-bold text-sm">${formatCurrency(metrics.avgExternalCostPerPerson)}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-pink-700">
+                                <span class="font-medium text-[11px]">상시학습지원 사용:</span>
+                                <span class="font-bold text-sm">${formatCurrency(metrics.avgAlwaysOnCostPerPerson)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            renderAllCharts(data); 
+        }
+        
+        function handleDepartmentFilter(event){
+            const newDept=event.currentTarget.getAttribute('data-dept');
+            
+            // --- [수정된 부분] 특정 사업본부 버튼 클릭 시 하나의 HTML 파일로 이동 ---
+            const departmentPages = ['FPCB사업본부', 'FS사업본부', '경영지원본부', '인공신장사업본부'];
+            if (departmentPages.includes(newDept)) {
+                // FS사업본부 등을 클릭하더라도 FPCB사업본부.html로 연결하도록 수정
+                window.location.href = `FPCB사업본부.html`;
+                return; // 페이지를 이동하므로 여기서 함수 실행을 종료
+            }
+            // --- [수정된 부분] 끝 ---
+
+            // 'ALL' 버튼 (전체 보기)에 대한 기존 필터링 및 스타일링 로직 (현재 페이지 유지)
+            if(currentDepartment===newDept)return;
+            currentDepartment=newDept;
+            document.querySelectorAll('.dept-btn').forEach(btn=>{
+                const isSelected=btn.getAttribute('data-dept')===newDept;
+                btn.classList.remove('bg-blue-600','hover:bg-blue-700','text-white','shadow-md');
+                btn.classList.add('text-gray-700','bg-gray-200','hover:bg-gray-300');
+                if(isSelected){
+                    btn.classList.remove('text-gray-700','bg-gray-200','hover:bg-gray-300');
+                    btn.classList.add('bg-blue-600','hover:bg-blue-700','text-white','shadow-md');
+                }
+            });
+            filterAndSortData();
+        }
+
+        function filterAndSortData(){
+            const allCombinedData=[...allEducationData,...allAlwaysOnData];
+            let filteredData=allCombinedData;
+            if(currentDepartment!=='ALL'){filteredData=filteredData.filter(item=>item.dept===currentDepartment)}
+            filteredData.sort((a,b)=>b.dateSort-a.dateSort);
+            renderKeyTrainingInterests(currentDepartment);
+            renderDeptGoalSummary(currentDepartment);
+            const metrics=calculateDashboardMetrics(filteredData);
+            renderDashboard(metrics,filteredData);
+            renderTopEmployees(filteredData);
+            renderMandatoryComplianceList(filteredData);
+            return filteredData;
+        }
+        
+        document.addEventListener('DOMContentLoaded',async()=>{
+            try{
+                const erpMap=await fetchERPData();
+                allEducationData=await fetchEducationData(EXTERNAL_RANGE,'사외교육',erpMap);
+                allAlwaysOnData=await fetchEducationData(ALWAYS_ON_RANGE,'상시학습지원',erpMap);
+                const keywordLoading = document.getElementById('keywordLoading');
+                if (keywordLoading) { keywordLoading.remove(); }
+                filterAndSortData();
+            }catch(error){
+                console.error("Failed to load education data (outside fetch):",error);
+            }
+            document.querySelectorAll('.dept-btn').forEach(btn=>{btn.addEventListener('click',handleDepartmentFilter)});
+        });
+    </script>
+</body>
+</html>

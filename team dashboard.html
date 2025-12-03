@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPCB사업본부 품질경영팀 대시보드</title>
+    
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js for Graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    
+    <!-- FullCalendar CSS and JS (Core and DayGrid) -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales-all.global.min.js'></script>
+
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f6f8; }
+        .card { border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2cpx rgba(0, 0, 0, 0.1); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); }
+        .db-scroll-area::-webkit-scrollbar { width: 6px; }
+        .db-scroll-area::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
+        .db-scroll-area::-webkit-scrollbar-track { background-color: #f1f5f9; border-radius: 3px; }
+        .db-scroll-area { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+        
+        /* FullCalendar Custom Styles */
+        .fc .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 700 !important; }
+        .fc .fc-button { background-color: #3B82F6 !important; border-color: #3B82F6 !important; }
+        .fc .fc-event { border-radius: 0.25rem; cursor: pointer; } /* 커서 포인터 추가 */
+        
+        /* Custom scroll class for team goals */
+        .goals-scroll-container {
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 1rem; /* Space for scroll bar */
+        }
+        .goal-card {
+            display: inline-block;
+            width: 250px;
+            vertical-align: top;
+            margin-right: 1rem;
+        }
+        
+        /* Custom dropdown styles */
+        .evaluation-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .evaluation-menu {
+            position: absolute;
+            right: 0;
+            z-index: 10;
+            width: 80px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#3B82F6', 'soft-blue': '#EFF6FF', 'soft-green': '#ECFDF5',
+                        'soft-yellow': '#FFFBEB', 'soft-pink': '#FDF2F8', 'soft-purple': '#F3F4F6',
+                        'soft-rose': '#FFF1F2', 'soft-teal': '#F0FDF4',
+                    }
+                }
+            }
+        }
+
+        // --- Mock Data ---
+        const FPCB_MEMBERS = [
+            { name: '박동혁', id: '20220458', team: '품질경영팀', totalTime: '14.0 시간', externalTime: '9.0 시간', goalTime: 20.0, externalCost: 10000, internalCost: 0, carCost: 50000, transitCost: 30000, etcCost: 20000 },
+            { name: '김동혁', id: '201920458', team: '품질경영팀', totalTime: '8.0 시간', externalTime: '5.0 시간', goalTime: 15.0, externalCost: 0, internalCost: 0, carCost: 20000, transitCost: 15000, etcCost: 15000 }
+        ];
+
+        let IN_PROGRESS_TRAININGS = [
+            // MODIFIED: 'format'에 오프라인 장소 정보 포함
+            { id: 't1', name: 'ISO 9001 심화 과정', duration: '2025.10.25~2025.11.25', attendees: ['박동혁', '김동혁'], type: '사외', cost: '10,000원', format: '온라인', appliedDate: '2025-10-20' },
+            { id: 't2', name: '품질 리스크 관리 기초', duration: '2025.11.01~2025.11.30', attendees: ['박동혁'], type: '상시', cost: '0원', format: '오프라인 (본사 3층 교육장)', appliedDate: '2025-10-15' }
+        ];
+        
+        let IN_PROGRESS_DETAILS_MAP = {
+            't1': { '과정명': 'ISO 9001 심화 과정', '내용': 'ISO 9001 표준의 심층 분석 및 실무 적용 방안 학습. 최신 개정 사항 반영.', '목적': '팀원 전체의 품질경영 시스템 이해도 향상 및 내부 감사 역량 강화.', '기대효과': '시스템 안정화 및 재작업률 5% 감소 예상.', '교육요약': '총 4주 과정, 온라인 강의 및 주 1회 실습 세션 진행.', '업무적용계획': '교육 이수 후 2026년 1분기 내부 감사 계획 수립에 즉시 참여.', '업무적용 애로사항': '평가 기간 중 주요 업무 부하로 인한 학습 시간 확보 어려움 예상.', '예상 업무적용 발현시점': '2026-04-01' }, // 구체적인 날짜로 가정
+            't2': { '과정명': '품질 리스크 관리 기초', '내용': 'FMEA 기반의 리스크 식별, 분석, 평가 및 대응 전략 수립 워크숍.', '목적': '잠재적 품질 문제 사전 예방 및 리스크 관리 체계 확립.', '기대효과': '중요 리스크 발생률 10% 감소 및 대응 시간 단축.', '교육요약': '사내 워크숍 형태의 2일 집중 과정.', '업무적용계획': '현행 공정에 FMEA 프로세스를 도입하고 팀 내에 전파.', '업무적용 애로사항': '초기 FMEA 도입 시 팀원들의 추가 업무 부담.', '예상 업무적용 발현시점': '2025-12-31' } // 구체적인 날짜로 가정
+        };
+
+        const EDUCATION_REPORT_MAP = {
+            'e3': { '내용': 'FPCB 공정 중 발생하는 주요 품질 이슈 해결을 위한 심층 기술 교육 이수.', '목적': '제조 공정 품질 관리 역량 향상 및 불량률 감소.', '기대효과': '공정 중단 시간 15% 단축 및 품질 기준 만족도 향상.', '교육요약': '40시간 온라인 및 10시간 현장 실습.', '업무적용계획': '교육 내용을 바탕으로 품질 관리 매뉴얼을 업데이트하고 팀원들에게 공유.', '업무적용 애로사항': '새로운 분석 도구 도입에 필요한 예산 확보가 지연됨.', '예상 업무적용 발현시점': '2026-01-15' },
+            'e4': { '내용': '현장 정리 정돈 및 표준화 활동 리더 양성 프로그램 이수.', '목적': '5S 활동을 주도하고 효율적인 작업 환경을 조성.', '기대효과': '안전사고 발생률 0% 및 작업 능률 5% 향상.', '교육요약': '2일간의 워크숍 및 1개월간 현장 프로젝트 진행.', '업무적용계획': '매주 5S 활동 점검 및 개선 보고서를 작성하여 팀에 보고.', '업무적용 애로사항': '초기 팀원들의 참여 동기 부여가 어려움.', '예상 업무적용 발현시점': '2025-10-01' },
+            'e5': { '내용': 'Python을 활용한 품질 데이터 추출 및 시각화 자동화 스크립트 작성 기술 습득.', '목적': '자동화 스크립트 작성 능력 배양', '기대효과': '반복 업무 자동화로 공수 10% 절감', '교육요약': '8주 온라인 과정', '업무적용계획': '품질 데이터 추출 자동화 스크립트 작성', '업무적용 애로사항': '업무 시간이 부족함', '예상 업무적용 발현시점': '2025-12-01' }, 
+            'e6': { '내용': '최신 반도체 공정 흐름 및 제조 기술의 핵심 원리 이해.', '목적': '고객사 기술 이해도 향상', '기대효과': '선행 품질 관리 역량 강화', '교육요약': '3일 오프라인 세미나', '업무적용계획': '기술 동향 보고서 작성', '업무적용 애로사항': '출장 일정 조율의 어려움', '예상 업무적용 발현시점': '2025-11-15' }
+        };
+
+        const ALL_EDUCATIONS_MASTER = [
+            { id: 'e5', name: '사내 코딩 교육 (Python)', empId: '201920458', empName: '김동혁', dept: 'FPCB사업본부', status: '이수완료', period: '2025.08.01~2025.09.25', type: '온라인', source: '상시', hours: 8.0, cost: 0, refundable: 'X', evaluation: '중' },
+            { id: 'e6', name: '최신 반도체 공정 기술 이해', empId: '201920458', empName: '김동혁', dept: 'FPCB사업본부', status: '이수완료', period: '2025.10.01~2025.10.03', type: '오프라인', source: '사외', hours: 4.0, cost: 30000, refundable: 'O', evaluation: '상' },
+            
+            { id: 'e3', name: 'FPCB 품질관리 심화', empId: '20220458', empName: '박동혁', dept: 'FPCB사업본부', status: '이수완료', period: '2025.09.01~2025.09.30', type: '오프라인', source: '사외', hours: 10.0, cost: 10000, refundable: 'O', evaluation: '상' }, 
+            { id: 'e4', name: '5S 활동 리더 교육', empId: '20220458', empName: '박동혁', dept: 'FPCB사업본부', status: '이수완료', period: '2025.07.01~2025.07.31', type: '오프라인', source: '사외', hours: 4.0, cost: 0, refundable: 'X', evaluation: '중' },
+        ];
+        
+        const ALL_EDUCATIONS_FILTERABLE = ALL_EDUCATIONS_MASTER;
+
+        // --- NEW: 팀 목표 마스터 데이터 (하나의 데이터 소스) ---
+        let TEAM_MASTER_DATA = [
+            // 품질경영팀 (4.0/25.0 = 16.0%) - 인원수: 2명 (FPCB_MEMBERS.length)
+            { team: '품질경영팀 (FPCB)', color: '#3B82F6', memberCount: FPCB_MEMBERS.length, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: 'ISO/품질표준 교육', targetHours: 15, achievedHours: 4.0 },
+                { name: 'AI 기반 불량 예측', targetHours: 10, achievedHours: 0.0 }
+            ]},
+            // 전장사업팀 (7.0/20.0 = 35.0%) - 인원수: 3명 (임의)
+            { team: '전장사업팀', color: '#F59E0B', memberCount: 3, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: '차세대 전장 기술 심화', targetHours: 12, achievedHours: 5.0 },
+                { name: '프로젝트 관리(PM)', targetHours: 8, achievedHours: 2.0 }
+            ]},
+            // 메카트로닉스팀 (10.0/25.0 = 40.0%) - 인원수: 5명 (임의)
+            { team: '메카트로닉스팀', color: '#8B5CF6', memberCount: 5, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: '정밀 제어 시스템', targetHours: 20, achievedHours: 10.0 }, // 10.0 시간 할당
+                { name: '공정 자동화', targetHours: 5, achievedHours: 0.0 }
+            ]},
+            // 영업팀 (12.0/15.0 = 80.0%) - 인원수: 4명 (임의)
+            { team: '영업팀', color: '#10B981', memberCount: 4, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: '해외 시장 분석', targetHours: 10, achievedHours: 8.0 }, // 8.0 시간 할당
+                { name: '고객 협상 스킬', targetHours: 5, achievedHours: 4.0 } // 4.0 시간 할당
+            ]},
+            // 통합구매팀 (10.0/20.0 = 50.0%) - 인원수: 3명 (임의)
+            { team: '통합구매팀', color: '#EC4899', memberCount: 3, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: '공급망 리스크 관리', targetHours: 12, achievedHours: 6.0 }, // 6.0 시간 할당
+                { name: '글로벌 소싱 전략', targetHours: 8, achievedHours: 4.0 } // 4.0 시간 할당
+            ]},
+            // FPCB 사업팀 (20.0/25.0 = 80.0%) - 인원수: 6명 (임의)
+            { team: 'FPCB 사업팀', color: '#EAB308', memberCount: 6, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: 'FPCB 설계 기준 이해', targetHours: 15, achievedHours: 15.0 }, // 15.0 시간 할당
+                { name: '신소재 분석', targetHours: 10, achievedHours: 5.0 } // 5.0 시간 할당
+            ]},
+            // 개발팀 (5.0/25.0 = 20.0%) - 인원수: 4명 (임의)
+            { team: '개발팀', color: '#EF4444', memberCount: 4, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: '임베디드 SW 개발', targetHours: 18, achievedHours: 5.0 }, // 5.0 시간 할당
+                { name: '신뢰성 테스트', targetHours: 7, achievedHours: 0.0 }
+            ]},
+            // 중앙연구소 (15.0/35.0 = 42.9%) - 인원수: 1명 (임의)
+            { team: '중앙연구소', color: '#06B6D4', memberCount: 1, totalGoalTime: 0, totalAchievedTime: 0, achievedRate: 0, goals: [
+                { name: 'R&D 논문 작성법', targetHours: 20, achievedHours: 10.0 }, // 10.0 시간 할당
+                { name: '특허 출원 및 관리', targetHours: 15, achievedHours: 5.0 } // 5.0 시간 할당
+            ]},
+        ];
+
+        // --- 헬퍼 함수 ---
+        const getNumericTime = (timeString) => parseFloat(timeString.replace(' 시간', '').trim());
+        const formatCurrency = (number) => new Intl.NumberFormat('ko-KR').format(number) + '원';
+        
+        // --- NEW: 데이터 초기화 및 계산 함수 ---
+        function initializeTeamData() {
+            TEAM_MASTER_DATA.forEach(team => {
+                let totalGoal = 0;
+                let totalAchieved = 0;
+                
+                team.goals.forEach(goal => {
+                    totalGoal += goal.targetHours;
+                    totalAchieved += goal.achievedHours;
+                });
+                
+                team.totalGoalTime = totalGoal;
+                team.totalAchievedTime = totalAchieved;
+                
+                if (totalGoal > 0) {
+                    // 달성률 계산 및 소수점 둘째 자리 반올림
+                    team.achievedRate = Math.min(100, (totalAchieved / totalGoal) * 100);
+                } else {
+                    team.achievedRate = 0;
+                }
+            });
+            
+            // 현재 팀 이름을 추출 (페이지 타이틀 기반)
+            const pageTitle = document.title;
+            const currentTeamMatch = pageTitle.match(/([가-힣A-Z]+팀)/);
+            const currentTeamName = currentTeamMatch ? currentTeamMatch[1] : '품질경영팀';
+            const currentTeamKey = currentTeamName === '품질경영팀' ? '품질경영팀 (FPCB)' : currentTeamName; 
+
+            // 현재 팀을 맨 위로 정렬 (Y축 맨 위로 가도록)
+            TEAM_MASTER_DATA.sort((a, b) => {
+                if (a.team === currentTeamKey) return 1;
+                if (b.team === currentTeamKey) return -1;
+                return 0;
+            });
+        }
+        
+        // --- NEW: 진행 중인 교육 건수 업데이트 함수 ---
+        function updateInProgressCount() {
+            const countElement = document.getElementById('inProgressTrainingCount');
+            if (countElement) {
+                countElement.textContent = IN_PROGRESS_TRAININGS.length;
+            }
+        }
+        
+        // --- NEW: Calendar Rendering Function (Section 1) ---
+        function renderCalendar() {
+            const calendarEl = document.getElementById('trainingCalendar');
+            if (!calendarEl) return;
+            
+            // FullCalendar Event Data
+            const events = IN_PROGRESS_TRAININGS.map(training => {
+                // 기간 문자열 'YYYY.MM.DD~YYYY.MM.DD'를 파싱
+                const [startStr, endStr] = training.duration.split('~');
+                const startDate = startStr.replace(/\./g, '-').trim();
+                // FullCalendar는 endDate를 exclusive(포함하지 않음)로 처리하므로, 
+                // 종료일에 하루를 더하여 표시
+                const endDateParts = endStr.replace(/\./g, '-').trim().split('-');
+                let endDate = new Date(parseInt(endDateParts[0]), parseInt(endDateParts[1]) - 1, parseInt(endDateParts[2]));
+                endDate.setDate(endDate.getDate() + 1);
+
+                return {
+                    title: training.attendees.join(', '), // MODIFIED: 이름(참여자)만 표시하도록 변경
+                    start: startDate,
+                    end: endDate.toISOString().split('T')[0], // YYYY-MM-DD 형식으로 변환
+                    color: training.type === '사외' ? '#3B82F6' : '#10B981', // Blue for External, Green for Internal/Ongoing
+                    id: training.id,
+                    // MODIFIED: 툴팁을 위한 추가 정보 전달 (과정명 추가)
+                    extendedProps: {
+                        courseName: training.name, // 툴팁에 과정명을 보여주기 위해 추가
+                        format: training.format, // 예: '오프라인 (본사 3층 교육장)' or '온라인'
+                        attendees: training.attendees.join(', ')
+                    }
+                };
+            });
+
+            // 기존 캘린더 인스턴스가 있다면 제거하고 다시 렌더링 (일정 추가 반영 위함)
+            if (calendarEl.calendar) {
+                calendarEl.calendar.destroy();
+            }
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko', // 한국어 로케일 설정
+                // === MODIFIED: Custom buttons and headerToolbar ===
+                customButtons: {
+                    addScheduleButton: {
+                        text: '일정 추가',
+                        click: openAddScheduleModal 
+                    }
+                },
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'addScheduleButton' // dayGridMonth,dayGridWeek 제거 및 일정 추가 버튼 배치
+                },
+                fixedWeekCount: false, // 달력 높이를 내용에 맞게 조정 (스크롤 제거)
+                height: 'auto', // 높이를 자동으로 설정
+                // ===============================================
+                events: events,
+                
+                // MODIFIED: 즉시 반응하는 커스텀 툴팁 구현
+                eventDidMount: function(info) {
+                    const tooltip = document.getElementById('calendar-tooltip');
+                    const props = info.event.extendedProps;
+                    
+                    // 마우스 진입 시
+                    info.el.onmouseenter = function(e) {
+                        const content = `
+                            <div class="font-bold text-sm mb-1 text-yellow-300">📌 ${props.courseName}</div>
+                            <div class="text-xs text-white">📍 ${props.format}</div>
+                        `;
+                        tooltip.innerHTML = content;
+                        tooltip.classList.remove('hidden');
+                        
+                        // 초기 위치 설정
+                        tooltip.style.left = (e.clientX + 15) + 'px';
+                        tooltip.style.top = (e.clientY + 15) + 'px';
+                    };
+
+                    // 마우스 이동 시 (툴팁이 마우스를 따라다님)
+                    info.el.onmousemove = function(e) {
+                        tooltip.style.left = (e.clientX + 15) + 'px';
+                        tooltip.style.top = (e.clientY + 15) + 'px';
+                    };
+
+                    // 마우스 이탈 시
+                    info.el.onmouseleave = function() {
+                        tooltip.classList.add('hidden');
+                    };
+                }
+            });
+
+            calendar.render();
+            // 캘린더 인스턴스를 DOM 요소에 저장
+            calendarEl.calendar = calendar;
+        }
+
+        // --- NEW: Chart.js Rendering Function (Section 2 - Comparison) ---
+        function renderComparisonChart() {
+            const ctx = document.getElementById('teamComparisonChart');
+            if (!ctx) return;
+            
+            // NEW: 현재 팀 이름 추출 (데이터 정렬 기준과 동일)
+            const pageTitle = document.title;
+            const currentTeamMatch = pageTitle.match(/([가-힣A-Z]+팀)/);
+            const currentTeamName = currentTeamMatch ? currentTeamMatch[1] : '품질경영팀';
+            const mainTeamKey = currentTeamName === '품질경영팀' ? '품질경영팀 (FPCB)' : currentTeamName; 
+            
+            const teamLabels = TEAM_MASTER_DATA.map(d => d.team);
+            const teamAchieved = TEAM_MASTER_DATA.map(d => d.achievedRate.toFixed(1));
+            const teamColors = TEAM_MASTER_DATA.map(d => d.color);
+            
+            // MODIFIED: '구분 장치' (Highlighting main team's border)
+            const teamBorderWidths = TEAM_MASTER_DATA.map(d => 
+                d.team === mainTeamKey ? 3 : 1
+            );
+            const teamBorderColors = TEAM_MASTER_DATA.map(d => 
+                d.team === mainTeamKey ? '#2563EB' : (d.color + 'AA') // Darker blue border for main team
+            );
+
+            // 기존 차트 인스턴스가 있으면 파괴
+            if (ctx.chart) {
+                ctx.chart.destroy();
+            }
+
+            ctx.chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: teamLabels,
+                    datasets: [{
+                        label: '달성률 (%)',
+                        data: teamAchieved,
+                        backgroundColor: teamColors,
+                        borderColor: teamBorderColors, 
+                        borderWidth: teamBorderWidths, 
+                        borderRadius: 6 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // Horizontal bar chart (Y: Team, X: Rate)
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: '2025년 교육 목표 달성률 비교',
+                            font: { size: 14, weight: 'bold' } 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.x !== null) {
+                                        label += context.parsed.x.toFixed(1) + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '달성률 (%)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                display: false 
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            // MODIFIED: Y축 레이블 강조
+                            ticks: {
+                                callback: function(value, index, ticks) {
+                                    const label = this.getLabelForValue(value);
+                                    return label;
+                                },
+                                font: function(context) {
+                                    return context.tick.label === mainTeamKey ? { weight: 'bold' } : {};
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        // -----------------
+
+        // --- NEW: 일정 추가 모달 함수 ---
+        function openAddScheduleModal() {
+            document.getElementById('validationMessage').textContent = '';
+            document.getElementById('addScheduleModal').classList.remove('hidden');
+        }
+
+        function closeAddScheduleModal() {
+            document.getElementById('addScheduleModal').classList.add('hidden');
+        }
+        
+        function saveNewSchedule() {
+            const name = document.getElementById('newScheduleName').value.trim();
+            const start = document.getElementById('newScheduleStart').value.trim();
+            const end = document.getElementById('newScheduleEnd').value.trim();
+            const type = document.getElementById('newScheduleType').value.trim();
+            const messageElement = document.getElementById('validationMessage');
+
+            if (!name || !start || !end) {
+                messageElement.textContent = "❗ 과정명, 시작일, 종료일을 모두 입력해야 합니다.";
+                messageElement.classList.remove('hidden');
+                return;
+            }
+            
+            // Mock Data Update Logic
+            const newId = 't' + (IN_PROGRESS_TRAININGS.length + 1);
+            const newDuration = `${start.replace(/-/g, '.') || '미정'}~${end.replace(/-/g, '.') || '미정'}`;
+            
+            const newTraining = {
+                id: newId, 
+                name: name, 
+                duration: newDuration, 
+                attendees: ['[새로 등록]'], 
+                type: type, 
+                cost: '0원', 
+                // 임시로 온라인 형태를 가정
+                format: '온라인', 
+                appliedDate: new Date().toISOString().split('T')[0]
+            };
+
+            IN_PROGRESS_TRAININGS.push(newTraining);
+            IN_PROGRESS_DETAILS_MAP[newId] = { '과정명': name, '내용': '새로 추가된 교육', '목적': '신규 과정 등록', '기대효과': '미정', '교육요약': '미정', '업무적용계획': '미정', '업무적용 애로사항': '미정', '예상 업무적용 발현시점': '미정' };
+            
+            // Close modal and re-render calendar/list
+            closeAddScheduleModal();
+            renderCalendar(); 
+            updateInProgressCount(); // 교육 건수 업데이트
+            
+            // 입력 필드 초기화
+            document.getElementById('newScheduleName').value = '';
+            document.getElementById('newScheduleStart').value = '';
+            document.getElementById('newScheduleEnd').value = '';
+        }
+        // -----------------
+        
+        // --- NEW: 팀별 상세 목표 모달 함수 ---
+        function openTeamGoalsModal() {
+            const modal = document.getElementById('teamGoalsModal');
+            const body = document.getElementById('teamGoalsBody');
+            body.innerHTML = ''; // Clear previous content
+
+            // TEAM_MASTER_DATA를 사용
+            const teams = [...TEAM_MASTER_DATA].reverse(); 
+            
+            teams.forEach(teamData => {
+                const goals = teamData.goals;
+                const color = teamData.color; 
+
+                let goalHtml = goals.map(goal => 
+                    `<li class="text-sm text-gray-700">▪️ ${goal.name} (${goal.targetHours.toFixed(0)}시간)</li>`
+                ).join('');
+
+                const section = document.createElement('div');
+                section.className = 'p-3 rounded-lg border bg-gray-50';
+                section.style.borderColor = color; // Use team color for border
+                
+                section.innerHTML = `
+                    <h4 class="text-base font-bold" style="color: ${color};">${teamData.team}</h4>
+                    <ul class="mt-2 space-y-1">${goalHtml}</ul>
+                `;
+                body.appendChild(section);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeTeamGoalsModal() {
+            document.getElementById('teamGoalsModal').classList.add('hidden');
+        }
+        
+        // --- NEW: 팀별 교육 목표 내역 렌더링 함수 ---
+        function renderDetailedTeamGoals() {
+            const container = document.getElementById('detailedTeamGoalsContainer');
+            if (!container) return;
+
+            // TEAM_MASTER_DATA를 사용
+            let goalsHtml = TEAM_MASTER_DATA.map(teamData => {
+                const goalItemsHtml = teamData.goals.map((item, index) => {
+                    return `
+                        <div class="flex justify-between text-sm py-0.5">
+                            <span class="text-gray-800 w-2/3 truncate">${index + 1}. ${item.name}</span>
+                            <span class="text-blue-600 font-semibold w-1/3 text-right">${item.targetHours.toFixed(0)} 시간</span>
+                        </div>
+                    `;
+                }).join('');
+
+                const teamColor = teamData.color;
+                
+                return `
+                    <div class="goal-card p-4 rounded-xl border-2 shadow-md bg-white hover:shadow-lg transition duration-200" style="border-color: ${teamColor};">
+                        <!-- MODIFIED: memberCount 추가 -->
+                        <div class="flex justify-between items-start mb-2 border-b pb-2">
+                            <h4 class="text-lg font-bold" style="color: ${teamColor};">${teamData.team.replace(' (FPCB)', '')} 목표 (${teamData.memberCount}명)</h4>
+                            <span class="text-xs text-gray-600">실적: <span class="font-bold text-gray-800">${teamData.totalAchievedTime.toFixed(1)}h</span></span>
+                        </div>
+                        
+                        <h5 class="text-sm font-bold text-gray-800 mb-1">세부 목표</h5>
+                        ${goalItemsHtml}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = goalsHtml;
+        }
+
+        // --- 토글 기능 함수 (기존) ---
+        function toggleInProgressList() {
+            const elementId = 'expandedInProgressList';
+            const trainingListBody = document.getElementById('inProgressListBody');
+            const inProgressTitleList = document.getElementById('inProgressTitleList');
+            const isHidden = document.getElementById(elementId).classList.contains('hidden');
+            
+            // 모든 드롭다운 메뉴 숨기기
+            document.querySelectorAll('.evaluation-menu').forEach(menu => menu.classList.add('hidden')); 
+            
+            // 다른 펼침 섹션 숨기기
+            const expandedNonCompletersList = document.getElementById('expandedNonCompletersList');
+            if (expandedNonCompletersList && !expandedNonCompletersList.classList.contains('hidden') && elementId !== 'expandedNonCompletersList') {
+                expandedNonCompletersList.classList.add('hidden');
+            }
+            
+            if (isHidden) {
+                // NEW: 종료일(due date) 기준으로 정렬
+                const sortedTrainings = [...IN_PROGRESS_TRAININGS].sort((a, b) => {
+                    const endA = a.duration.split('~')[1].trim().replace(/\./g, '-');
+                    const endB = b.duration.split('~')[1].trim().replace(/\./g, '-');
+                    return endA.localeCompare(endB); // Due date가 가까운 순 (오름차순)
+                });
+                
+                trainingListBody.innerHTML = '';
+                const titles = sortedTrainings.map(t => t.name).join(', ');
+                if (inProgressTitleList) {
+                    inProgressTitleList.textContent = titles;
+                }
+                
+                sortedTrainings.forEach(training => {
+                    const item = document.createElement('div');
+                    item.className = 'p-4 border border-gray-200 rounded-lg bg-green-50 hover:bg-green-100 transition mb-3 last:mb-0 cursor-pointer';
+                    item.setAttribute('onclick', `openInProgressTrainingModal('${training.id}')`);
+
+                    item.innerHTML = `
+                        <p class="text-base font-bold text-green-700">${training.name}</p>
+                        <p class="text-sm text-gray-600 mt-1">기간: ${training.duration} (${training.type}) | 비용: ${training.cost}</p>
+                        <p class="text-sm text-gray-700 mt-2 font-medium">교육 형태: ${training.format} | 참여 인원: ${training.attendees.join(', ')}</p>
+                    `;
+                    trainingListBody.appendChild(item);
+                });
+            } else {
+                 if (inProgressTitleList) inProgressTitleList.textContent = ''; // 닫을 때 제목 숨김
+            }
+            document.getElementById(elementId).classList.toggle('hidden');
+        }
+
+        // NEW: 의무교육 미이수자 목록 토글 함수
+        function toggleNonCompletersList() {
+            const elementId = 'expandedNonCompletersList';
+            
+            // 모든 드롭다운 메뉴 숨기기
+            document.querySelectorAll('.evaluation-menu').forEach(menu => menu.classList.add('hidden')); 
+            
+            // 다른 펼침 섹션 숨기기
+            const expandedInProgressList = document.getElementById('expandedInProgressList');
+            if (expandedInProgressList && !expandedInProgressList.classList.contains('hidden') && elementId !== 'expandedInProgressList') {
+                expandedInProgressList.classList.add('hidden');
+            }
+            
+            document.getElementById(elementId).classList.toggle('hidden');
+        }
+
+
+        function openInProgressTrainingModal(id) {
+            const detail = IN_PROGRESS_DETAILS_MAP[id];
+            const training = IN_PROGRESS_TRAININGS.find(t => t.id === id);
+            const modal = document.getElementById('inProgressTrainingModal');
+            
+            if (!detail || !training) {
+                console.error("상세 교육 정보를 찾을 수 없습니다.");
+                return;
+            }
+
+            const titleElement = document.getElementById('inProgressModalTitle');
+            const fieldsContainer = document.getElementById('trainingModalReportFields');
+            
+            titleElement.textContent = `[${training.format}] ${detail['과정명']}`; 
+            fieldsContainer.innerHTML = ''; 
+
+            const fields = ['과정명', '내용', '목적', '기대효과', '교육요약', '업무적용계획', '업무적용 애로사항', '예상 업무적용 발현시점'];
+            
+            fields.forEach(field => {
+                const value = detail[field] || '내용 미등록';
+                const item = document.createElement('div');
+                item.className = 'border-b border-gray-200 pb-3';
+                item.innerHTML = `
+                    <h4 class="text-sm font-bold text-gray-700 mb-1">${field}</h4>
+                    <p class="text-sm text-gray-600 bg-gray-50 p-2 rounded whitespace-pre-wrap">${value}</p>
+                `;
+                fieldsContainer.appendChild(item);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeInProgressTrainingModal() {
+            document.getElementById('inProgressTrainingModal').classList.add('hidden');
+        }
+        
+        function openEducationDetailModal(id) {
+            const item = ALL_EDUCATIONS_MASTER.find(e => e.id === id);
+            const modal = document.getElementById('educationDetailModal');
+            
+            if (!item) {
+                console.error("교육 이력 항목을 찾을 수 없습니다.");
+                return;
+            }
+            
+            const contentBody = document.getElementById('educationDetailBody');
+            const report = EDUCATION_REPORT_MAP[id] || {}; 
+            
+            const fields = ['내용', '목적', '기대효과', '교육요약', '업무적용계획', '업무적용 애로사항', '예상 업무적용 발현시점'];
+
+            let reportHtml = `
+                <div class="space-y-4 pt-2">
+                    <h4 class="text-lg font-bold text-blue-700 border-b pb-2 mb-3">${item.name}</h4>
+                    <p class="text-sm text-gray-600 mb-4">${item.empName} / ${item.dept}</p> 
+            `;
+            
+            fields.forEach(field => {
+                const value = report[field] || '내용 미등록';
+                reportHtml += `
+                    <div class="pb-3 last:border-b-0">
+                        <span class="font-bold text-gray-700 block text-xs mb-1">${field}</span>
+                        <p class="text-sm text-gray-800 bg-gray-100 p-2 mt-1 rounded whitespace-pre-wrap">${value}</p>
+                    </div>
+                `;
+            });
+
+            reportHtml += `</div>`;
+            
+            contentBody.innerHTML = reportHtml;
+            modal.classList.remove('hidden');
+        }
+
+        function closeEducationDetailModal() {
+            document.getElementById('educationDetailModal').classList.add('hidden');
+        }
+
+        
+        function openMemberDetailModal(memberId) {
+            const member = FPCB_MEMBERS.find(m => m.id === memberId); 
+            
+            if (!member) {
+                console.error(`Member not found for ID: ${memberId}`);
+                return; 
+            }
+
+            const modal = document.getElementById('memberDetailModal');
+            document.getElementById('modalMemberName').textContent = `${member.name} (${member.id})`;
+            
+            const detailsBody = document.getElementById('modalMemberDetails');
+            
+            const MANDATORY_EXTERNAL_GOAL = 12.0;
+            const numericTotalTime = getNumericTime(member.totalTime);
+            const numericExternalTime = getNumericTime(member.externalTime);
+
+            // 1. Total Goal Achievement
+            const totalAchievementRate = member.goalTime && member.goalTime > 0 
+                ? (numericTotalTime / member.goalTime) * 100 
+                : 0;
+            const totalRate = Math.min(100, totalAchievementRate).toFixed(1);
+            const totalBarWidth = `${totalRate}%`;
+            const totalGoalTime = member.goalTime ? member.goalTime.toFixed(1) : '미정';
+            const totalRateDisplay = totalAchievementRate.toFixed(1);
+
+            // 2. Mandatory External Goal Achievement
+            const mandatoryAchievementRate = (numericExternalTime / MANDATORY_EXTERNAL_GOAL) * 100;
+            const mandatoryRate = Math.min(100, mandatoryAchievementRate).toFixed(1); 
+            const mandatoryBarWidth = `${mandatoryRate}%`;
+            const mandatoryBarColor = mandatoryAchievementRate >= 100 ? 'bg-green-600' : 'bg-red-500';
+            const mandatoryTextColor = mandatoryAchievementRate >= 100 ? 'text-green-700' : 'text-red-700';
+            const mandatoryRateDisplay = mandatoryAchievementRate.toFixed(1);
+
+            // 3. 개인 교육 계획 목록 (체크리스트) 
+            const MEMBER_PLANS = {
+                '20220458': [ // 박동혁
+                    { name: 'ISO 9001 심화 과정 이수', completed: true, isExternal: true }, 
+                    { name: '품질 데이터 분석 전문가 자격증 취득', completed: false, isExternal: false }, 
+                    { name: '5S 활동 리더 교육', completed: true, isExternal: true } 
+                ],
+                '201920458': [ // 김동혁
+                    { name: '사내 코딩 교육 (Python)', completed: true, isExternal: false }, // 김동혁의 새로운 이수 과정에 맞춰 임시 업데이트
+                    { name: 'FPCB 공정 기초 교육', completed: false, isExternal: true }, 
+                    { name: '최신 반도체 공정 기술 이해', completed: true, isExternal: true }
+                ]
+            };
+            
+            let checklistHtml = '';
+            const plans = MEMBER_PLANS[member.id] || [];
+
+            plans.forEach(plan => {
+                const checkIcon = plan.completed 
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-blue-600 flex-shrink-0"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.857a.75.75 0 00-1.214-.857l-3.333 3.333-1.666-1.666a.75.75 0 00-1.06 1.06l2.5 2.5a.75.75 0 001.06 0l4-4a.75.75 0 00.001-1.06z" clip-rule="evenodd" /></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`;
+                const planTypeTag = plan.isExternal ? 
+                    `<span class="text-[10px] font-bold text-red-700 bg-red-100 px-1 py-0.5 rounded-full ml-1">사외교육</span>` : 
+                    `<span class="text-[10px] font-bold text-gray-700 bg-gray-100 px-1 py-0.5 rounded-full ml-1">상시학습</span>`;
+
+                checklistHtml += `
+                    <div class="flex items-start space-x-2 py-1.5 border-b border-gray-100 last:border-b-0">
+                        ${checkIcon}
+                        <div class="flex-1 min-w-0">
+                            <span class="text-sm ${plan.completed ? 'text-gray-700 line-through' : 'text-gray-900 font-medium'} truncate">${plan.name}</span>
+                            ${planTypeTag}
+                        </div>
+                    </div>
+                `;
+            });
+            if (plans.length === 0) {
+                 checklistHtml = '<p class="text-sm text-gray-500 p-2 text-center">개인 교육 계획서에 등록된 계획이 없습니다.</p>';
+            }
+
+            // 5. 계획하지 않았지만 들었던 교육 (계획에 없고 이수한 교육)
+            const getUnplannedEducations = (memberId, memberEducations, memberPlans) => {
+                const memberPlanNames = new Set((memberPlans[memberId] || []).map(p => p.name.trim().toLowerCase()));
+                return memberEducations.filter(edu => {
+                    if (edu.status !== '이수완료') return false; 
+                    return !memberPlanNames.has(edu.name.trim().toLowerCase());
+                });
+            };
+            const unplannedEducations = getUnplannedEducations(member.id, ALL_EDUCATIONS_MASTER, MEMBER_PLANS);
+            let unplannedHtml = ''; 
+
+            if (unplannedEducations.length > 0) {
+                unplannedHtml = unplannedEducations.map(edu => `
+                    <div class="p-2 border-b border-gray-200 last:border-b-0">
+                        <p class="text-sm font-semibold text-gray-800">${edu.name}</p>
+                        <p class="text-xs text-gray-600 mt-1">기간: ${edu.period} (${edu.source}) | 인정: ${edu.hours.toFixed(1)} 시간</p>
+                    </div>`
+                ).join('');                
+            } else {
+                 unplannedHtml = '<p class="text-sm text-gray-500 p-2 text-center">계획 외 이수 교육이 없습니다.</p>';
+            }
+
+
+            // 최종 모달 내용 구성
+            detailsBody.innerHTML = `
+                <!-- 1. 총 교육 목표 달성 현황 (계획 기준) -->
+                <div class="space-y-3 p-3 bg-indigo-50 rounded-lg">
+                    <p class="text-base font-bold text-indigo-700">총 교육 목표 달성 현황 (계획: ${totalGoalTime} 시간)</p>
+                    <div class="text-sm">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-semibold text-gray-700">총 이수 시간: ${member.totalTime}</span>
+                            <span class="font-extrabold text-indigo-800">${totalRateDisplay}%</span>
+                        </div>
+                        <div class="w-full bg-indigo-200 rounded-full h-3">
+                            <div class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: ${totalBarWidth}"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 의무 사외 교육 달성 현황 (12.0 시간 기준) -->
+                <div class="space-y-3 p-3 bg-red-50 rounded-lg">
+                    <p class="text-base font-bold text-red-700">의무 사외 교육 달성 현황 (목표: ${MANDATORY_EXTERNAL_GOAL.toFixed(1)} 시간)</p>
+                    <div class="text-sm">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-semibold text-gray-700">사외 이수 시간: ${member.externalTime}</span>
+                            <span class="font-extrabold ${mandatoryTextColor}">${mandatoryRateDisplay}%</span>
+                        </div>
+                        <div class="w-full bg-red-200 rounded-full h-3">
+                            <div class="${mandatoryBarColor} h-3 rounded-full transition-all duration-500" style="width: ${mandatoryBarWidth}"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 개인 교육 계획 체크리스트 -->
+                <div class="pt-4 mt-4 space-y-3 p-3 bg-gray-100 rounded-lg border border-gray-200">
+                    <p class="text-base font-bold text-gray-800 border-b pb-2">개인 교육 계획</p>
+                    <div class="max-h-32 overflow-y-auto pr-2">
+                        ${checklistHtml}
+                    </div>
+                </div>
+                
+                <!-- 4. 계획하지 않았지만 들었던 교육 목록 -->
+                <div class="pt-4 space-y-3 p-3 bg-gray-100 rounded-lg border border-gray-200">
+                    <p class="text-base font-bold text-gray-800 border-b pb-2">추가 이수 교육</p> 
+                    <div class="max-h-32 overflow-y-auto pr-2">
+                            ${unplannedHtml}
+                    </div>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        function closeMemberDetailModal() {
+            document.getElementById('memberDetailModal').classList.add('hidden');
+        }
+        // --- 인원 현황 팝업 함수 끝 ---
+
+        // --- 필터링 및 렌더링 로직 (기존) ---
+
+        function renderEducationList(data) {
+            const listContainer = document.getElementById('filteredEducationList');
+            if (data.length === 0) {
+                listContainer.innerHTML = '<p class="text-center text-gray-500 p-4">검색 조건에 맞는 교육 이력이 없습니다.</p>';
+                return;
+            }
+
+            listContainer.innerHTML = data.map(item => {
+                const statusColor = item.status === '이수완료' ? 'text-green-500' : 'text-red-500';
+                const costDisplay = item.cost > 0 ? formatCurrency(item.cost) : '₩0';
+                const refundStatus = item.refundable === 'O' ? 'O' : 'X';
+                
+                const educationOrganizer = item.source === '사외' ? '외부 기관' : '사내 상시 학습';
+                
+                return `
+                    <div class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer" onclick="openEducationDetailModal('${item.id}')">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="space-y-1">
+                                <p class="text-lg font-bold text-gray-800">${item.name}</p>
+                                <p class="text-sm font-semibold text-blue-600">${item.empName} / ${item.dept}</p>
+                            </div>
+                            <span class="text-xs text-blue-600 font-semibold bg-blue-100 px-2 py-1 rounded-full">${educationOrganizer}</span>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-700 border-t pt-2 mt-2">
+                            <p>기간: <span class="font-semibold">${item.period}</span></p>
+                            <p>상태: <span class="font-semibold ${statusColor}">${item.status}</span></p>
+                            <p>형태: <span class="font-semibold">${item.type}</span></p>
+                            <p>교육주관: <span class="font-semibold">${educationOrganizer}</span></p>
+                            <p>인정시간: <span class="font-semibold text-blue-500">${item.hours.toFixed(1)} 시간</span></p>
+                            <p>비용: <span class="font-semibold">${costDisplay}</span></p>
+                            <p>환급여부: <span class="font-semibold">${refundStatus}</span></p>
+                            <p></p> <!-- 4열 맞춤용 빈 공간 -->
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterAndRenderEducationList() {
+            const courseNameInput = document.getElementById('filterCourseName');
+            const employeeSelect = document.getElementById('filterEmployeeNameSelect');
+            const jobTitleSelect = document.getElementById('jobTitle');
+            const statusTypeSelect = document.getElementById('statusType');
+
+            const courseNameValue = courseNameInput ? courseNameInput.value.trim().toLowerCase() : '';
+            const employeeIdValue = employeeSelect ? employeeSelect.value : '';
+            const jobTitleValue = jobTitleSelect ? jobTitleSelect.value : '';
+            const statusTypeValue = statusTypeSelect ? statusTypeSelect.value : '';
+
+            let filtered = ALL_EDUCATIONS_FILTERABLE;
+            
+            // 1. Course Name Filter
+            if (courseNameValue) {
+                filtered = filtered.filter(item => item.name.toLowerCase().includes(courseNameValue));
+            }
+
+            // 2. Employee Filter (by ID)
+            if (employeeIdValue) {
+                filtered = filtered.filter(item => item.empId === employeeIdValue);
+            }
+
+            // 3. Job Title Filter (Placeholder logic since jobTitle isn't in ALL_EDUCATIONS_MASTER mock data)
+            if (jobTitleValue && jobTitleValue !== '전체 직책') {
+                // Filtering skipped for now.
+            }
+
+            // 4. Status Filter
+            if (statusTypeValue) {
+                filtered = filtered.filter(item => item.status === statusTypeValue);
+            }
+
+            renderEducationList(filtered);
+        }
+
+        function clearFiltersAndRender() {
+            const courseNameInput = document.getElementById('filterCourseName');
+            const employeeSelect = document.getElementById('filterEmployeeNameSelect');
+            const jobTitleSelect = document.getElementById('jobTitle');
+            const statusTypeSelect = document.getElementById('statusType');
+
+            if (courseNameInput) courseNameInput.value = '';
+            if (employeeSelect) employeeSelect.value = '';
+            if (jobTitleSelect) jobTitleSelect.value = '';
+            if (statusTypeSelect) statusTypeSelect.value = '';
+
+            renderEducationList(ALL_EDUCATIONS_FILTERABLE);
+        }
+
+        function populateEmployeeFilter() {
+            const select = document.getElementById('filterEmployeeNameSelect');
+            if (!select) return;
+            select.innerHTML = '<option value="">전체 인원</option>'; 
+            FPCB_MEMBERS.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member.id;
+                option.textContent = `${member.name} (${member.id})`;
+                select.appendChild(option);
+            });
+        }
+        
+        // --- NEW: 평가 드롭다운 토글 및 선택 함수 ---
+        function toggleEvaluationDropdown(event, memberId, eduId) {
+            event.stopPropagation(); 
+            // 모든 드롭다운 메뉴 숨기기
+            document.querySelectorAll('.evaluation-menu').forEach(menu => {
+                if (menu.id !== `menu-${memberId}-${eduId}`) {
+                    menu.classList.add('hidden');
+                }
+            });
+
+            const menu = document.getElementById(`menu-${memberId}-${eduId}`);
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        }
+        
+        function selectEvaluation(memberId, eduId, value) {
+            // Mock Data 업데이트 (실제 DB는 아님)
+            const edu = ALL_EDUCATIONS_MASTER.find(e => e.id === eduId && e.empId === memberId);
+            if (edu) {
+                edu.evaluation = value;
+            }
+            
+            // UI 업데이트
+            renderApplicationTiming();
+            
+            // 모든 드롭다운 메뉴 숨기기
+            document.querySelectorAll('.evaluation-menu').forEach(menu => menu.classList.add('hidden'));
+        }
+
+        // --- MODIFIED: 예상 업무 적용 발현 시점 렌더링 함수 ---
+        function renderApplicationTiming() {
+            const container = document.getElementById('applicationTimingList');
+            if (!container) return;
+            
+            let listHtml = '';
+
+            // --- 업무 적용 평가 태그 헬퍼 함수 (클릭 가능 드롭다운으로 변경) ---
+            const getEvaluationDropdown = (memberId, eduId, evaluation) => {
+                let colorClass = 'bg-gray-200 text-gray-700';
+                if (evaluation === '상') colorClass = 'bg-green-100 text-green-700 font-extrabold';
+                else if (evaluation === '중') colorClass = 'bg-yellow-100 text-yellow-700 font-bold';
+                else if (evaluation === '하') colorClass = 'bg-red-100 text-red-700 font-bold';
+                
+                // MODIFIED: 버튼 스타일 변경 (테두리, 그림자, 배경색, 드롭다운 아이콘 추가)
+                return `
+                    <div class="evaluation-dropdown w-full flex justify-end">
+                        <button onclick="toggleEvaluationDropdown(event, '${memberId}', '${eduId}')" class="flex items-center justify-between text-sm px-2 py-1 rounded-lg ${colorClass} bg-gray-100 border border-gray-300 shadow-sm hover:bg-gray-200 transition duration-100 min-w-[80px] text-center">
+                            <span class="flex-1">${evaluation}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 ml-1 flex-shrink-0 text-gray-500">
+                                <path fill-rule="evenodd" d="M5.234 7.234A2 2 0 017 6h6a2 2 0 011.766 1.234l.234.352c.321.482.492 1.054.492 1.63V15a2 2 0 01-2 2H6a2 2 0 01-2-2v-5.784c0-.576.171-1.148.492-1.63L5.234 7.234z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <div id="menu-${memberId}-${eduId}" class="evaluation-menu hidden bg-white border border-gray-300 rounded-lg overflow-hidden">
+                            <!-- MODIFIED: 드롭다운 메뉴 항목에 시각적 구분 추가 -->
+                            <button onclick="selectEvaluation('${memberId}', '${eduId}', '상')" class="block w-full text-left px-3 py-1 text-sm hover:bg-gray-200 bg-green-50 text-green-700 font-bold border-b border-gray-100">상</button>
+                            <button onclick="selectEvaluation('${memberId}', '${eduId}', '중')" class="block w-full text-left px-3 py-1 text-sm hover:bg-gray-200 bg-yellow-50 text-yellow-700 font-bold border-b border-gray-100">중</button>
+                            <button onclick="selectEvaluation('${memberId}', '${eduId}', '하')" class="block w-full text-left px-3 py-1 text-sm hover:bg-gray-200 bg-red-50 text-red-700 font-bold border-b border-gray-100">하</button>
+                            <button onclick="selectEvaluation('${memberId}', '${eduId}', '미평가')" class="block w-full text-left px-3 py-1 text-sm hover:bg-gray-200 text-gray-600">미평가</button>
+                        </div>
+                    </div>
+                `;
+            };
+
+            // FPCB_MEMBERS 순회
+            FPCB_MEMBERS.forEach(member => {
+                // 2025년 이수 완료된 교육만 필터링 (요청 사항 유지)
+                const completedList = ALL_EDUCATIONS_MASTER.filter(edu => 
+                    edu.empId === member.id && 
+                    edu.period.includes('2025') && 
+                    edu.status === '이수완료'
+                );
+                
+                const allRelevantEducations = completedList.sort((a, b) => {
+                    // 예상 적용 시점으로 정렬 (실제 날짜는 report map에서 가져와야 함)
+                    const timingA = EDUCATION_REPORT_MAP[a.id]?.['예상 업무적용 발현시점'] || '미등록';
+                    const timingB = EDUCATION_REPORT_MAP[b.id]?.['예상 업무적용 발현시점'] || '미등록';
+                    
+                    if (timingA === '미등록' && timingB !== '미등록') return 1;
+                    if (timingA !== '미등록' && timingB === '미등록') return -1;
+                    return timingA.localeCompare(timingB);
+                });
+                
+                // 교육 목록 HTML 생성
+                let educationItemsHtml = '';
+                if (allRelevantEducations.length > 0) {
+                    educationItemsHtml = allRelevantEducations.map(edu => {
+                        const timing = EDUCATION_REPORT_MAP[edu.id]?.['예상 업무적용 발현시점'] || '미등록';
+                        const content = EDUCATION_REPORT_MAP[edu.id]?.['내용'] || '상세 내용 미등록';
+                        const timingDisplay = timing.match(/^\d{4}-\d{2}-\d{2}$/) ? timing : '미등록'; // YYYY-MM-DD 형식만 표시
+
+                        return `
+                            <div class="flex justify-between items-start py-1 border-b border-gray-100 last:border-b-0">
+                                <!-- 좌: 과정명 (W-2/12) - 한 줄로 고정 해제. 내용이 길면 줄바꿈 -->
+                                <span class="text-sm text-gray-700 font-medium w-2/12 pr-1">
+                                    <span class="text-xs font-bold text-green-700 mr-1">[완료]</span>
+                                    ${edu.name}
+                                </span>
+
+                                <!-- 중-좌: 내용 (W-6/12) - 줄바꿈 허용 -->
+                                <span class="text-sm text-gray-600 w-6/12 pr-2">
+                                    ${content}
+                                </span>
+                                
+                                <!-- 중-우: 예상 업무 적용 시점 (W-2/12) -->
+                                <span class="text-sm ${timingDisplay === '미등록' ? 'text-red-500 font-semibold' : 'text-indigo-600 font-bold'} w-2/12 text-center flex-shrink-0">
+                                    ${timingDisplay}
+                                </span>
+                                
+                                <!-- 우: 업무 적용 평가 (W-2/12) -->
+                                <span class="w-2/12 flex justify-end flex-shrink-0">
+                                    ${getEvaluationDropdown(member.id, edu.id, edu.evaluation || '미평가')}
+                                </span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    educationItemsHtml = '<p class="text-sm text-gray-500 py-2 text-center">금년도에 이수 완료된 교육이 없어 예상 적용 시점을 표시할 수 없습니다.</p>';
+                }
+
+                listHtml += `
+                    <div class="p-4 bg-white rounded-lg border border-gray-200 shadow-sm col-span-1">
+                        <p class="text-lg font-bold text-blue-700 mb-3">${member.name} (${member.id})</p>
+                        <div class="space-y-1">
+                            ${educationItemsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // NOTE: h3 태그와 그 아래의 여백이 제거되고, 헤더 행의 paddingTop/Margin이 조정됨.
+            container.innerHTML = `
+                <!-- NEW: Header Row -->
+                <div class="flex justify-between items-center px-4 pt-1 pb-2 font-bold text-xs text-gray-600 border-b border-gray-300 bg-gray-50 rounded-t-lg">
+                    <span class="w-2/12">과정명</span>
+                    <span class="w-6/12">내용</span>
+                    <span class="w-2/12 text-center">예상 업무 적용 시점</span>
+                    <span class="w-2/12 text-right pr-2">평가</span>
+                </div>
+                <!-- Data Rows -->
+                <div class="space-y-4">
+                    ${listHtml}
+                </div>
+            `;
+            container.classList.remove('md:grid-cols-2');
+            container.classList.add('grid-cols-1');
+        }
+        
+        // --- NEW: 미이수자 렌더링 함수 (기존) ---
+        function renderNonCompleters() {
+            // Note: 이 함수는 expandedNonCompletersList에 내용을 주입하고 nonCompletersList를 비우도록 설계됨.
+            const container = document.getElementById('expandedNonCompletersList');
+            const summaryContainer = document.getElementById('nonCompletersCount'); // MODIFIED: 카운트 ID 사용
+            if (!container || !summaryContainer) return;
+            
+            const NON_COMPLETERS = FPCB_MEMBERS.map(member => {
+                const numericTotalTime = getNumericTime(member.totalTime);
+                const isGoalMet = numericTotalTime >= member.goalTime;
+                return {
+                    name: member.name,
+                    id: member.id,
+                    goal: member.goalTime,
+                    achieved: numericTotalTime,
+                    isMet: isGoalMet
+                };
+            }).filter(member => !member.isMet); 
+
+            // MODIFIED: 요약 텍스트 대신 미달성 인원수만 주입
+            summaryContainer.textContent = NON_COMPLETERS.length; 
+
+            if (NON_COMPLETERS.length === 0) {
+                 container.innerHTML = '<p class="text-center text-green-500 p-4 font-semibold">모든 팀원이 교육 목표를 달성했습니다!</p>';
+                 return;
+            }
+
+            let listHtml = NON_COMPLETERS.map(member => {
+                const neededHours = (member.goal - member.achieved).toFixed(1);
+                const progress = (member.achieved / member.goal) * 100;
+                const progressBarWidth = `${Math.min(99, progress)}%`; 
+
+                return `
+                    <div class="p-4 bg-red-50 rounded-lg border border-red-200">
+                        <p class="text-lg font-bold text-red-700">${member.name} (${member.id})</p>
+                        <p class="text-sm text-gray-600 mt-1">목표: ${member.goal.toFixed(1)}시간 | 현재: ${member.achieved.toFixed(1)}시간</p>
+                        <p class="text-sm font-extrabold text-red-600 mt-2">필요 시간: ${neededHours} 시간</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-3">
+                            <div class="bg-red-500 h-2 rounded-full transition-all duration-500" style="width: ${progressBarWidth}"></div>
+                        </div>
+                        <span class="text-xs text-red-500 mt-1 block text-right">${progress.toFixed(1)}% 달성</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // 토글 목록에 내용 주입
+            container.innerHTML = `<div class="space-y-4 p-4">${listHtml}</div>`;
+        }
+
+        // --- DOMContentLoaded 로직 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // NEW: 데이터 초기화 및 계산
+            initializeTeamData();
+
+            // NEW: 교육 건수 초기 업데이트
+            updateInProgressCount();
+            
+            // New Render Functions
+            renderCalendar(); 
+            renderComparisonChart(); 
+            renderDetailedTeamGoals(); // NEW: 상세 목표 렌더링
+
+            // Existing Render Functions
+            populateEmployeeFilter();
+            renderApplicationTiming(); // MODIFIED
+            renderNonCompleters(); 
+            filterAndRenderEducationList(); 
+
+            // Attach event listeners
+            document.getElementById('searchButton').addEventListener('click', filterAndRenderEducationList);
+            document.getElementById('clearFiltersButton').addEventListener('click', clearFiltersAndRender);
+            
+            document.getElementById('memberDetailModal').addEventListener('click', (e) => {
+                if (e.target.id === 'memberDetailModal') closeMemberDetailModal();
+            });
+            
+            // 다가오는 교육 일정 섹션 초기화 시 목록 제목도 업데이트
+            const inProgressTitleList = document.getElementById('inProgressTitleList');
+            if (inProgressTitleList) {
+                const titles = IN_PROGRESS_TRAININGS.map(t => t.name).join(', ');
+                inProgressTitleList.textContent = titles;
+            }
+
+            // Global click listener to close dropdowns when clicking outside
+            document.addEventListener('click', (event) => {
+                const dropdowns = document.querySelectorAll('.evaluation-menu');
+                dropdowns.forEach(menu => {
+                    if (!menu.classList.contains('hidden') && !menu.parentElement.contains(event.target)) {
+                        menu.classList.add('hidden');
+                    }
+                });
+            });
+        });
+        
+    </script>
+
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 lg:p-10">
+
+    <!-- Header/Title Section -->
+    <header class="mb-8 border-b pb-4">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-4">FPCB사업본부 품질경영팀 대시보드</h1>
+    </header>
+
+    <div id="fpcb-content" class="content-section space-y-12">
+
+        <!-- 1. 다가오는 교육 일정 (Calendar View Added) -->
+        <h2 class="text-xl font-bold text-gray-700 mb-6">1. 다가오는 교육 일정</h2>
+        <div class="card bg-white p-6 border border-gray-200 space-y-4">
+            
+            <!-- Calendar Container: h-96 class removed for auto height/no scroll -->
+            <div id="trainingCalendar" class="p-2 border border-gray-200 rounded-lg shadow-inner bg-gray-50">
+                <!-- FullCalendar will be rendered here -->
+            </div>
+
+            <div class="flex justify-between items-center pt-4 border-t">
+                <!-- MODIFIED: Title Change -->
+                <h3 class="text-lg font-bold text-gray-800">
+                    다가오는 교육 (총 
+                    <span id="inProgressTrainingCount"></span>
+                    건)
+                </h3>
+                <button onclick="toggleInProgressList()" class="text-sm font-semibold text-green-600 hover:text-green-700 transition duration-150">
+                    상세 목록 펼치기/숨기기
+                </button>
+            </div>
+            
+            <!-- 펼쳐지는 상세 정보 영역들 (현재 진행 중인 교육) -->
+            <div id="expandedInProgressList" class="hidden mt-6 rounded-xl border border-green-200 shadow-inner">
+                <div class="p-3 bg-green-100 rounded-t-xl">
+                    <p class="text-sm font-bold text-green-800">목록: <span id="inProgressTitleList"></span></p>
+                </div>
+                <div id="inProgressListBody" class="p-4"></div>
+            </div>
+        </div>
+
+        <!-- 2. 인력 현황 (팀원 현황 및 팀별 비교 그래프 추가) -->
+        <!-- MODIFIED: Section 2 Title Change -->
+        <h2 class="text-xl font-bold text-gray-700 mb-6">2. 교육 진행사항</h2>
+        <div class="card bg-white p-6 border border-gray-200 space-y-8">
+            
+            <!-- 2-1. 팀별 교육 목표 달성률 비교 (NEW) - MOVED UP -->
+            <div>
+                <!-- MODIFIED: Added button for team goals -->
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="text-lg font-bold text-gray-800">팀별 연간 교육 목표 달성률 비교</h3>
+                    <button onclick="openTeamGoalsModal()" class="text-sm font-semibold text-blue-600 hover:text-blue-700 transition duration-150">
+                        팀별 상세 목표 보기
+                    </button>
+                </div>
+                
+                <!-- MODIFIED: Re-enabled graph with canvas, height changed to h-80 for 8 items -->
+                <div class="p-2 bg-gray-50 rounded-lg border border-gray-200"> 
+                    <canvas id="teamComparisonChart" class="h-80"></canvas>
+                </div>
+                <p class="text-xs text-gray-500 text-center mt-3">* 달성률은 총 목표 시간 대비 실적 시간 기준으로 계산되었습니다.</p>
+            </div>
+
+            <!-- NEW SECTION: 팀별 교육 목표 내역 (예시) -->
+            <div>
+                <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">팀별 교육 목표 내역 (예시)</h3>
+                <div id="detailedTeamGoalsContainer" class="goals-scroll-container">
+                    <!-- Detailed goals will be rendered here by JS -->
+                </div>
+            </div>
+
+            <!-- 2-2. 팀원별 교육 목표 및 이수 현황 (기존) - MOVED DOWN -->
+            <div>
+                <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">팀원별 교육 목표 및 이수 현황 (품질경영팀)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="p-3 bg-soft-blue rounded-lg border border-blue-200 hover:bg-blue-50 transition cursor-pointer" onclick="openMemberDetailModal('20220458')">
+                        <div class="flex justify-between items-start">
+                            <span class="font-semibold text-blue-600 hover:underline">박동혁 (20220458)</span>
+                            <span class="text-sm font-bold text-blue-800">70.0%</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">총 이수 시간: 14.0 시간 (목표: 20.0 시간)</p>
+                        <div class="w-full bg-blue-200 rounded-full h-2 mt-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: 70.0%"></div>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-soft-blue rounded-lg border border-blue-200 hover:bg-blue-50 transition cursor-pointer" onclick="openMemberDetailModal('201920458')">
+                        <div class="flex justify-between items-start">
+                            <span class="font-semibold text-blue-600 hover:underline">김동혁 (201920458)</span>
+                            <span class="text-sm font-bold text-blue-800">53.3%</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">총 이수 시간: 8.0 시간 (목표: 15.0 시간)</p>
+                        <div class="w-full bg-blue-200 rounded-full h-2 mt-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: 53.3%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 3. 예상 업무 적용 발현 시점 (구성원별) (기존) -->
+        <!-- MODIFIED: Title Change -->
+        <h2 class="text-xl font-bold text-gray-700 mb-6">3. 예상 업무 적용 발현 시점</h2>
+        <div class="card bg-white p-6 border border-gray-200">
+            <!-- REMOVED: h3 부제목 제거 -->
+            <div id="applicationTimingList" class="grid gap-4 grid-cols-1 mt-0">
+                <p class="text-center text-gray-500 p-4">데이터 로드 중...</p>
+            </div>
+        </div>
+
+        <!-- 4. 미이수자 (기존) -->
+        <!-- MODIFIED: Section 4 Title and Structure Change -->
+        <h2 class="text-xl font-bold text-gray-700 mb-6">4. 의무교육 미이수자</h2>
+        <div class="card bg-white p-6 border border-gray-200 space-y-4">
+            <div class="flex justify-between items-center">
+                <!-- MODIFIED: 제목에 괄호 열고 미이수자 수 표시 -->
+                <h3 class="text-lg font-bold text-gray-800">의무교육 미이수자 (<span id="nonCompletersCount">0</span>명)</h3>
+                <button onclick="toggleNonCompletersList()" class="text-sm font-semibold text-red-600 hover:text-red-700 transition duration-150">
+                    상세 목록 펼치기/숨기기
+                </button>
+            </div>
+            
+            <!-- MODIFIED: 펼쳐지는 상세 정보 영역만 남김 -->
+            <div id="expandedNonCompletersList" class="hidden rounded-xl border border-red-200 shadow-inner bg-white">
+                <!-- Content injected by renderNonCompleters() -->
+            </div>
+        </div>
+
+
+        <!-- 5. 교육 이수 내역 (기존) -->
+        <div class="card bg-white p-6 border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-700 mb-6">5. 교육 이수 내역</h2>
+
+            <!-- 검색 필터 영역 -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-6 mb-6 border-b pb-6">
+                
+                <!-- 과정명 검색 (Input) -->
+                <div class="col-span-2 md:col-span-1">
+                    <label for="filterCourseName" class="text-xs font-semibold text-gray-500 block mb-1">과정명 검색</label>
+                    <input type="text" id="filterCourseName" placeholder="교육명 키워드"
+                        class="h-10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                
+                <!-- 성명 검색 (사번) (Select) -->
+                <div class="col-span-2 md:col-span-1">
+                    <label for="filterEmployeeNameSelect" class="text-xs font-semibold text-gray-500 block mb-1">성명 검색 (사번)</label>
+                    <select id="filterEmployeeNameSelect" class="h-10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">전체 인원</option>
+                    </select>
+                </div>
+                
+                <!-- 직책 (Dropdown) -->
+                <div class="col-span-2 md:col-span-1">
+                    <label for="jobTitle" class="text-xs font-semibold text-gray-500 block mb-1">직책</label>
+                    <select id="jobTitle" class="h-10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">전체 직책</option>
+                        <option value="팀장">팀장</option>
+                        <option value="사원">사원</option>
+                    </select>
+                </div>
+                
+                <!-- 구분/상태 (Dropdown) -->
+                <div class="col-span-2 md:col-span-1">
+                    <label for="statusType" class="text-xs font-semibold text-gray-500 block mb-1">구분 (상태)</label>
+                    <select id="statusType" class="h-10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">전체 상태</option>
+                        <option value="진행중">진행중</option>
+                        <option value="이수완료">이수완료</option>
+                    </select>
+                </div>
+
+                <!-- 검색/초기화 버튼 그룹 -->
+                <div class="col-span-2 md:col-span-1 flex items-end space-x-3">
+                    <button id="searchButton" class="flex-1 px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition shadow-md">검색</button>
+                    <button id="clearFiltersButton" class="flex-1 px-4 py-2 bg-gray-400 text-white font-semibold rounded-lg hover:bg-gray-500 transition shadow-md">초기화</button>
+                </div>
+            </div>
+
+            <!-- 교육 이력 목록 영역 -->
+            <div id="filteredEducationList" class="space-y-4">
+                <!-- 필터링된 결과가 여기에 동적으로 렌더링됩니다. -->
+                <p class="text-center text-gray-500 p-4">데이터를 불러오는 중입니다...</p>
+            </div>
+        </div>
+    </div> 
+    
+    <!-- 팀원 상세 정보 모달 (기존) -->
+    <div id="memberDetailModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 id="modalMemberName" class="text-2xl font-bold text-gray-800"></h3>
+                <button onclick="closeMemberDetailModal()" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="space-y-4 text-gray-700 text-sm" id="modalMemberDetails">
+                <!-- Details will be injected here -->
+            </div>
+            <button onclick="closeMemberDetailModal()" class="mt-6 w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md">닫기</button>
+        </div>
+    </div>
+
+    <!-- 교육 이력 상세 정보 모달 (기존) -->
+    <div id="educationDetailModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-gray-800">교육 이력 상세</h3>
+                <button onclick="closeEducationDetailModal()" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="space-y-4 text-gray-700 text-sm" id="educationDetailBody">
+                <!-- Content injected by openEducationDetailModal -->
+            </div>
+            <button onclick="closeEducationDetailModal()" class="mt-6 w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-md">확인</button>
+        </div>
+    </div>
+
+
+    <!-- 교육 진행 상세 정보 모달 (기존) -->
+    <div id="inProgressTrainingModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 id="inProgressModalTitle" class="text-xl font-bold text-gray-800"></h3>
+                <button onclick="closeInProgressTrainingModal()" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="space-y-4 text-gray-700" id="trainingModalReportFields">
+                <!-- Report Fields will be injected here -->
+            </div>
+            <button onclick="closeInProgressTrainingModal()" class="mt-6 w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition shadow-md">닫기</button>
+        </div>
+    </div>
+
+    <!-- NEW: 일정 추가 모달 -->
+    <div id="addScheduleModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-gray-800">새 교육 일정 추가</h3>
+                <button onclick="closeAddScheduleModal()" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="space-y-4 text-gray-700">
+                <p class="text-sm text-gray-600">입력된 일정은 모의 데이터에 추가됩니다. (DB 미연결)</p>
+                <!-- Validation Message Area -->
+                <p id="validationMessage" class="text-sm font-semibold text-red-600 hidden bg-red-50 p-2 rounded"></p>
+                
+                <div class="space-y-3">
+                    <label class="block">
+                        <span class="text-sm font-semibold text-gray-700">교육 과정명</span>
+                        <input type="text" id="newScheduleName" class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="예: 품질 표준 개정 교육">
+                    </label>
+                    <div class="flex space-x-4">
+                        <label class="block flex-1">
+                            <span class="text-sm font-semibold text-gray-700">시작일</span>
+                            <input type="date" id="newScheduleStart" class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </label>
+                        <label class="block flex-1">
+                            <span class="text-sm font-semibold text-gray-700">종료일</span>
+                            <input type="date" id="newScheduleEnd" class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </label>
+                    </div>
+                    <label class="block">
+                        <span class="text-sm font-semibold text-gray-700">교육 구분 (색상)</span>
+                        <select id="newScheduleType" class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <option value="사외">사외 교육 (파란색)</option>
+                            <option value="상시">상시 학습 (사내) (녹색)</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <button onclick="saveNewSchedule()" class="mt-6 w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md">일정 추가 (Mock)</button>
+            <button onclick="closeAddScheduleModal()" class="mt-3 w-full py-3 bg-gray-300 text-gray-800 font-semibold rounded-lg hover:bg-gray-400 transition shadow-md">취소</button>
+        </div>
+    </div>
+
+    <!-- NEW: 팀별 상세 목표 모달 -->
+    <div id="teamGoalsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-gray-800">팀별 상세 교육 목표 (2025)</h3>
+                <button onclick="closeTeamGoalsModal()" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <!-- Content -->
+            <div id="teamGoalsBody" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <!-- JS will inject content here -->
+            </div>
+            <!-- Footer -->
+            <button onclick="closeTeamGoalsModal()" class="mt-6 w-full py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition shadow-md">닫기</button>
+        </div>
+    </div>
+    
+    <!-- NEW: 커스텀 툴팁 요소 (페이지 맨 아래 추가) -->
+    <div id="calendar-tooltip" class="hidden fixed z-[9999] bg-gray-800 bg-opacity-90 text-white p-3 rounded-lg shadow-xl text-left pointer-events-none transition-opacity duration-100 border border-gray-600 backdrop-blur-sm max-w-xs">
+    </div>
+
+</div>
+</body>
+</html>

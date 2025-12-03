@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교육 현황 대시보드 - FPCB사업본부</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        .custom-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}.custom-scroll::-webkit-scrollbar{width:8px}.custom-scroll::-webkit-scrollbar-thumb{background-color:#cbd5e1;border-radius:4px}.custom-scroll::-webkit-webkit-scrollbar-track{background-color:#f1f5f9}.detail-content{transition:max-height .3s ease-out,opacity .3s ease-out,padding .3s ease-out;max-height:0;overflow:hidden;opacity:0;padding:0 1rem}.detail-content.show{max-height:500px;opacity:1;padding-top:1rem;padding-bottom:1rem}
+    </style>
+    <script>
+        tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','Noto Sans KR','sans-serif']},}}}
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Variables & Constants
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+        let app, db, auth;
+        
+        const API_KEY='AIzaSyAybqaxn2n1BTB8GKql0c2xBaktc7QkLD0';
+        const SPREADSHEET_ID='1JaxcSgP7amAT8N1sM2aa9TbxFAXjY6k9NAay49TyIyc'; 
+        const EXTERNAL_RANGE='사외교육!A1:V100';
+        const ALWAYS_ON_RANGE='상시학습지원!A1:V100';
+        const ERP_RANGE='ERP!A1:D100';
+        const MANDATORY_MINIMUM_HOURS=12;
+        const CURRENT_DEPARTMENT='FPCB사업본부';
+        const ALL_TEAMS = ['품질경영팀', '전장사업팀', '메카트로닉스팀', '영업팀', '통합구매팀', 'FPCB사양팀', '개발팀', '중앙연구소'];
+        const QUALITY_TEAM_EXTERNAL_URL = 'file:///C:/Users/User/Desktop/%EB%AF%BC%EB%8F%99%ED%98%81/13%EC%A3%BC%EC%B0%A8/%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80%20%EB%A7%8C%EB%93%A4%EA%B8%B0/FPCB%EC%82%AC%EC%97%85%EB%B3%B8%EB%B6%80%20%ED%92%88%EC%A7%88%EA%B2%BD%EC%98%81%ED%8C%80.html';
+        const EMPLOYEE_SUMMARY_PLACEHOLDER = '<p class="text-center text-gray-600 p-4 pt-16">그래프 위에 커서를 올려 팀별 소속 인원을 확인하세요.</p>';
+
+        // 추가: 팀별 구체적인 목표 시간 (예시 데이터)
+        const MOCK_TEAM_GOAL_DETAILS = {
+            '품질경영팀': [{name: 'ISO/품질표준 교육', hours: 15}, {name: 'AI 기반 불량 예측', hours: 10}],
+            '전장사업팀': [{name: '차세대 전장 기술 심화', hours: 12}, {name: '프로젝트 관리(PM)', hours: 8}],
+            '메카트로닉스팀': [{name: '정밀 제어 시스템', hours: 20}, {name: '공정 자동화', hours: 5}],
+            '영업팀': [{name: '해외 시장 분석', hours: 10}, {name: '고객 협상 스킬', hours: 5}],
+            '통합구매팀': [{name: '공급망 리스크 관리', hours: 12}, {name: '글로벌 소싱 전략', hours: 8}],
+            'FPCB사양팀': [{name: 'FPCB 설계 기준 이해', hours: 15}, {name: '신소재 분석', hours: 10}],
+            '개발팀': [{name: '임베디드 SW 개발', hours: 18}, {name: '신뢰성 테스트', hours: 7}],
+            '중앙연구소': [{name: 'R&D 논문 작성법', hours: 20}, {name: '특허 출원 및 관리', hours: 15}],
+            '미정': [{name: '기초 직무 지식', hours: 10}],
+            '기타': [{name: '법정 의무 교육', hours: 10}]
+        };
+
+        let employeeGoalMap = {};
+        let allEducationData=[];
+        let allAlwaysOnData=[];
+        let fullDeptData = [];
+        let currentTeam = '전체';
+        let employeeChartInstance = null; 
+        let achievementChartInstance = null;
+
+        const incidentalCostChartContainer=document.getElementById('incidentalCostChartDetailContainer');
+        const costDetailChartDetailContainer = document.getElementById('costDetailChartDetailContainer'); 
+        const achievementChartDetailContainer = document.getElementById('achievementChartDetailContainer'); 
+        const DEPARTMENT_COLORS={'FPCB사업본부':'rgb(16, 185, 129)','FS사업본부':'rgb(59, 130, 246)','경영지원본부':'rgb(250, 204, 21)','인공신장사업본부':'rgb(99, 102, 241)','기타':'rgb(107, 114, 128)'};
+        const TEAM_CHART_COLORS = {
+            '품질경영팀': 'rgb(234, 88, 12)', '전장사업팀': 'rgb(59, 130, 246)', '메카트로닉스팀': 'rgb(16, 185, 129)',
+            '영업팀': 'rgb(168, 85, 247)', '통합구매팀': 'rgb(249, 115, 22)', 'FPCB사양팀': 'rgb(234, 179, 8)',
+            '개발팀': 'rgb(132, 204, 22)', '중앙연구소': 'rgb(236, 72, 153)', '미정': 'rgb(107, 114, 128)', '기타': 'rgb(148, 163, 184)'
+        };
+
+        // Firebase Auth
+        if(firebaseConfig){
+            app=initializeApp(firebaseConfig);
+            db=getFirestore(app);
+            auth=getAuth(app);
+            async function authenticate(){
+                try{
+                    if(initialAuthToken){await signInWithCustomToken(auth,initialAuthToken)}
+                    else{await signInAnonymously(auth)}
+                }catch(error){console.error("Firebase authentication error:",error)}
+            }
+            authenticate();
+        }else{console.warn("Firebase config not found. Skipping Firebase initialization.")}
+        
+        // --- Utility Functions ---
+        function formatCurrency(n){return new Intl.NumberFormat('ko-KR',{style:'currency',currency:'KRW',minimumFractionDigits:0}).format(n)}
+        
+        function parseDateSort(s){
+            if (!s) return 0; // FIX: s(periodString)가 undefined일 경우 0 반환
+            const match=s.match(/(\d{4})\.(\d{2})/);
+            return match?parseInt(match[1]+match[2],10):0;
+        }
+
+        function parseHours(s){
+            if(!s)return 0;
+            let h=0;
+            let m;
+            m=s.match(/(\d+(\.\d+)?)\s*시간/);
+            if(m){h+=parseFloat(m[1])}
+            m=s.match(/(\d+)\s*분/);
+            if(m){h+=parseInt(m[1])/60}
+            if(h===0){m=s.match(/^(\d+(\.\d+)?)$/);if(m){h=parseFloat(m[1])}}
+            return parseFloat(h.toFixed(2));
+        }
+
+        function parseCurrency(s){
+             if(!s)return 0;
+             const c=s.trim().toLowerCase();
+             if(c.includes('무료')||c.includes('무상')||c==='0원'){return 0}
+             const n=c.replace(/원/g,'').replace(/,/g,'').trim();
+             const cost=parseFloat(n);
+             return isNaN(cost)?0:cost;
+        }
+
+        function toggleDetail(element){ 
+            const container=element.tagName==='H2'?element.closest('#mandatoryComplianceContainer'):element;
+            const detailContainer=container.querySelector('.detail-content');
+            const arrowIcon=container.querySelector('.toggle-icon');
+            const isShow=detailContainer.classList.contains('show');
+            document.querySelectorAll('.detail-content.show').forEach(openDetail=>{
+                openDetail.classList.remove('show');
+                const parent=openDetail.closest('.kpi-card,.education-item,#mandatoryComplianceContainer,.team-topic-item');
+                const openArrow=parent?.querySelector('.toggle-icon');
+                if(openArrow)openArrow.classList.remove('rotate-180');
+            });
+            if(!isShow){detailContainer.classList.add('show');if(arrowIcon)arrowIcon.classList.add('rotate-180')}
+        }
+        window.toggleDetail = toggleDetail; 
+
+        function closeDetailModal() {
+            document.getElementById('educationModal').classList.add('hidden');
+        }
+        window.closeDetailModal = closeDetailModal;
+
+        // Mocking functions
+        function mockTeamAssignment(data) {
+            const teams = ALL_TEAMS;
+            const teamMap = {};
+            const employeesInDept = [...new Set(data.filter(item => item.dept === CURRENT_DEPARTMENT).map(item => item.employeeId))];
+            employeesInDept.forEach((id, index) => {
+                teamMap[id] = teams[index % teams.length];
+                if (!employeeGoalMap[id]) { employeeGoalMap[id] = Math.floor(Math.random() * (30 - 12 + 1)) + 12; }
+            });
+            return data.map(item => {
+                item.team = item.dept === CURRENT_DEPARTMENT ? (teamMap[item.employeeId] || '미정') : 'N/A';
+                item.goalHours = item.dept === CURRENT_DEPARTMENT ? (employeeGoalMap[item.employeeId] || 0) : 0;
+                return item;
+            });
+        }
+
+        // Data Processing Functions
+        function processERPData(sheetValues){
+            const map={};
+            sheetValues.slice(1).forEach(row=>{
+                const id=row[0]?.trim();
+                const dept=row[2]?.trim();
+                const email=row[3]?.trim()||'이메일 미등록';
+                if(id){map[id]={dept:dept||'기타',email:email}}
+            });
+            return map;
+        }
+
+        function processSheetData(sheetValues,sourceName,erpMap={}){
+            const C={c:0, n:1, id:2, s:4, h:5, t:6, p:7, hS:8, cS:9, rR:10, cnt:11, prp:12, eff:13, sum:14, lkg:15, dif:16, iD:17, car:18, pub:19, lod:20, total:21};
+            if(sheetValues.length<=1)return [];
+            return sheetValues.slice(1).map((row,i)=>{
+                const id=row[C.id]||`E${i+1}`;
+                const erp=erpMap[id];
+                return{
+                    id:`${sourceName}-${i+1}`, period:row[C.p]||'N/A', position:erp?.position || '미정', 
+                    type:row[C.t]||'미정', subject:row[C.s]||'제목 없음', host:row[C.h]||'미정',
+                    dept:erp?.dept || '기타', source:sourceName,
+                    isCompleted:(row[C.c]||'').toUpperCase()==='완료'||(row[C.c]||'').includes('완료'),
+                    employeeName:row[C.n]||'이름 없음', employeeId:id,
+                    actualHours:parseHours(row[C.hS]||'0'), actualCost:parseCurrency(row[C.cS]||'0'), 
+                    carCost:parseCurrency(row[C.car]||'0'), publicTransitCost:parseCurrency(row[C.pub]||'0'),
+                    lodgingEtcCost:parseCurrency(row[C.lod]||'0'), incidentalCostTotal:parseCurrency(row[C.total]||'0'), 
+                    isRefundableRaw:row[C.rR]||'N/A', content:row[C.cnt]||'내용이 등록되지 않았습니다.', 
+                    purpose:row[C.prp]||'목적이 등록되지 않았습니다.', expectedEffect:row[C.eff]||'기대효과가 등록되지 않았습니다.', 
+                    summary:row[C.sum]||'교육 요약이 등록되지 않았습니다.', linkage:row[C.lkg]||'업무적용 계획이 등록되지 않았습니다.', 
+                    difficulty:row[C.dif]||'업무적용 애로사항이 등록되지 않았습니다.', 
+                    implementationDate:row[C.iD]||'예상 업무적용 발현시점', email:erp?.email || '이메일 미등록',
+                    dateSort:parseDateSort(row[C.p]), goalHours: 0
+                };
+            }).filter(item => item.dept === CURRENT_DEPARTMENT || item.dept === '기타');
+        }
+
+        async function fetchData(range,sourceName,erpMap){
+            const URL=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+            try{
+                if(!API_KEY||!SPREADSHEET_ID){throw new Error(`API 키 또는 스프레드시트 ID가 비어있습니다. [${sourceName}]`)}
+                const response=await fetch(URL);
+                if(!response.ok){const errorJson = await response.json();throw new Error(`API 요청 실패: ${response.status}. 사유: ${errorJson.error?.message || '알 수 없음'}. [${sourceName}]`)}
+                const data=await response.json();
+                return processSheetData(data.values||[],sourceName,erpMap);
+            }catch(error){
+                console.error(`Google Sheets 연동 중 오류 발생 (${sourceName}):`,error);
+                document.getElementById('loadingMessage').textContent=`🚨 데이터 로딩 실패: ${error.message}`;
+                return[];
+            }
+        }
+
+        async function fetchERPData(){
+            const MOCK_ERP_DATA_LOCAL={'202320458':{dept:'FS사업본부',email:'jdh@company.com'},'202120458':{dept:'인공신장사업본부',email:'jdh2@company.com'},'202020458':{dept:'FS사업본부',email:'ldh@company.com'},'202220458':{dept:'FPCB사업본부',email:'pdh@company.com'},'202420458':{dept:'인공신장사업본부',email:'kdh@company.com'},'201920458':{dept:'FPCB사업본부',email:'kdh2@company.com'},'201820458':{dept:'경영지원본부',email:'mdh@company.com'},'201710001':{dept:'FPCB사업본부',email:'test1@comp.com'},'201710002':{dept:'FPCB사업본부',email:'test2@comp.com'},'201710003':{dept:'FPCB사업본부',email:'test3@comp.com'},'201710004':{dept:'FPCB사업본부',email:'test4@comp.com'},'201710005':{dept:'FPCB사업본부',email:'test5@comp.com'},};
+            const URL=`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(ERP_RANGE)}?key=${API_KEY}`;
+            try{
+                if(!API_KEY||!SPREADSHEET_ID){throw new Error(`API 키 또는 스프레드시트 ID가 비어있습니다. [ERP]`)}
+                const response=await fetch(URL);
+                if(!response.ok){throw new Error(`API 요청 실패: ${response.status}. ERP 시트 로딩 실패. [ERP]`)}
+                return processERPData((await response.json()).values||[]);
+            }catch(error){
+                console.error(`Google Sheets 연동 중 오류 발생 (ERP):`,error);
+                if(error.message.includes("API 키 또는 스프레드시트 ID가 비어있습니다.")){return MOCK_ERP_DATA_LOCAL}
+                else{return{}}
+            }
+        }
+
+        // --- Rendering & Calculation Functions ---
+
+        function calculateDashboardMetrics(data){
+            const uniqueEmployees={};
+            let extCost=0, aoCost=0, incCost=0;
+            data.forEach(item=>{
+                const id = item.employeeId;
+                if(!uniqueEmployees[id]){uniqueEmployees[id] = { externalHours: 0, goalHours: item.goalHours || 0 };}
+                if(item.source==='사외교육'){
+                    uniqueEmployees[id].externalHours+=item.actualHours;
+                    extCost+=item.actualCost;
+                    incCost+=item.incidentalCostTotal;
+                }else if(item.source==='상시학습지원'){
+                    aoCost+=item.actualCost;
+                    incCost+=item.incidentalCostTotal;
+                }
+            });
+            const empList=Object.values(uniqueEmployees);
+            const totalEmp=empList.length;
+            let totalHours=0, totalGoal=0;
+            empList.forEach(e => {totalHours+=e.externalHours;totalGoal+=e.goalHours});
+            const rate=totalGoal>0?((totalHours/totalGoal)*100).toFixed(1)+'%':'N/A';
+            return{
+                totalEmployees: totalEmp, targetAchievementRate: rate,
+                externalCostTotal: extCost, alwaysOnCostTotal: aoCost, incidentalCostTotal: incCost,
+                avgExternalCostPerPerson: totalEmp>0?extCost/totalEmp:0,    
+                avgAlwaysOnCostPerPerson: totalEmp>0?aoCost/totalEmp:0
+            };
+        }
+
+        // KPI 카드가 모두 제거되었으므로, renderDashboard는 KPI 값만 계산할 뿐 DOM 업데이트는 하지 않습니다.
+        function renderDashboard(metrics){
+            // 연간 교육 목표 상세의 KPI 값은 고정 섹션에 직접 표시되지 않으므로 업데이트할 필요가 없습니다.
+            // 대신, 연간 목표 상세 섹션의 제목을 업데이트합니다.
+            const totalEmployees = metrics.totalEmployees;
+            const achievementRate = metrics.targetAchievementRate;
+
+            const totalEmployeesEl = document.getElementById('fixed-total-employees');
+            if (totalEmployeesEl) totalEmployeesEl.textContent = `총원 (${totalEmployees}명)`;
+
+            const achievementRateEl = document.getElementById('fixed-achievement-rate');
+            if (achievementRateEl) achievementRateEl.textContent = achievementRate;
+        }
+
+        function getAggregatedEmployeeData(data){
+            const aggregated={};
+            data.forEach(item=>{
+                if(!aggregated[item.employeeId]){
+                    aggregated[item.employeeId]={
+                        employeeId:item.employeeId,employeeName:item.employeeName,dept:item.dept,
+                        email:item.email,totalHours:0,externalHours:0,items:[],
+                        team: item.team || 'N/A'
+                    };
+                }
+                aggregated[item.employeeId].totalHours+=item.actualHours;
+                if(item.source==='사외교육'){aggregated[item.employeeId].externalHours+=item.actualHours}
+                aggregated[item.employeeId].items.push({subject:item.subject,actualHours:item.actualHours,source:item.source,dateSort:parseDateSort(item.period),period:item.period}); 
+            });
+            return Object.values(aggregated);
+        }
+
+        function renderMandatoryComplianceList(filteredData){
+            const aggregatedData=getAggregatedEmployeeData(filteredData);
+            const nonCompliant=aggregatedData.filter(e=>e.externalHours<MANDATORY_MINIMUM_HOURS);
+            
+            // Group non-compliant employees by team
+            const nonCompliantByTeam = {};
+            nonCompliant.forEach(employee => {
+                const team = employee.team || '미정';
+                if (!nonCompliantByTeam[team]) {
+                    nonCompliantByTeam[team] = [];
+                }
+                nonCompliantByTeam[team].push(employee);
+            });
+
+            const listContainer=document.getElementById('mandatoryComplianceList');
+            const mandatoryCountEl = document.getElementById('mandatoryCount');
+            if (mandatoryCountEl) mandatoryCountEl.textContent = nonCompliant.length;
+            if (!listContainer) return;
+
+            if(nonCompliant.length===0){
+                listContainer.innerHTML='<p class="text-center text-gray-500 p-4 w-full">필터 조건에 해당하는 미완료 인원이 없습니다.</p>';
+                return;
+            }
+
+            // Determine teams to display and sort them
+            const teamsToDisplay = [...ALL_TEAMS, '미정', '기타']
+                .filter(team => nonCompliantByTeam[team] && nonCompliantByTeam[team].length > 0);
+
+            const teamSectionsHtml = teamsToDisplay.map(team => {
+                const employees = nonCompliantByTeam[team].sort((a, b) => a.externalHours - b.externalHours);
+                
+                // Use team-specific color hints
+                const hex = TEAM_CHART_COLORS[team] || 'rgb(107, 114, 128)'; // Fallback to grey
+                const bg = hex.replace('rgb','rgba').replace(')','), 0.1)');
+                const text = hex; 
+                const border = text.replace('rgb','rgba').replace(')','), 0.3)');
+                const sectionBorder = text.replace('rgb','rgba').replace(')','), 0.4)');
+                const divider = text.replace('rgb','rgba').replace(')','), 0.2)');
+                
+                const tags = employees.map(e=>`
+                    <div class="px-2 py-1 text-xs rounded-full border flex items-center space-x-1" style="border-color:${border} !important;color:${text};" title="${e.employeeId} / ${e.email}">
+                        <span class="font-bold">${e.employeeName}</span>
+                        <span class="text-gray-600 font-medium ml-0">(${e.externalHours.toFixed(1)}h)</span>
+                        <span class="text-gray-500 text-[10px] truncate ml-1">${e.email}</span>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="w-full p-3 rounded-lg shadow-sm border mb-4" style="border-color:${sectionBorder};background-color:${bg};">
+                        <h4 class="text-sm font-extrabold mb-2 pb-1 border-b" style="color:${text};border-color:${divider}">
+                            ${team} (${employees.length}명)
+                        </h4>
+                        <div class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                            ${tags}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            listContainer.innerHTML = `<div class="p-2 w-full">${teamSectionsHtml}</div>`;
+        }
+
+
+        function getTopTopicsHelper(data, topN = 5) {
+            const topicCounts = {};
+            data.forEach(item => {
+                const subject = item.subject || '미정의';
+                const keywords = subject.split(/[\s\/\-\(\)]+/)
+                                         .filter(w => w.length > 1 && !['교육', '과정', '기초', '실무', '세미나', '및'].includes(w));
+                if (keywords.length === 0) { keywords.push(subject.split(' ')[0].replace(/[^가-힣A-Za-z]/g, '')); }
+                keywords.forEach(keyword => {
+                    const cleanKeyword = keyword.trim();
+                    if (cleanKeyword) { topicCounts[cleanKeyword] = (topicCounts[cleanKeyword] || 0) + 1; }
+                });
+            });
+            return Object.entries(topicCounts).sort(([, a], [, b]) => b - a).slice(0, topN).map(([topic]) => `#${topic}`);
+        }
+
+        function getTopicsByTeam(data, teams) {
+            const teamDataMap = {};
+            const teamTopics = {};
+            data.forEach(item => {
+                const team = item.team || '미정';
+                if (!teamDataMap[team]) { teamDataMap[team] = []; }
+                teamDataMap[team].push(item);
+            });
+            const allRelevantTeams = [...new Set([...teams, ...Object.keys(teamDataMap)].filter(t => t !== 'N/A'))];
+            allRelevantTeams.forEach(team => {
+                const teamData = teamDataMap[team] || [];
+                teamTopics[team] = getTopTopicsHelper(teamData, 3);
+            });
+            return teamTopics;
+        }
+
+        function renderTopHashtags(data) {
+            const container = document.getElementById('topHashtagsContainer');
+            if (!container) return;
+            const overallTopHashtags = getTopTopicsHelper(data, 5); 
+            const teamTopics = getTopicsByTeam(data, ALL_TEAMS);
+            
+            let overallHtml = overallTopHashtags.length===0?'<span class="text-sm text-gray-500">관심사 데이터가 부족합니다.</span>':
+                overallTopHashtags.map(tag => `<span class="inline-block bg-green-100 text-green-700 text-sm font-bold px-3 py-1 rounded-full shadow-md transition hover:bg-green-200">${tag}</span>`).join('');
+
+            const teamHtmlCompact = Object.entries(teamTopics).map(([teamName, tags]) => {
+                const teamTagsHtml = tags.length > 0?tags.map(tag => `<span class="text-indigo-600 font-medium">${tag}</span>`).join(' '):`<span class="text-gray-500">관심사 없음</span>`;
+                return `
+                    <div class="whitespace-nowrap text-xs bg-white p-2 rounded-lg border border-gray-100 shadow-sm flex-shrink-0">
+                        <span class="font-bold text-gray-700 mr-1">${teamName}</span>
+                        ${teamTagsHtml}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">${CURRENT_DEPARTMENT} 주요 관심사</h3>
+                    <div class="flex flex-wrap gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">${overallHtml}</div>
+                </div>
+                <div class="mt-6">
+                    <div class="flex flex-wrap gap-2 p-3 bg-gray-100 rounded-lg border border-gray-200">${teamHtmlCompact}</div>
+                </div>
+            `;
+        }
+
+        function renderAchievementChart(data){
+            const ctx = document.getElementById('deptAchievementBarChart');
+            const infoElement = document.getElementById('achievementChartInfoTextInline');
+            const goalListContainer = document.getElementById('achievementGoalsListContainer'); // 목표 리스트 컨테이너
+            if (!ctx || !infoElement || !goalListContainer) return;
+
+            const teamStats = {};
+            const participatingEmployees = new Set();
+            
+            data.forEach(item => {
+                const team = item.team || '미정';
+                const id = item.employeeId;
+                const hours = item.source === '사외교육' ? item.actualHours : 0;
+                const goal = item.goalHours || 0; 
+                if (!teamStats[team]) {teamStats[team] = { totalActualHours: 0, totalGoalHours: 0, uniqueEmployees: new Set() };}
+                teamStats[team].totalActualHours += hours;
+                participatingEmployees.add(id);
+                if (!teamStats[team].uniqueEmployees.has(id)) {
+                    teamStats[team].totalGoalHours += goal; 
+                    teamStats[team].uniqueEmployees.add(id);
+                }
+            });
+
+            // 바 차트 렌더링을 위한 데이터 준비
+            const teamsToDisplay = [...ALL_TEAMS];
+            if (teamStats['미정'] && teamStats['미정'].uniqueEmployees.size > 0) teamsToDisplay.push('미정');
+            if (teamStats['기타'] && teamStats['기타'].uniqueEmployees.size > 0) teamsToDisplay.push('기타');
+
+            let totalGoalHoursAll = 0; 
+            let totalActualHoursAll = 0; 
+            
+            const sortedDisplayData = teamsToDisplay.map(team => {
+                const stats = teamStats[team] || { totalActualHours: 0, totalGoalHours: 0, uniqueEmployees: new Set() };
+                const goal = stats.totalGoalHours;
+                const hours = stats.totalActualHours;
+                if (stats.uniqueEmployees.size > 0) { 
+                    totalGoalHoursAll += goal; 
+                    totalActualHoursAll += hours; 
+                }
+                let rate = 0;
+                if (goal > 0) { rate = parseFloat(((hours / goal) * 100).toFixed(1)); }
+                return {label: team, rate: rate, hours: hours, goal: goal}; // 팀별 실적 및 목표 추가 반환
+            }).sort((a, b) => b.rate - a.rate);
+
+            const labels = sortedDisplayData.map(d => d.label);
+            const rates = sortedDisplayData.map(d => d.rate);
+            const baseColor = DEPARTMENT_COLORS[CURRENT_DEPARTMENT] || 'rgb(16, 185, 129)';
+            const colors = sortedDisplayData.map((d, i) => baseColor.replace(')', `, ${0.5 + (i / sortedDisplayData.length) * 0.5})`).replace('rgb', 'rgba'));
+
+            if(achievementChartInstance) achievementChartInstance.destroy();
+            
+            // 텍스트 업데이트: 목표 총합과 실제 인정 시간 총합 표시
+            infoElement.textContent = `팀별 현황: FPCB사업본부 (${participatingEmployees.size}명) - 개인 목표 총합 (${totalGoalHoursAll.toFixed(1)} 시간) / 실제 인정 시간 (${totalActualHoursAll.toFixed(1)} 시간) 기준 달성율입니다. (사외교육만 반영)`;
+            
+            achievementChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {labels: labels, datasets: [{label: '목표 달성율 (%)',data: rates,backgroundColor: colors,borderColor: baseColor.replace(')', ', 0.8)').replace('rgb', 'rgba'),borderWidth: 1,maxBarThickness: 50}]},
+                options: {
+                    responsive: true, maintainAspectRatio: false, indexAxis: 'x', // 인덱스 축을 'x'로 변경 (세로 막대)
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 150,
+                            title: { display: true, text: '달성율 (%)' } // Y축에 달성율 표시
+                        },
+                        x: {
+                            grid: { display: false } // X축 (팀 라벨) 그리드 제거
+                        }
+                    },
+                    plugins: {legend: { display: false },title: { display: false }}
+                }
+            });
+
+            // ----------------------------------------------------
+            // 팀별 구체적인 교육 목표 항목 렌더링 추가 (미정/기타 제외)
+            // ----------------------------------------------------
+            let goalsHtml = '';
+            
+            // 미정/기타를 제외한 명시된 모든 팀 목록만 사용
+            const allGoalTeams = [...ALL_TEAMS];
+
+            allGoalTeams.forEach(team => {
+                // teamData에서 해당 팀의 실적 정보 찾기
+                const teamData = sortedDisplayData.find(d => d.label === team);
+                const stats = teamStats[team] || { totalActualHours: 0, totalGoalHours: 0, uniqueEmployees: new Set() };
+
+                const employeeCount = stats.uniqueEmployees.size;
+                const goals = MOCK_TEAM_GOAL_DETAILS[team] || [{name: '목표 미설정', hours: 0}];
+                
+                const goalItems = goals.map((goal, index) => `
+                    <li class="flex justify-between text-sm text-gray-700 pt-1">
+                        <span class="font-medium">${index + 1}. ${goal.name}</span>
+                        <span class="font-bold text-blue-600">${goal.hours} 시간</span>
+                    </li>
+                `).join('');
+
+                // 해당 팀의 실제 실적 시간 가져오기 (데이터가 없으면 0.0)
+                const actualHours = teamData ? teamData.hours.toFixed(1) : (stats.totalActualHours.toFixed(1) || '0.0');
+
+                goalsHtml += `
+                    <div class="p-4 bg-white rounded-lg shadow-sm border border-blue-200 flex-shrink-0 min-w-[280px]">
+                        <h4 class="text-lg font-extrabold text-gray-800 mb-2 border-b pb-1 flex justify-between items-center">
+                            <span>${team} 목표 (${employeeCount}명)</span>
+                            <span class="text-sm font-medium text-gray-600">실적: ${actualHours}h</span>
+                        </h4>
+                        <ul class="space-y-1">${goalItems}</ul>
+                    </div>
+                `;
+            });
+            
+            goalListContainer.innerHTML = `
+                <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">팀별 구체 목표 내역 (예시)</h3>
+                <div class="flex gap-4 pt-2 overflow-x-auto pb-4">
+                    ${goalsHtml}
+                </div>
+            `;
+        }
+
+        
+        function renderEmployeeListDetail(data) {
+            const fixedContainer = document.getElementById('employeeChartFixedContainer');
+            const chartCtx = fixedContainer.querySelector('#teamHeadcountPieChart');
+            const summaryContainer = fixedContainer.querySelector('#teamHeadcountSummary');
+            
+            if (!chartCtx || !summaryContainer) return;
+
+            const aggregatedData = getAggregatedEmployeeData(data);
+            const teamStats = {};
+            const uniqueEmployeeIds = new Set();
+            const teamEmployeeMap = {}; 
+
+            aggregatedData.forEach(e => {
+                if (!uniqueEmployeeIds.has(e.employeeId)) {
+                    uniqueEmployeeIds.add(e.employeeId);
+                    const team = e.team || '미정';
+                    if (!teamStats[team]) { teamStats[team] = { count: 0, members: [] }; }
+                    teamStats[team].count++;
+                    teamStats[team].members.push(e.employeeName + ' (' + e.employeeId + ')'); 
+                }
+            });
+
+            const teamsToDisplay = [...ALL_TEAMS];
+            ['미정', '기타'].forEach(team => {
+                if (teamStats[team] && teamStats[team].count > 0 || !ALL_TEAMS.includes(team)) { teamsToDisplay.push(team); }
+            });
+            const finalTeamsToDisplay = [...new Set(teamsToDisplay)];
+
+            const chartLabels = [], chartData = [], chartBgColors = [];
+            finalTeamsToDisplay.forEach(team => {
+                const stat = teamStats[team] || { count: 0, members: [] };
+                const color = TEAM_CHART_COLORS[team] || 'rgb(107, 114, 128)';
+                chartLabels.push(team); 
+                chartData.push(stat.count); 
+                chartBgColors.push(color); 
+                teamEmployeeMap[team] = { count: stat.count, members: stat.members };
+            });
+
+            summaryContainer.innerHTML = EMPLOYEE_SUMMARY_PLACEHOLDER; 
+            
+            const renderHoveredTeamMembers = (team, map, container) => {
+                const data = map[team];
+                if (!data || data.count === 0) {
+                    container.innerHTML = `<div class="p-3 bg-indigo-100 rounded-xl border border-indigo-300 custom-scroll max-h-64"><h4 class="text-sm font-bold text-indigo-800 mb-2">${team} (총 0명)</h4><p class="text-xs text-gray-500">소속 인원 정보가 없습니다.</p></div>`;
+                    return;
+                }
+                const membersHtml = data.members.map(m => `<li class="text-xs text-gray-700">${m}</li>`).join('');
+                container.innerHTML = `<div class="p-3 bg-indigo-100 rounded-xl border border-indigo-300 custom-scroll max-h-64"><h4 class="text-sm font-bold text-indigo-800 mb-2">${team} (총 ${data.count}명)</h4><ul class="list-disc list-inside space-y-1 pr-2">${membersHtml}</ul></div>`;
+            };
+            
+            let lastHoveredTeam = null;
+
+            if (employeeChartInstance) employeeChartInstance.destroy();
+
+            employeeChartInstance = new Chart(chartCtx.getContext('2d'), {
+                type: 'pie',
+                data: {labels: chartLabels, datasets: [{data: chartData, backgroundColor: chartBgColors, hoverOffset: 8, borderWidth: 1, borderColor: '#ffffff'}]},
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    onHover: (e, elems, chart) => {
+                        if (elems.length) {
+                            const team = chart.data.labels[elems[0].index];
+                            if (lastHoveredTeam !== team) {
+                                renderHoveredTeamMembers(team, teamEmployeeMap, summaryContainer);
+                                lastHoveredTeam = team;
+                            }
+                        } else {
+                            if (lastHoveredTeam !== null) {
+                                summaryContainer.innerHTML = EMPLOYEE_SUMMARY_PLACEHOLDER;
+                                lastHoveredTeam = null;
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {position: 'right', labels: {font: {family: 'Inter, Noto Sans KR'}}},
+                        title: {display: true, text: '팀별 인원 분포', font: {family: 'Inter, Noto Sans KR', size: 16, weight: 'bold'}},
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => `${items[0].label} (총 ${teamEmployeeMap[items[0].label]?.count || 0}명)`,
+                                label: (item) => {
+                                    const members = teamEmployeeMap[item.label]?.members || [];
+                                    const displayMembers = members.slice(0, 5).join(', ');
+                                    let label = `소속: ${displayMembers}`;
+                                    if (members.length > 5) { label += ` 외 ${members.length - 5}명`; } 
+                                    else if (members.length === 0) { label = `소속 인원 없음`; }
+                                    return label;
+                                }
+                            },
+                            bodyFont: {family: 'Inter, Noto Sans KR'}, titleFont: {family: 'Inter, Noto Sans KR'}
+                        }
+                    }
+                }
+            });
+        }
+        
+        function clearFilters(){
+            ['filterSubject','filterEmployeeName','filterPosition','filterStatus'].forEach(id=>{document.getElementById(id).value=''});
+        }
+
+        function renderTeamButtons() {
+            const container = document.getElementById('teamButtonContainer');
+            if (!container) return;
+            container.querySelectorAll('.team-btn').forEach(button => {
+                const teamName = button.dataset.team;
+                button.className = `team-btn px-4 py-1.5 rounded-full text-xs transition shadow-md whitespace-nowrap ${
+                    teamName === currentTeam ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg font-bold' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 font-medium'
+                }`;
+            });
+        }
+        
+        function filterByTeam(data, team) {
+            return team === '전체' ? data : data.filter(item => item.team === team);
+        }
+
+        function handleTeamFilter(event) {
+            const newTeam = event.currentTarget.dataset.team;
+            if (newTeam !== '전체') { window.location.href = QUALITY_TEAM_EXTERNAL_URL; return; }
+            if (currentTeam === newTeam) return; 
+            currentTeam = newTeam;
+            renderTeamButtons(); 
+            const filtered = filterByTeam(fullDeptData, currentTeam);
+            renderMandatoryComplianceList(filtered);
+            renderEducationList(applyListFilters(filtered));
+        }
+        window.handleTeamFilter = handleTeamFilter;
+
+
+        function renderEducationList(data){
+            const listContainer=document.getElementById('educationList');
+            const resultCount=document.getElementById('resultCount');
+            if (!listContainer) return; 
+            if (resultCount) resultCount.textContent=data.length; 
+            if(data.length===0){listContainer.innerHTML='<p class="text-center text-gray-500 p-8">검색 조건에 맞는 교육 이력이 없습니다.</p>';return}
+            data.sort((a,b)=>b.dateSort-a.dateSort); 
+
+            listContainer.innerHTML=data.map(item=>{
+                const employeeInfo=`<span class="text-gray-500 text-xs mr-3">${item.employeeId}</span> <span class="font-semibold text-gray-700">${item.employeeName}</span> / <span class="text-blue-600 font-bold">${item.team}</span>`; 
+                const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+                const statusHtml = item.isCompleted?'<span class="text-green-600 font-bold">완료</span>':'<span class="text-red-500 font-medium">진행중</span>';
+                const sourceHtml = item.source==='사외교육'?'사외':'상시';
+                const refundHtml = item.isRefundableRaw==='O'?'<span class="font-bold text-green-700">O</span>':(item.isRefundableRaw==='X'?'<span class="text-gray-500">X</span>':'<span class="text-gray-500">N/A</span>');
+
+                return`
+                    <div class="education-item bg-white p-4 border border-blue-100 rounded-lg shadow-sm hover:shadow-md transition duration-200 cursor-pointer" onclick="openDetailModal(${itemJson})">
+                        <div class="flex flex-col justify-start border-b pb-2 mb-2">
+                            <div class="flex justify-between items-start">
+                                <h3 class="text-lg font-bold text-gray-900">${item.subject}</h3>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs font-semibold px-2 py-0.5 bg-green-100 text-green-800 rounded-full">${item.host}</span>
+                                    <svg class="w-5 h-4 text-gray-500 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m-6 3a4 4 0 100-8 4 4 0 000 8zm-2-2h4M7 7h.01" /></svg>
+                                </div>
+                            </div>
+                            <div class="mt-1 text-sm">${employeeInfo}</div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-700 p-2 bg-gray-50 rounded-md">
+                            <p class="flex items-center"><span class="w-20 font-semibold text-gray-600">기간:</span> <span class="flex-1">${item.period}</span></p>
+                            <p class="flex items-center"><span class="w-20 font-semibold text-gray-600">상태:</span> <span class="flex-1">${statusHtml}</span></p>
+                            <p class="flex items-center"><span class="w-20 font-semibold text-gray-600">형태:</span> <span class="flex-1">${item.type} (${sourceHtml})</span></p>
+                            <p class="flex items-center"><span class="w-20 font-semibold text-gray-600">인정시간:</span> <span class="flex-1 text-indigo-600">${item.actualHours.toFixed(1)} 시간</span></p>
+                            <p class="flex items-center"><span class="w-20 font-semibold text-gray-600">비용:</span> <span class="flex-1 text-gray-800">${formatCurrency(item.actualCost)}</span></p>
+                            <p class="flex items-center"><span class="w-20 font-semibold text-gray-600">환급여부:</span> <span class="flex-1">${refundHtml}</span></p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function applyListFilters(data) {
+            const subject = document.getElementById('filterSubject')?.value.trim().toLowerCase() || '';
+            const employee = document.getElementById('filterEmployeeName')?.value.trim().toLowerCase() || '';
+            const position = document.getElementById('filterPosition')?.value || '';
+            const status = document.getElementById('filterStatus')?.value || '';
+            
+            let filteredData = [...data]; 
+
+            if(subject){filteredData=filteredData.filter(item=>item.subject.toLowerCase().includes(subject))}
+            if(employee){filteredData=filteredData.filter(item=>item.employeeId.toLowerCase().includes(employee)||item.employeeName.toLowerCase().includes(employee))}
+            if(position){filteredData=filteredData.filter(item=>item.position===position)}
+            if(status==='COMPLETED'){filteredData=filteredData.filter(item=>item.isCompleted===true)}
+            else if(status==='IN_PROGRESS'){filteredData=filteredData.filter(item=>item.isCompleted===false)}
+            
+            return filteredData.sort((a,b)=>b.dateSort-a.dateSort);
+        }
+
+        function renderInitialKPIs(data){
+            const initialDeptData = [...allEducationData,...allAlwaysOnData].filter(item=>item.dept===CURRENT_DEPARTMENT);
+            const metrics=calculateDashboardMetrics(initialDeptData);
+            renderDashboard(metrics,initialDeptData);
+            return initialDeptData; 
+        }
+        
+        function updateAllListViews(fullData, teamFilter) {
+            const filtered = filterByTeam(fullData, teamFilter);
+            renderTopHashtags(fullData);
+            renderMandatoryComplianceList(filtered);
+            renderEducationList(applyListFilters(filtered));
+        }
+
+        // Modal Open Function (Updated for brevity)
+        function openDetailModal(item) {
+            const modal = document.getElementById('educationModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            const renderDetailItem = (title, content, checkCompleted) => {
+                if (checkCompleted && !item.isCompleted) return '';
+                const display = content && content.trim() !== 'N/A' && content.trim() !== '' ? content : '내용 미등록';
+                const color = display === '내용 미등록' ? 'text-gray-500' : 'text-gray-700';
+                return `<div class="mb-4 p-3 bg-gray-50 rounded-lg"><h4 class="font-bold text-gray-800 mb-1 border-b pb-1 flex items-center"><svg class="w-4 h-4 text-indigo-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-9 0V3h4v2m-4 0h4" /></svg>${title}</h4><p class="text-sm ${color} whitespace-pre-wrap">${display}</p></div>`;
+            };
+            
+            const statusText = item.isCompleted ? '<span class="text-green-600 font-bold">완료</span>' : '<span class="text-red-500 font-medium">진행중</span>';
+            const refundStatus = item.isRefundableRaw === 'O' ? '<span class="font-bold text-green-700">O</span>' : (item.isRefundableRaw === 'X' ? '<span class="text-gray-500">X</span>' : '<span class="text-gray-500">N/A</span>');
+            const employeeInfo = `<span class="text-gray-500 text-sm">${item.employeeId}</span> / <span class="font-semibold text-gray-700">${item.employeeName}</span> / <span class="text-blue-600 font-bold">${item.team}</span>`;
+            
+            let detailHtml = renderDetailItem('교육 내용', item.content, false);
+            detailHtml += renderDetailItem('교육 목적', item.purpose, false);
+            detailHtml += renderDetailItem('기대 효과', item.expectedEffect, false);
+            detailHtml += renderDetailItem('교육 요약', item.summary, true);
+            detailHtml += renderDetailItem('업무적용 계획', item.linkage, true);
+            detailHtml += renderDetailItem('업무적용 애로사항', item.difficulty, true);
+            detailHtml += renderDetailItem('예상 업무적용 발현시점', item.implementationDate, true);
+
+            modalContent.innerHTML = `
+                <div class="border-b pb-4 mb-4"><h2 class="text-2xl font-extrabold text-gray-900 mb-1">${item.subject}</h2><p class="text-sm text-gray-600">${employeeInfo} (${item.dept})</p></div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p><span class="font-semibold text-gray-700">기간:</span> ${item.period}</p><p><span class="font-semibold text-gray-700">상태:</span> ${statusText}</p>
+                    <p><span class="font-semibold text-gray-700">주관:</span> ${item.host}</p><p><span class="font-semibold text-gray-700">형태:</span> ${item.type} (${item.source})</p>
+                    <p><span class="font-semibold text-gray-700">인정시간:</span> <span class="text-indigo-600">${item.actualHours.toFixed(1)} 시간</span></p>
+                    <p><span class="font-semibold text-gray-700">비용:</span> ${formatCurrency(item.actualCost)}</p>
+                    <p><span class="font-semibold text-gray-700">부대비용:</span> ${formatCurrency(item.incidentalCostTotal)}</p>
+                    <p><span class="font-semibold text-gray-700">환급여부:</span> ${refundStatus}</p>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">상세 보고서 항목</h3>
+                <div class="max-h-96 custom-scroll pr-2">${detailHtml}</div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+        window.openDetailModal = openDetailModal;
+
+
+        document.addEventListener('DOMContentLoaded',async()=>{
+            try{
+                const loadingMessage=document.getElementById('loadingMessage');
+                if (loadingMessage) loadingMessage.textContent="Google Sheet 데이터 로딩 중...";
+                
+                const erpMap=await fetchERPData();
+                allEducationData=await fetchData(EXTERNAL_RANGE,'사외교육',erpMap);
+                allAlwaysOnData=await fetchData(ALWAYS_ON_RANGE,'상시학습지원',erpMap); 
+                
+                let combinedDeptData = [...allEducationData, ...allAlwaysOnData].filter(item => item.dept === CURRENT_DEPARTMENT);
+                fullDeptData = mockTeamAssignment(combinedDeptData);
+
+                renderInitialKPIs(fullDeptData); 
+                renderEmployeeListDetail(fullDeptData);
+                renderAchievementChart(fullDeptData); // 연간 목표 차트 즉시 로드
+                
+                if(loadingMessage && loadingMessage.textContent==="Google Sheet 데이터 로딩 중..."){loadingMessage.remove()}
+                
+                renderTeamButtons(); 
+                updateAllListViews(fullDeptData, currentTeam); 
+
+            }catch(error){
+                console.error("Failed to load education data (outside fetch):",error);
+            }
+            
+            document.getElementById('applyFilters')?.addEventListener('click',()=>{
+                const filtered=filterByTeam(fullDeptData,currentTeam);
+                renderEducationList(applyListFilters(filtered));
+            });
+
+            document.getElementById('clearFilters')?.addEventListener('click',()=>{
+                clearFilters(); 
+                const filtered=filterByTeam(fullDeptData,currentTeam);
+                renderEducationList(applyListFilters(filtered));
+            });
+            
+            document.getElementById('teamButtonContainer')?.querySelectorAll('.team-btn').forEach(btn => {
+                btn.addEventListener('click', handleTeamFilter);
+            });
+        });
+    </script>
+
+    <!-- HTML Markup Start -->
+    <div id="app" class="max-w-6xl mx-auto bg-white shadow-xl rounded-xl p-4 sm:p-8">
+        <div class="flex justify-between items-start mb-6 border-b pb-3">
+            <h1 class="text-3xl font-bold text-gray-800">교육 현황 대시보드 - FPCB사업본부</h1>
+        </div>
+        
+        <div class="mb-6 flex flex-wrap gap-3">
+            <!-- FPCB 사업본부 하위 팀 목록 -->
+            <div id="teamButtonContainer" class="grid grid-cols-3 sm:grid-cols-4 gap-2 w-full">
+                <button data-team="전체" class="team-btn">전체</button> 
+                <button data-team="품질경영팀" class="team-btn">품질경영팀</button>
+                <button data-team="전장사업팀" class="team-btn">전장사업팀</button>
+                <button data-team="메카트로닉스팀" class="team-btn">메카트로닉스팀</button>
+                <button data-team="영업팀" class="team-btn">영업팀</button>
+                <button data-team="통합구매팀" class="team-btn">통합구매팀</button>
+                <button data-team="FPCB사양팀" class="team-btn">FPCB 사양팀</button>
+                <button data-team="개발팀" class="team-btn">개발팀</button>
+                <button data-team="중앙연구소" class="team-btn">중앙연구소</button>
+            </div>
+        </div>
+        
+        <h2 class="text-xl font-semibold text-gray-700 mb-4 mt-8">교육 주요 지표 현황</h2>
+
+        <!-- START: 총원 상세 목록 (고정 섹션) -->
+        <div id="employeeChartFixedContainer" class="bg-indigo-50 rounded-xl shadow-inner border border-indigo-200 mb-6 p-4">
+            <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2 flex justify-between items-center">
+                <span>총원 상세 목록 (팀별 현황)</span>
+                <!-- 총 인원수를 여기에 표시 -->
+                <span id="fixed-total-employees" class="text-lg font-extrabold text-indigo-700">총원 (0명)</span>
+            </h3> 
+            
+            <div class="space-y-4">
+                <!-- 1. Chart and Summary Area -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-4">
+                    <div class="h-64 bg-white rounded-xl p-3 shadow-md">
+                        <canvas id="teamHeadcountPieChart"></canvas>
+                    </div>
+                    <!-- 오른쪽 팀별 인원 요약 및 호버 시 직원 명단 표시 영역 -->
+                    <div id="teamHeadcountSummary" class="space-y-2 custom-scroll max-h-64 p-2 bg-indigo-100/50 rounded-xl border border-indigo-200">
+                        <p class="text-center text-gray-500 p-4">팀별 인원 통계 로딩 중...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END: 총원 상세 목록 (고정 섹션) -->
+
+        <!-- START: 연간 교육 목표 상세 (고정 섹션) -->
+        <div id="achievementChartFixedContainer" class="bg-blue-50 rounded-xl shadow-inner border border-blue-200 mb-6 p-4">
+            <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2 flex justify-between items-center">
+                <span>연간 교육 목표 상세 (팀별 현황)</span>
+                <div class="flex items-center text-lg">
+                    <span class="text-gray-600 text-sm font-medium mr-2">본부 달성율:</span>
+                    <span id="fixed-achievement-rate" class="font-extrabold text-blue-700">N/A</span>
+                </div>
+            </h3> 
+            <p id="achievementChartInfoTextInline" class="text-sm text-gray-600 mb-4"></p>
+            <div class="h-64">
+                <canvas id="deptAchievementBarChart"></canvas>
+            </div>
+            <!-- 추가: 팀별 목표 상세 리스트 컨테이너 -->
+            <div id="achievementGoalsListContainer" class="mt-4">
+                <!-- JS에서 내용이 채워집니다. -->
+            </div>
+        </div>
+        <!-- END: 연간 교육 목표 상세 (고정 섹션) -->
+        
+        <!-- 의무교육 미완료 인원 현황 (위치 조정됨) -->
+        <div id="mandatoryComplianceContainer" class="mt-8">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4 cursor-pointer p-4 bg-white rounded-lg shadow-md border-l-4 border-gray-300 hover:bg-gray-100 transition" onclick="toggleDetail(this)">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-3"><span class="text-xl font-bold text-gray-800">의무교육 미완료 인원 현황 (사외교육 12h 미만)</span></div>
+                    <div class="flex items-center space-x-2"><span class="text-red-700 font-bold text-lg"><span id="mandatoryCount">0</span>명</span>
+                        <svg class="w-5 h-5 text-gray-500 toggle-icon inline-block transition-transform duration-300 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+                </div>
+            </h2>
+            <div id="mandatoryComplianceList" class="detail-content custom-scroll max-h-96 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-2">
+            </div>
+        </div>
+        
+        <!-- NEW SECTION: 교육 관심 키워드 (위치 조정됨) -->
+        <h2 class="text-xl font-semibold text-gray-700 mt-8 mb-4">교육 관심 키워드</h2>
+        <div id="topHashtagsContainer" class="p-4 bg-gray-50 rounded-lg shadow-md border border-gray-200 mb-6">
+            <span class="text-gray-500 text-sm italic">주요 관심사 로딩 중...</span>
+        </div>
+        <!-- END NEW SECTION -->
+
+        <!-- 필터 영역 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
+            <div><label for="filterSubject" class="block text-sm font-medium text-gray-700 mb-1">교육명 검색</label><input type="text" id="filterSubject" placeholder="교육명 키워드" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+            <div><label for="filterEmployeeName" class="block text-sm font-medium text-gray-700 mb-1">성명 검색 (사번)</label><input type="text" id="filterEmployeeName" placeholder="성명 또는 사번" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+            <div>
+                <label for="filterPosition" class="block text-sm font-medium text-gray-700 mb-1">직책</label>
+                <select id="filterPosition" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">전체 직책</option><option value="팀장">팀장</option><option value="팀원">팀원</option><option value="임원">임원</option><option value="매니저">매니저</option>
+                </select>
+            </div>
+            <div>
+                <label for="filterStatus" class="block text-sm font-medium text-gray-700 mb-1">구분 (상태)</label>
+                <select id="filterStatus" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">전체 상태</option><option value="COMPLETED">교육 완료</option><option value="IN_PROGRESS">교육 진행중</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- 검색/초기화 버튼 -->
+        <div class="flex justify-end space-x-2 px-4 pb-4">
+            <button id="applyFilters" class="w-32 px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition shadow-md">검색</button>
+            <button id="clearFilters" class="w-32 px-4 py-2 bg-gray-400 text-white font-semibold rounded-lg hover:bg-gray-500 transition shadow-md">초기화</button>
+        </div>
+
+        <!-- 교육 이력 목록 (위치 조정됨) -->
+        <h2 class="text-xl font-semibold text-gray-700 mb-4 mt-8">교육 이력 목록 (<span id="resultCount">0</span>건)</h2>
+        <div id="educationList" class="education-list custom-scroll max-h-96 border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
+            <p class="text-center text-gray-500 p-8" id="loadingMessage">데이터를 불러오는 중...</p>
+        </div>
+    </div>
+
+    <!-- Education Detail Modal -->
+    <div id="educationModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-75 transition-opacity duration-300" onclick="closeDetailModal()">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto transform transition-all p-6 sm:p-8" onclick="event.stopPropagation()">
+                <!-- Modal Header -->
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h1 class="text-2xl font-bold text-indigo-700">교육 상세 이력</h1>
+                    <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-700 transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <!-- Modal Content -->
+                <div id="modalContent">
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Modal -->
+    
+</body>
+</html>

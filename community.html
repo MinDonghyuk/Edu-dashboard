@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사내 정보 공유 허브</title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-content.active { display: block; }
+        .tab-content:not(.active) { display: none; }
+        /* 스크롤바 커스터마이징 */
+        .db-scroll-area::-webkit-scrollbar { width: 6px; }
+        .db-scroll-area::-webkit-scrollbar-thumb { background-color: #a5b4fc; border-radius: 3px; }
+        .db-scroll-area::-webkit-scrollbar-track { background-color: #e5e7eb; border-radius: 3px; }
+        .db-scroll-area { scrollbar-width: thin; scrollbar-color: #a5b4fc #e5e7eb; }
+
+        /* 프로그레스 바 애니메이션 */
+        .progress-bar > div { transition: width 0.5s ease-in-out; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: { '300': '#a5b4fc', '600': '#4f46e5', '700': '#4338ca', '500': '#6366f1' },
+                        teal: { '500': '#14b8a6', '600': '#0d9488', '700': '#0f766e' },
+                        amber: { '500': '#f59e0b', '600': '#d97706', '700': '#b45309' },
+                        red: { '500': '#ef4444', '600': '#dc2626', '700': '#b91c1c' },
+                        cyan: { '500': '#06b6d4', '600': '#0891b2' },
+                        lime: { '500': '#84cc16', '600': '#65a30d' },
+                        orange: { '500': '#f97316', '600': '#ea580c', '700': '#c2410c' }
+                    }
+                }
+            }
+        }
+
+        // --- 아이콘 SVG 생성 함수 (전역) ---
+        function getIconSVG(name, classes) {
+            const icons = {
+                'Bell': '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path>',
+                'BookOpen': '<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path>',
+                'Users': '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path>',
+                'User': '<path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+                'Link': '<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07L13 10l-2 3M7 7l-3 3a5 5 0 007.07 7.07l3-3l-2-3M19 19L5 5"></path>',
+                'ClipboardList': '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path>',
+                'Globe': '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>',
+                'Calendar': '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>',
+                'Target': '<circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>',
+                'ListChecks': '<path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path>',
+                'ShoppingBag': '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path>',
+                'Plus': '<path d="M12 5v14"></path><path d="M5 12h14"></path>',
+                'X': '<path d="M18 6L6 18"></path><path d="M6 6l12 12"></path>',
+                'Eye': '<path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"></path><circle cx="12" cy="12" r="3"></circle>',
+                'TrendingUp': '<polyline points="18 13 22 17 19 19 16 16 11 21"></polyline><path d="M12 11V5a1 1 0 00-1-1H5"></path>',
+                'MessageSquare': '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>',
+                'Check': '<polyline points="20 6 9 17 4 12"></polyline>',
+                'LogOut': '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
+                'Clipboard': '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>'
+            };
+            const svgContent = icons[name] || '';
+            return `<svg xmlns="http://www.w3.org/2000/svg" class="${classes}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgContent}</svg>`;
+        }
+
+        // --- 메시지 표시 함수 (전역) ---
+        window.displayMessage = function(message, type = 'error') {
+            const container = document.getElementById('message-container');
+            if (!container) { console.error("Message container not found."); return; }
+            const iconName = type === 'error' ? 'X' : 'Check';
+            const iconSvg = getIconSVG(iconName, 'w-5 h-5');
+            const color = type === 'error' ? 'bg-red-600' : 'bg-green-600';
+            const messageElement = document.createElement('div');
+            messageElement.className = `p-4 rounded-lg shadow-xl text-white font-semibold flex items-center space-x-3 ${color} mb-2 opacity-0 transition-opacity duration-300 transform translate-y-2 pointer-events-auto`;
+            messageElement.innerHTML = `${iconSvg} <span>${message}</span>`;
+            container.appendChild(messageElement);
+            setTimeout(() => {
+                messageElement.classList.remove('opacity-0', 'translate-y-2');
+                messageElement.classList.add('opacity-100', 'translate-y-0');
+            }, 10);
+            setTimeout(() => {
+                messageElement.classList.remove('opacity-100', 'translate-y-0');
+                messageElement.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => messageElement.remove(), 300);
+            }, 5000);
+        };
+
+        // 모달 열기/닫기 함수 (전역)
+        window.openModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            const isAlwaysOpenModal = modalId === 'danggn-post-modal' || modalId === 'notice-detail-modal' || modalId === 'full-history-modal' || modalId === 'annual-plan-modal' || modalId === 'training-report-modal';
+            
+            if (!isAlwaysOpenModal && (!window.auth || !window.auth.currentUser)) {
+                window.displayMessage("로그인이 필요한 기능입니다.", 'error');
+                return;
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.add('opacity-100');
+                modal.querySelector('.bg-white').classList.add('scale-100');
+                modal.querySelector('.bg-white').classList.remove('scale-95');
+
+                if (modalId === 'full-history-modal' && typeof window.renderFullTrainingHistory === 'function') {
+                    window.renderFullTrainingHistory();
+                }
+                
+                if (modalId === 'annual-plan-modal' && typeof window.renderAnnualPlan === 'function') {
+                    window.renderAnnualPlan();
+                }
+            }, 10);
+        }
+
+        window.closeModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            modal.classList.remove('opacity-100');
+            modal.querySelector('.bg-white').classList.remove('scale-100');
+            modal.querySelector('.bg-white').classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+    </script>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <!-- 메시지 표시 영역 -->
+    <div id="message-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] w-full max-w-md px-4 pointer-events-none"></div>
+
+    <!-- 전체 레이아웃 그리드: 4열 구조 -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+
+        <!-- Column 1 (lg:col-span-1): 사이드바 -->
+        <aside class="lg:col-span-1 space-y-6" id="sidebar-content">
+            <!-- 사이드바 내용은 JS에서 동적으로 생성 -->
+        </aside>
+
+        <!-- Column 2 (lg:col-span-3): 메인 컨텐츠 영역 -->
+        <div class="lg:col-span-3">
+            <!-- 헤더 및 타이틀 -->
+            <header class="mb-8 bg-white p-6 rounded-xl shadow-lg">
+                <h1 class="text-3xl font-extrabold text-indigo-700 tracking-tight flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mr-3 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                    사내 정보 공유 허브
+                </h1>
+                <p class="text-gray-500 mt-1">우리 회사의 공지, 학습 자료, 소통 공간을 한 곳에서 확인하세요.</p>
+            </header>
+
+            <!-- 네비게이션 버튼 -->
+            <nav class="flex space-x-4 mb-8 p-1 bg-white rounded-xl shadow-md" id="tab-nav">
+                <!-- 버튼들은 JS에서 동적으로 생성됩니다. -->
+            </nav>
+
+            <!-- 컨텐츠 영역 -->
+            <main class="min-h-[600px]" id="tab-content-container">
+                <!-- 각 탭의 내용이 여기에 표시됩니다. -->
+            </main>
+        </div>
+    </div>
+
+    <!-- 푸터 -->
+    <footer class="mt-8 text-center text-gray-500 text-sm">
+        &copy; <span id="current-year"></span> 내부 커뮤니티. All rights reserved.
+    </footer>
+
+
+    <!-- 새 자료 등록 모달 (교육 자료용) -->
+    <div id="training-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <form id="training-post-form" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-teal-700">새 교육 자료 등록</h3>
+                    <button type="button" onclick="closeModal('training-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div>
+                    <label for="post-title-training" class="block text-sm font-medium text-gray-700 mb-1">제목</label>
+                    <input id="post-title-training" type="text" name="title" placeholder="자료의 핵심 내용을 요약하는 제목" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required>
+                </div>
+                <div>
+                    <label for="post-summary-training" class="block text-sm font-medium text-gray-700 mb-1">요약 설명</label>
+                    <textarea id="post-summary-training" name="summary" placeholder="자료의 내용을 간결하게 설명해 주세요." rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required></textarea>
+                </div>
+                <div>
+                    <label for="post-tag-training" class="block text-sm font-medium text-gray-700 mb-1">태그 분류</label>
+                    <select id="post-tag-training" name="tag" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white">
+                        <option value="교양" data-color="bg-green-500">교양</option>
+                        <option value="직무" data-color="bg-yellow-500">직무</option>
+                        <option value="필수" data-color="bg-blue-500">필수</option>
+                        <option value="기술" data-color="bg-red-500">기술</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeModal('training-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
+                    <button type="submit" class="px-6 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center">
+                        ${getIconSVG('Plus', 'w-4 h-4 mr-1')} 자료 등록
+                    </button>
+                </div>
+            </form>
+            <script>document.getElementById('training-post-modal').addEventListener('click', (e) => { if(e.target.id === 'training-post-modal') closeModal('training-post-modal'); });</script>
+        </div>
+    </div>
+
+    <!-- 새 게시물 등록 모달 (동아리/학습조직 신청서 작성용으로 변경) -->
+    <div id="community-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <form id="community-post-form" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-amber-700">동아리/학습조직 신청서 작성</h3>
+                    <button type="button" onclick="closeModal('community-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div>
+                    <label for="post-organization-name" class="block text-sm font-medium text-gray-700 mb-1">조직명 (동아리/학습조직 이름)</label>
+                    <input id="post-organization-name" type="text" name="title" placeholder="예: 클라우드 아키텍처 스터디" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500" required>
+                </div>
+                <div>
+                    <label for="post-activity-type" class="block text-sm font-medium text-gray-700 mb-1">활동 분류</label>
+                    <select id="post-activity-type" name="tag" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 bg-white" required>
+                        <option value="학술/직무">학술/직무 (Study)</option>
+                        <option value="친목/취미">친목/취미 (Hobby)</option>
+                        <option value="봉사/기타">봉사/기타</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="post-member-count" class="block text-sm font-medium text-gray-700 mb-1">예상 참여 인원</label>
+                    <input id="post-member-count" type="number" name="member_count" placeholder="최소 3명 이상" min="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500" required>
+                </div>
+                <div>
+                    <label for="post-activity-goal" class="block text-sm font-medium text-gray-700 mb-1">활동 목표 및 개요</label>
+                    <textarea id="post-activity-goal" name="content" placeholder="조직의 목표, 주요 활동 계획, 기대 효과를 상세히 작성해 주세요." rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500" required></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeModal('community-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
+                    <button type="submit" class="px-6 py-2 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 transition duration-150 shadow-md flex items-center">
+                        ${getIconSVG('Check', 'w-4 h-4 mr-1')} 신청서 제출
+                    </button>
+                </div>
+            </form>
+            <script>document.getElementById('community-post-modal').addEventListener('click', (e) => { if(e.target.id === 'community-post-modal') closeModal('community-post-modal'); });</script>
+        </div>
+    </div>
+
+    <!-- 새 글 등록 모달 (당근용) - 기능 없음 -->
+    <div id="danggn-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <form id="danggn-post-form" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-orange-700">새 당근 글 작성 (구현 예정)</h3>
+                    <button type="button" onclick="closeModal('danggn-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div class="bg-orange-50 border-l-4 border-orange-500 text-orange-700 p-4" role="alert"><p class="font-bold">안내</p><p class="text-sm">현재 해당 기능은 개발 중입니다. 곧 사내 중고거래를 시작할 수 있습니다.</p></div>
+                <div>
+                    <label for="post-title-danggn" class="block text-sm font-medium text-gray-700 mb-1">제목</label>
+                    <input id="post-title-danggn" type="text" name="title" placeholder="판매/구매할 물품 이름" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500" disabled>
+                </div>
+                <div>
+                    <label for="post-content-danggn" class="block text-sm font-medium text-gray-700 mb-1">내용</label>
+                    <textarea id="post-content-danggn" name="content" placeholder="물품 상태, 가격 등을 작성해주세요." rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500" disabled></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeModal('danggn-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
+                    <button type="button" onclick="window.displayMessage('당근 글쓰기 기능은 현재 준비 중입니다.', 'error')" class="px-6 py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition duration-150 shadow-md flex items-center opacity-50 cursor-not-allowed">
+                        ${getIconSVG('Plus', 'w-4 h-4 mr-1')} 등록 (준비중)
+                    </button>
+                </div>
+            </form>
+            <script>document.getElementById('danggn-post-modal').addEventListener('click', (e) => { if(e.target.id === 'danggn-post-modal') closeModal('danggn-post-modal'); });</script>
+        </div>
+    </div>
+    
+    <!-- 개인 교육 이력 전체 보기 모달 -->
+    <div id="full-history-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-amber-700 flex items-center">${getIconSVG('ListChecks', 'w-6 h-6 mr-2 text-amber-600')} 개인 교육 이력 전체</h3>
+                    <button type="button" onclick="closeModal('full-history-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-4 font-bold text-gray-700 border-b pb-2 text-sm hidden md:grid">
+                        <span class="col-span-2">교육 과정명 (시간)</span>
+                        <span>구분</span>
+                        <span class="text-right">상태</span>
+                    </div>
+                    <!-- 전체 이력 리스트가 여기에 렌더링됩니다. -->
+                    <ul id="full-history-list" class="space-y-0.5 max-h-[60vh] overflow-y-auto db-scroll-area">
+                        <!-- JS로 채워질 예정 -->
+                    </ul>
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="button" onclick="closeModal('full-history-modal')" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md">확인</button>
+                </div>
+            </div>
+            <script>document.getElementById('full-history-modal').addEventListener('click', (e) => { if(e.target.id === 'full-history-modal') closeModal('full-history-modal'); });</script>
+        </div>
+    </div>
+
+    <!-- 금년도 교육 계획 조회 모달 (NEW) -->
+    <div id="annual-plan-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-start border-b pb-3 mb-4">
+                    <!-- Title with Plan Creation Button (Updated) -->
+                    <div class="flex items-center space-x-4">
+                        <h3 class="text-2xl font-bold text-lime-700">2025 교육 계획</h3>
+                        <button onclick="openModal('annual-plan-create-modal')" class="px-3 py-1 text-sm font-semibold rounded-full bg-lime-500 text-white hover:bg-lime-600 shadow-md transition duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                            계획 작성
+                        </button>
+                    </div>
+                    <button type="button" onclick="closeModal('annual-plan-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-4 font-bold text-gray-700 border-b pb-2 text-sm hidden md:grid">
+                        <span class="col-span-2">과정명</span>
+                        <span>분류</span>
+                        <span class="text-right">실시 기간</span>
+                    </div>
+                    <!-- 연간 계획 리스트가 여기에 렌더링됩니다. -->
+                    <ul id="annual-plan-list" class="space-y-0.5 max-h-[60vh] overflow-y-auto db-scroll-area">
+                        <!-- JS로 채워질 예정 -->
+                    </ul>
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="button" onclick="closeModal('annual-plan-modal')" class="px-6 py-2 bg-lime-600 text-white rounded-lg font-bold hover:bg-lime-700 transition duration-150 shadow-md">확인</button>
+                </div>
+            </div>
+            <script>document.getElementById('annual-plan-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-modal') closeModal('annual-plan-modal'); });</script>
+        </div>
+    </div>
+    
+    <!-- 금년도 교육 계획 작성 모달 (NEW) -->
+    <div id="annual-plan-create-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <form id="annual-plan-create-form" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-lime-700">금년도 교육 계획 작성</h3>
+                    <button type="button" onclick="closeModal('annual-plan-create-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div>
+                    <label for="plan-course" class="block text-sm font-medium text-gray-700 mb-1">교육 과정명</label>
+                    <input id="plan-course" type="text" name="course" placeholder="예: 클라우드 기반 AI 개발 교육" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-lime-500 focus:border-lime-500" required>
+                </div>
+                <div>
+                    <label for="plan-type" class="block text-sm font-medium text-gray-700 mb-1">분류</label>
+                    <select id="plan-type" name="type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-lime-500 focus:border-lime-500 bg-white">
+                        <option value="필수" data-color="blue">필수</option>
+                        <option value="직무" data-color="yellow">직무</option>
+                        <option value="기술" data-color="teal">기술</option>
+                        <option value="리더십" data-color="indigo">리더십</option>
+                        <option value="선택" data-color="green">선택</option>
+                        <option value="의무" data-color="red">의무</option>
+                    </select>
+                </div>
+                 <div>
+                    <label for="plan-period" class="block text-sm font-medium text-gray-700 mb-1">실시 기간</label>
+                    <input id="plan-period" type="text" name="period" placeholder="예: 2025년 4분기" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-lime-500 focus:border-lime-500" required>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeModal('annual-plan-create-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
+                    <button type="submit" class="px-6 py-2 bg-lime-600 text-white rounded-lg font-bold hover:bg-lime-700 transition duration-150 shadow-md flex items-center">
+                        ${getIconSVG('Check', 'w-4 h-4 mr-1')} 계획 저장
+                    </button>
+                </div>
+            </form>
+            <script>document.getElementById('annual-plan-create-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-create-modal') closeModal('annual-plan-create-modal'); });</script>
+        </div>
+    </div>
+
+    <!-- 교육 보고서 상세 조회 모달 (NEW) -->
+    <div id="training-report-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 id="report-modal-title" class="text-2xl font-bold text-teal-700 truncate max-w-[80%]">교육 보고서 상세</h3>
+                    <button type="button" onclick="closeModal('training-report-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div class="space-y-4 text-gray-700">
+                    <div class="flex space-x-4 border-b pb-3">
+                        <div class="w-1/2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">신청자/팀</label>
+                            <p id="report-modal-applicant" class="text-sm font-semibold">-</p>
+                        </div>
+                        <div class="w-1/2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">승인 상태</label>
+                            <p id="report-modal-status" class="text-sm font-semibold text-green-600">-</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">보고서 내용 (교육 목표 및 세부 사항)</label>
+                        <div id="report-modal-details" class="p-3 bg-gray-50 rounded-lg border text-sm whitespace-pre-wrap max-h-48 overflow-y-auto db-scroll-area">
+                            -
+                        </div>
+                    </div>
+                    <div id="report-modal-rejection" class="p-3 bg-red-100 border border-red-300 rounded-lg hidden">
+                        <label class="block text-xs font-medium text-red-700 mb-1">반려 사유</label>
+                        <p id="report-modal-rejection-reason" class="text-sm text-red-800 font-medium">-</p>
+                    </div>
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="button" onclick="closeModal('training-report-modal')" class="px-6 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md">닫기</button>
+                </div>
+            </div>
+            <script>document.getElementById('training-report-modal').addEventListener('click', (e) => { if(e.target.id === 'training-report-modal') closeModal('training-report-modal'); });</script>
+        </div>
+    </div>
+
+    <!-- 공지사항 상세 조회 모달 (NEW) -->
+    <div id="notice-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 id="notice-modal-title" class="text-2xl font-bold text-indigo-700 truncate max-w-[80%]">공지사항 제목</h3>
+                    <button type="button" onclick="closeModal('notice-detail-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        ${getIconSVG('X', 'w-6 h-6')}
+                    </button>
+                </div>
+                <div class="space-y-4 text-gray-700">
+                    <div class="flex justify-between items-center text-sm text-gray-500 border-b pb-3">
+                        <p class="font-medium">게시일: <span id="notice-modal-date">-</span></p>
+                        <p class="font-medium">작성자: <span id="notice-modal-author">인사팀</span></p>
+                    </div>
+                    <div>
+                        <div id="notice-modal-content" class="p-4 bg-gray-50 rounded-lg border text-base whitespace-pre-wrap max-h-96 overflow-y-auto db-scroll-area">
+                            -
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="button" onclick="closeModal('notice-detail-modal')" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md">닫기</button>
+                </div>
+            </div>
+            <script>document.getElementById('notice-detail-modal').addEventListener('click', (e) => { if(e.target.id === 'notice-detail-modal') closeModal('notice-detail-modal'); });</script>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import {
+            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore, collection, query, onSnapshot, addDoc, serverTimestamp, setLogLevel
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Canvas Environment Variables ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        window.db = null;
+        window.auth = null;
+        let currentUserId = null;
+        const activeListeners = {}; // { type: unsubscribeFunc }
+
+        // --- Mock Data ---
+        const mockNotices = [
+            { id: 'n1', title: '전사 워크숍 일정 및 장소 안내 (필독)', date: '2025-10-25', author: '경영지원팀', isNew: true, content: '안녕하세요, 경영지원팀입니다.\n\n올해 전사 워크숍은 **11월 15일(금)**에 **[파인 리조트]**에서 진행됩니다. 전 직원이 참여하는 중요한 행사입니다. 당일 아침 8시까지 본사 1층 로비로 집결해 주시기 바랍니다.\n\n주요 프로그램:\n- 팀 빌딩 액티비티\n- 2026년 비전 공유 세션\n- 경품 추첨 및 만찬\n\n자세한 사항은 별도 메일로 첨부된 안내문을 확인해 주십시오. 감사합니다.' },
+            { id: 'n2', title: '2026년도 직무 교육 신청 기간 안내', date: '2025-10-20', author: '인사팀', isNew: false, content: '2026년도 직무 역량 강화를 위한 교육 프로그램 신청이 **10월 21일부터 11월 10일까지** 진행됩니다.\n\n**필수 신청 대상:** 전 직원 (의무 교육 과정 포함)\n**선택 과정:** 직무 전문성, 리더십, 외국어 등\n\n신청은 사내 교육 시스템(휴넷/STEP)을 통해 가능하며, 예산 소진 시 조기 마감될 수 있습니다. 문의사항은 인사팀 교육 담당자에게 연락 주십시오.' },
+            { id: 'n3', title: '사내 IT 시스템 점검 작업 공지', date: '2025-10-18', author: 'IT 인프라팀', isNew: false, content: '원활한 시스템 운영을 위해 아래와 같이 정기 점검이 예정되어 있습니다.\n\n**일시:** 2025년 10월 30일(수) 22:00 ~ 10월 31일(목) 06:00\n**영향:** 점검 시간 중 사내 인트라넷, 메일 서버, 일부 ERP 시스템 사용이 일시적으로 제한됩니다.\n\n이용에 불편을 드려 죄송합니다. 작업을 조속히 완료하여 서비스 정상화를 위해 노력하겠습니다.' },
+        ];
+        const fullTrainingHistory = [
+            { date: '2025-09', course: '프로젝트 관리 기본', hours: 16, type: '사내', status: '수료', color: 'green' },
+            { date: '2025-07', course: '클라우드 기초', hours: 8, type: '사외', status: '수료', color: 'green' },
+            { date: '2025-05', course: '리더십 역량 강화', hours: 24, type: '사내', status: '진행중', color: 'blue' },
+            { date: '2025-03', course: '데이터 분석 입문', hours: 12, type: '사내', status: '수료', color: 'green' },
+            { date: '2025-01', course: '정보보안 필수 교육', hours: 4, type: '사외', status: '수료', color: 'green' },
+            { date: '2024-12', course: '엑셀 심화 과정', hours: 10, type: '사내', status: '수료', color: 'green' },
+            { date: '2024-10', course: 'CS 기초 및 고객 응대', hours: 8, type: '사내', status: '수료', color: 'green' },
+            { date: '2024-08', course: '재무 회계 기초', hours: 16, type: '사내', status: '수료', color: 'green' },
+            { date: '2024-06', course: '개인정보보호 의무 교육', hours: 4, type: '사외', status: '수료', color: 'green' },
+        ];
+        const annualTrainingPlan = [
+            { course: '핵심 가치 및 비전 공유', type: '필수', period: '2025년 1분기', color: 'blue' },
+            { course: '직무 전문성 강화 (부문별)', type: '직무', period: '2025년 상시', color: 'yellow' },
+            { course: '정보보안 의무 교육 (사외)', type: '의무', period: '2025년 상반기', color: 'red' },
+            { course: '리더십 역량 강화 프로그램', type: '리더십', period: '2025년 2~3분기', color: 'indigo' },
+            { course: '최신 IT 트렌드 스터디', type: '기술', period: '2025년 하반기', color: 'teal' },
+            { course: '개인 역량 개발 (어학/교양)', type: '선택', period: '2025년 상시', color: 'green' },
+            { course: '신규 입사자 온보딩 OJT', type: '필수', period: '입사 시', color: 'blue' },
+        ];
+        const trainingProposals = [
+            { id: 'p1', title: '2026년 해외 컨퍼런스 참가', status: '대기 중', statusColor: 'amber', applicant: '기술 연구소 (김민수)', date: '2025-10-01', details: '내년 상반기 AWS Re:Invent 컨퍼런스 참가를 통한 최신 클라우드 기술 습득 및 네트워킹 확보 목적. 총 3인 참가 예정.', rejectionReason: null },
+            { id: 'p2', title: 'React 심화 강의 수강 요청', status: '완료', statusColor: 'green', applicant: 'AI 개발팀 (홍길동)', date: '2025-09-15', details: `Udemy의 'Advanced React Hooks' 강의 수강을 통한 프론트엔드 개발 역량 심화. 비용 10만원. 보고서 제출 완료.`, rejectionReason: null },
+            { id: 'p3', title: '신규 장비 구매를 위한 교육 요청', status: '반려됨', statusColor: 'red', applicant: '인프라팀 (박영희)', date: '2025-09-10', details: '신규 네트워크 장비 운영을 위한 외부 전문 교육 요청. 해당 교육은 사내 강사 교육으로 대체 가능하다는 인사팀의 검토 의견으로 반려됨.', rejectionReason: '사내 교육 대체 가능' },
+            { id: 'p4', title: '직무 역량 진단 도구 사용법 교육', status: '완료', statusColor: 'green', applicant: '인사팀 (최지영)', date: '2025-08-20', details: '직무 역량 진단 도구(TalentMapper)의 정확한 사용 및 해석을 위한 교육. 전담 인력 2인 대상. 외부 강사 초빙 완료.', rejectionReason: null },
+        ];
+
+        // --- Firebase 초기화 및 인증 ---
+        async function setupFirebase() {
+            try {
+                if (!firebaseConfig) {
+                    console.warn("Firebase setup skipped: Configuration is missing. Using mock data.");
+                    return false;
+                }
+                const app = initializeApp(firebaseConfig);
+                window.db = getFirestore(app);
+                window.auth = getAuth(app);
+                setLogLevel('error');
+
+                const authReadyPromise = new Promise((resolve) => {
+                    onAuthStateChanged(window.auth, (user) => {
+                        currentUserId = user ? user.uid : null;
+                        updateSidebarUserId(currentUserId);
+                        enableFeatures(!!user);
+                        resolve(true);
+                    });
+                });
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(window.auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(window.auth);
+                }
+                return await authReadyPromise;
+            } catch (error) {
+                console.error("Firebase setup failed:", error);
+                window.displayMessage(`Firebase 초기화 실패: ${error.message.substring(0, 70)}...`, 'error');
+                window.db = null;
+                window.auth = null;
+                return false;
+            }
+        }
+
+        // --- 기능 활성화/비활성화 함수 ---
+        function enableFeatures(isLoggedIn) {
+            const buttons = document.querySelectorAll('button[onclick^="openModal"], button[type="submit"], #logout-button');
+            
+            buttons.forEach(button => {
+                if (!button) return;
+                const isLogoutButton = button.id === 'logout-button';
+                const isAlwaysActiveModalOpener = button.getAttribute('onclick')?.includes('full-history-modal') || button.getAttribute('onclick')?.includes('annual-plan-modal') || button.getAttribute('onclick')?.includes('training-report-modal') || button.getAttribute('onclick')?.includes('notice-detail-modal'); 
+                const isModalOpener = button.getAttribute('onclick')?.includes('openModal');
+
+                if (isAlwaysActiveModalOpener) {
+                    button.disabled = false;
+                } else if (isLogoutButton) {
+                    button.disabled = false;
+                } else if (isModalOpener || button.type === 'submit') {
+                    button.disabled = !isLoggedIn;
+                } else {
+                    button.disabled = !isLoggedIn;
+                }
+
+                button.classList.toggle('opacity-50', button.disabled);
+                button.classList.toggle('cursor-not-allowed', button.disabled);
+            });
+        }
+
+        // --- 사이드바 사용자 ID 업데이트 함수 ---
+        const userInfoFields = ['employeeId', 'name', 'email', 'division', 'department', 'position'];
+        function updateSidebarUserId(uid) {
+            const userInfo = uid ? {
+                employeeId: '1234567', name: '홍길동', email: 'gildong.hong@example.com',
+                division: '기술 연구소', department: 'AI 개발팀', position: '선임 연구원'
+            } : {
+                employeeId: '-', name: '-', email: '-',
+                division: '-', department: '-', position: '-'
+            };
+
+            userInfoFields.forEach(key => {
+                const el = document.getElementById(`info-${key}`);
+                if (el) el.textContent = userInfo[key] || 'N/A';
+            });
+
+            const progressData = uid ? { goal: 40, actual: 30, mandatoryExternal: 8 } : { goal: 0, actual: 0, mandatoryExternal: 0 };
+            updateProgressBars(progressData);
+        }
+
+        // --- 프로그레스 바 업데이트 함수 ---
+        function updateProgressBars(data) {
+            const goalTime = data.goal || 0;
+            const actualTime = data.actual || 0;
+            const mandatoryExternalTime = data.mandatoryExternal || 0;
+            const mandatoryGoal = 12;
+
+            const goalPercent = goalTime > 0 ? (actualTime / goalTime) * 100 : 0;
+            const mandatoryPercent = (mandatoryExternalTime / mandatoryGoal) * 100;
+
+            const goalBarFill = document.getElementById('progress-goal-fill');
+            const goalBarText = document.getElementById('progress-goal-text');
+            const mandatoryBarFill = document.getElementById('progress-mandatory-fill');
+            const mandatoryBarText = document.getElementById('progress-mandatory-text');
+
+            if (goalBarFill) goalBarFill.style.width = `${Math.min(goalPercent, 100)}%`;
+            if (goalBarText) goalBarText.textContent = `${actualTime}h / ${goalTime}h (${goalPercent.toFixed(0)}%)`;
+            if (mandatoryBarFill) mandatoryBarFill.style.width = `${Math.min(mandatoryPercent, 100)}%`;
+            if (mandatoryBarText) mandatoryBarText.textContent = `${mandatoryExternalTime}h / ${mandatoryGoal}h (${mandatoryPercent.toFixed(0)}%)`;
+        }
+
+        // --- 로그아웃 함수 ---
+        window.logout = async () => {
+             if (window.auth && window.auth.currentUser) {
+                try {
+                    await signOut(window.auth);
+                } catch (error) {
+                    window.displayMessage(`로그아웃 실패: ${error.message}`, 'error');
+                }
+             }
+
+             window.displayMessage("로그아웃되었습니다.", 'success');
+             try {
+                 // **업데이트된 부분: 회원가입 페이지 경로로 이동**
+                 const LOGIN_PAGE_PATH = 'file:///C:/Users/User/Desktop/%EB%AF%BC%EB%8F%99%ED%98%89/13%EC%A3%BC%EC%B0%A8/%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80%20%EB%A7%8C%EB%93%A4%EA%B8%B0/%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85.html';
+                 window.location.href = LOGIN_PAGE_PATH;
+             } catch(e) {
+                 window.displayMessage("페이지 이동 실패. 콘솔을 확인하세요.", 'error');
+             }
+        };
+
+
+        // --- Firestore 경로 및 리스너 (기능 유지를 위해 남겨둠) ---
+        function getCollectionPath(type) {
+            const collectionNameMap = {
+                'training': 'training_materials', 'community': 'community_posts', 'danggn': 'danggn_posts'
+            };
+            return `/artifacts/${appId}/public/data/${collectionNameMap[type] || 'default_collection'}`;
+        }
+
+        function cleanupListener(type) {
+            if (activeListeners[type]) {
+                activeListeners[type]();
+                delete activeListeners[type];
+            }
+        }
+
+        // --- 모의 데이터 렌더링 (교육자료) ---
+        function renderMockTrainingSummary() {
+            const mockMaterials = [
+                { title: 'OKR 설정법 가이드', summary: '성과를 높이는 목표 및 핵심 결과 설정 방법론 요약', tag: '직무', color: 'bg-yellow-500', views: 98, date: '2025-10-15', IconComponent: 'BookOpen' },
+                { title: '젠더 다양성과 포용성 교육', summary: '모두가 존중받는 문화를 위한 필수 교육 자료입니다.', tag: '필수', color: 'bg-blue-500', views: 78, date: '2025-10-10', IconComponent: 'ClipboardList' },
+                { title: '프론트엔드 최신 동향 (2025)', summary: 'React, Vue, Angular의 최근 발전사와 기술 스택 변화', tag: '기술', color: 'bg-red-500', views: 55, date: '2025-09-28', IconComponent: 'BookOpen' },
+                { title: '직장인을 위한 교양: 서양 미술사 개론', summary: '퇴근 후 삶을 풍요롭게 할 수 있는 교양 콘텐츠', tag: '교양', color: 'bg-green-500', views: 40, date: '2025-09-01', IconComponent: 'BookOpen' },
+                { title: '효율적인 회의 진행법', summary: '30분 내 회의 끝내기! 핵심만 전달하는 스킬', tag: '직무', color: 'bg-yellow-500', views: 32, date: '2025-08-20', IconComponent: 'BookOpen' },
+            ];
+            renderTrainingSummary(mockMaterials);
+        }
+
+        // --- UI 렌더링 (교육자료 요약) ---
+        function renderTrainingSummary(materials) {
+            const sortedByViews = [...materials].sort((a, b) => b.views - a.views);
+            const top3Materials = sortedByViews.slice(0, 3);
+            const recentMaterials = materials;
+
+            const top3Container = document.getElementById('top3-cards-container');
+            const listContainer = document.getElementById('training-list-container');
+            const noDataMessage = document.getElementById('no-data-message-training');
+            const dbSection = document.getElementById('db-section');
+
+            if (!top3Container || !listContainer || !noDataMessage || !dbSection) return;
+
+            // Top 3 렌더링
+            top3Container.innerHTML = top3Materials.map(material => {
+                const colorClass = material.color || 'bg-gray-500';
+                const borderColor = colorClass.replace('bg-', 'border-');
+                const textColor = colorClass.replace('bg-', 'text-');
+                const icon = getIconSVG(material.IconComponent || 'BookOpen', 'w-6 h-6 text-white');
+                const eyeIcon = getIconSVG('Eye', 'w-4 h-4 mr-1 text-teal-400');
+                return `
+                    <div class="p-5 rounded-xl shadow-md transition-shadow duration-300 hover:shadow-xl border-t-4 ${borderColor} bg-white">
+                        <div class="flex items-start justify-between"><div class="p-3 w-fit rounded-full ${colorClass} mb-3">${icon}</div><div class="flex items-center text-sm font-medium text-gray-500">${eyeIcon} ${material.views.toLocaleString()}</div></div>
+                        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">${material.tag}</div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2 truncate" title="${material.title}">${material.title}</h3>
+                        <p class="text-sm text-gray-600 line-clamp-2">${material.summary}</p>
+                        <a href="#" class="mt-3 inline-block text-sm font-medium ${textColor}">자세히 보기 &rarr;</a>
+                    </div>`;
+            }).join('') || '<p class="text-gray-500 col-span-3">조회수 Top 3 자료가 없습니다.</p>';
+
+            // 자료 DB 렌더링 (최신순)
+            if (recentMaterials.length > 0) {
+                listContainer.innerHTML = recentMaterials.map(material => {
+                    const colorClass = material.color || 'bg-gray-500';
+                    const eyeIcon = getIconSVG('Eye', 'w-4 h-4 mr-1 text-gray-400');
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-white border-b border-gray-100 hover:bg-gray-50 transition duration-150 cursor-pointer">
+                            <div class="flex items-center space-x-3 min-w-0 flex-1"><span class="px-3 py-1 text-xs font-semibold rounded-full text-white shadow-sm ${colorClass} flex-shrink-0">${material.tag}</span><h4 class="text-gray-800 text-base font-medium truncate" title="${material.title}">${material.title}</h4></div>
+                            <div class="flex items-center space-x-4 text-sm text-gray-500 flex-shrink-0 ml-4"><span class="hidden sm:flex items-center">${eyeIcon} ${material.views.toLocaleString()}</span><span class="min-w-[70px] text-right">${material.date}</span></div>
+                        </div>`;
+                }).join('');
+                dbSection.classList.remove('hidden');
+                noDataMessage.classList.add('hidden');
+            } else {
+                listContainer.innerHTML = '';
+                dbSection.classList.add('hidden');
+                noDataMessage.classList.remove('hidden');
+            }
+        }
+
+        // --- 전체 교육 이력 모달 렌더링 함수 ---
+        window.renderFullTrainingHistory = function() {
+            const listContainer = document.getElementById('full-history-list');
+            const header = document.querySelector('#full-history-modal .grid-cols-4');
+            if (!listContainer) return;
+            
+            if (fullTrainingHistory.length > 0) {
+                if (header) header.classList.remove('hidden');
+                listContainer.innerHTML = fullTrainingHistory.map(item => {
+                    const statusColor = item.color === 'green' ? 'text-green-600 bg-green-100 border border-green-200' : 'text-blue-600 bg-blue-100 border border-blue-200';
+                    const courseDisplay = item.course.length > 20 ? item.course.substring(0, 17) + '...' : item.course;
+                    const hoursDisplay = item.type === '사외' ? ` (${item.hours}h - 사외)` : ` (${item.hours}h)`;
+                    return `
+                        <li class="grid grid-cols-4 items-center p-3 hover:bg-gray-50 transition duration-150 border-b last:border-b-0">
+                            <div class="col-span-2 text-sm text-gray-900 font-medium break-words">
+                                ${item.course} <span class="text-xs text-gray-500">(${item.hours}h)</span>
+                            </div>
+                            <div class="text-sm text-gray-600 font-normal">${item.type}</div>
+                            <div class="text-right">
+                                <span class="text-xs font-semibold px-3 py-1 rounded-full ${statusColor} min-w-[60px] inline-block text-center">${item.status}</span>
+                            </div>
+                        </li>
+                    `;
+                }).join('');
+            } else {
+                if (header) header.classList.add('hidden');
+                listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">등록된 교육 이력이 없습니다.</li>';
+            }
+        }
+        
+        // --- 연간 교육 계획 모달 렌더링 함수 ---
+        window.renderAnnualPlan = function() {
+            const listContainer = document.getElementById('annual-plan-list');
+            const header = document.querySelector('#annual-plan-modal .grid-cols-4');
+            if (!listContainer) return;
+
+            if (annualTrainingPlan.length > 0) {
+                if (header) header.classList.remove('hidden');
+                listContainer.innerHTML = annualTrainingPlan.map(item => {
+                    let colorClass = 'bg-gray-100 text-gray-700';
+                    if (item.color === 'blue') colorClass = 'bg-blue-100 text-blue-700';
+                    else if (item.color === 'yellow') colorClass = 'bg-yellow-100 text-yellow-700';
+                    else if (item.color === 'red') colorClass = 'bg-red-100 text-red-700';
+                    else if (item.color === 'indigo') colorClass = 'bg-indigo-100 text-indigo-700';
+                    else if (item.color === 'teal') colorClass = 'bg-teal-100 text-teal-700';
+                    else if (item.color === 'green') colorClass = 'bg-green-100 text-green-700';
+
+                    return `
+                        <li class="grid grid-cols-4 items-center p-3 hover:bg-lime-50 transition duration-150 border-b last:border-b-0">
+                            <div class="col-span-2 text-sm text-gray-900 font-medium break-words">${item.course}</div>
+                            <div class="text-sm">
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded ${colorClass} min-w-[45px] inline-block text-center">${item.type}</span>
+                            </div>
+                            <div class="text-sm text-gray-600 font-normal text-right">${item.period}</div>
+                        </li>
+                    `;
+                }).join('');
+            } else {
+                if (header) header.classList.add('hidden');
+                listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">금년도 교육 계획이 아직 수립되지 않았습니다.</li>';
+            }
+        }
+
+        // --- 교육 보고서 상세 모달 열기 함수 ---
+        window.openTrainingReportModal = function(id) {
+            const report = trainingProposals.find(p => p.id === id);
+            const modalId = 'training-report-modal';
+            
+            if (!report) {
+                window.displayMessage("해당 보고서를 찾을 수 없습니다.", 'error');
+                return;
+            }
+            
+            document.getElementById('report-modal-title').textContent = `${report.title} (${report.date})`;
+            document.getElementById('report-modal-applicant').textContent = report.applicant;
+            
+            const statusEl = document.getElementById('report-modal-status');
+            statusEl.textContent = report.status;
+            
+            let statusColorClass = 'text-gray-600';
+            if (report.statusColor === 'green') statusColorClass = 'text-green-600';
+            else if (report.statusColor === 'amber') statusColorClass = 'text-amber-600';
+            else if (report.statusColor === 'red') statusColorClass = 'text-red-600';
+
+            statusEl.className = `text-sm font-semibold ${statusColorClass}`;
+            
+            document.getElementById('report-modal-details').textContent = report.details;
+
+            const rejectionEl = document.getElementById('report-modal-rejection');
+            if (report.rejectionReason) {
+                rejectionEl.classList.remove('hidden');
+                document.getElementById('report-modal-rejection-reason').textContent = report.rejectionReason;
+            } else {
+                rejectionEl.classList.add('hidden');
+            }
+            
+            window.openModal(modalId);
+        }
+
+        // --- 공지사항 상세 모달 열기 함수 ---
+        window.openNoticeModal = function(id) {
+            const notice = mockNotices.find(n => n.id === id);
+            const modalId = 'notice-detail-modal';
+            
+            if (!notice) {
+                window.displayMessage("해당 공지사항을 찾을 수 없습니다.", 'error');
+                return;
+            }
+            
+            document.getElementById('notice-modal-title').textContent = notice.title;
+            document.getElementById('notice-modal-date').textContent = notice.date;
+            document.getElementById('notice-modal-author').textContent = notice.author;
+            document.getElementById('notice-modal-content').textContent = notice.content; 
+            
+            window.openModal(modalId);
+        };
+
+
+        // --- 새 자료/게시물 등록 기능 (Firestore 저장) ---
+        async function savePost(e, type) {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+
+            if (!window.db || !currentUserId) {
+                window.displayMessage("❌ Firebase 설정이 완료되지 않았거나 인증이 필요합니다.", 'error');
+                return;
+            }
+
+            const form = e.target;
+            const isTraining = type === 'training';
+            let postData = {};
+            let successMessage = '';
+            
+            if (isTraining) {
+                const title = form.elements['title'].value;
+                const content = form.elements['summary'].value;
+                if (!title || !content) { window.displayMessage("제목과 내용을 모두 입력해야 합니다.", 'error'); return; }
+
+                const tagSelect = form.elements['tag'];
+                postData = {
+                    title: title,
+                    summary: content,
+                    authorId: currentUserId,
+                    author: '사용자 ' + (currentUserId.substring(0, 4) + '...'),
+                    comments: 0, views: 0,
+                    createdAt: serverTimestamp(),
+                    tag: tagSelect.value,
+                    color: tagSelect.options[tagSelect.selectedIndex].getAttribute('data-color'),
+                };
+                successMessage = '자료 등록 성공!';
+            } else { // Organization Application (community)
+                const orgName = form.elements['title'].value;
+                const activityGoal = form.elements['content'].value;
+                const activityType = form.elements['tag'].value;
+                const memberCount = form.elements['member_count'].value;
+                
+                if (!orgName || !activityGoal || !activityType || !memberCount) {
+                    window.displayMessage("모든 신청 필드를 입력해야 합니다.", 'error');
+                    return;
+                }
+
+                postData = {
+                    title: orgName, 
+                    content: activityGoal, 
+                    activityType: activityType,
+                    memberCount: parseInt(memberCount, 10),
+                    authorId: currentUserId,
+                    author: '사용자 ' + (currentUserId.substring(0, 4) + '...'),
+                    status: '승인 대기',
+                    createdAt: serverTimestamp()
+                };
+                successMessage = '동아리/학습조직 신청서 제출 성공! (검토 예정)';
+            }
+
+
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                await addDoc(collection(window.db, getCollectionPath(type)), postData);
+                closeModal(`${type}-post-modal`);
+                form.reset();
+                window.displayMessage(`✅ ${successMessage}`, 'success');
+            } catch (error) {
+                window.displayMessage(`${isTraining ? '자료' : '게시물'} 등록 실패: ${error.message.substring(0, 50)}...`, 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        window.saveTrainingPost = (e) => savePost(e, 'training');
+        window.saveCommunityPost = (e) => savePost(e, 'community');
+        
+        // --- 연간 교육 계획 저장 기능 (NEW) ---
+        window.saveAnnualPlan = function(e) {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+
+            if (!window.auth || !window.auth.currentUser) {
+                 window.displayMessage("❌ 계획 작성은 로그인 후 이용 가능합니다.", 'error');
+                 return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                const form = e.target;
+                const course = form.elements['course'].value;
+                const type = form.elements['type'].value;
+                const period = form.elements['period'].value;
+                const tagSelect = form.elements['type'];
+
+                const newPlan = { 
+                    course, type, period, 
+                    color: tagSelect.options[tagSelect.selectedIndex].getAttribute('data-color') 
+                };
+                annualTrainingPlan.unshift(newPlan);
+                
+                window.renderAnnualPlan();
+
+                closeModal('annual-plan-create-modal');
+                form.reset();
+                window.displayMessage(`✅ 새로운 교육 계획 ('${course}')이 저장되었습니다.`, 'success');
+            } catch (error) {
+                window.displayMessage(`계획 저장 실패: ${error.message.substring(0, 50)}...`, 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+
+        // --- UI 및 이벤트 핸들러 ---
+        function setActiveTab(tabName) {
+            document.querySelectorAll('#tab-nav button').forEach(btn => {
+                const isActive = btn.dataset.tab === tabName;
+                btn.classList.toggle('bg-indigo-600', isActive && tabName === '공지사항');
+                btn.classList.toggle('bg-teal-600', isActive && tabName === '교육자료 공유');
+                btn.classList.toggle('bg-amber-600', isActive && tabName === '동아리/학습조직 신청');
+                btn.classList.toggle('bg-orange-600', isActive && tabName === '당근');
+                btn.classList.toggle('text-white', isActive);
+                btn.classList.toggle('shadow-lg', isActive);
+                btn.classList.toggle('text-gray-600', !isActive);
+                btn.classList.toggle('hover:bg-gray-50', !isActive);
+            });
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === tabName.replace(/\s|\//g, '-').toLowerCase());
+            });
+
+            cleanupListener('community');
+            cleanupListener('danggn');
+
+            if (tabName === '교육자료 공유') {
+                renderMockTrainingSummary();
+            }
+        }
+        window.setActiveTab = setActiveTab;
+
+        // --- 사이드바 및 이동된 카드 생성 함수 ---
+        function createSidebarAndMovedCards() {
+            const sidebarContainer = document.getElementById('sidebar-content');
+            
+            const historyItems = fullTrainingHistory.slice(0, 5).map(item => {
+                const statusColor = item.color === 'green' ? 'text-green-600 font-semibold' : 'text-blue-600 font-semibold';
+                const courseDisplay = item.course.length > 20 ? item.course.substring(0, 17) + '...' : item.course;
+                const hoursDisplay = item.type === '사외' ? ` (${item.hours}h - 사외)` : ` (${item.hours}h)`;
+                return `
+                    <li class="flex justify-between items-center">
+                        <span>- ${item.date}: ${courseDisplay}${hoursDisplay}</span>
+                        <span class="text-xs ${statusColor}">[${item.status}]</span>
+                    </li>`;
+            }).join('');
+
+            if (sidebarContainer) {
+                sidebarContainer.innerHTML = `
+                    <!-- 1. 관련 사이트 카드 -->
+                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-cyan-500" id="related-sites-card">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${getIconSVG('Globe', 'w-5 h-5 mr-2 text-cyan-600')} 관련 사이트</h3>
+                        <ul class="space-y-3">
+                            <li><a href="https://www.hunet.co.kr/" target="_blank" rel="noopener noreferrer" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 휴넷 (기업 교육)</a></li>
+                            <li><a href="https://synopex.step.or.kr/main.do" target="_blank" rel="noopener noreferrer" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 스탭 (STEP)</a></li>
+                            <li><a href="#" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 사내 위키 (Confluence)</a></li>
+                            <li><a href="#" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> IT 헬프데스크 (Jira)</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- 2. 개인정보 카드 (로그아웃 버튼 포함) -->
+                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-indigo-500 min-h-[350px]" id="user-profile-card">
+                        <div class="flex justify-between items-start mb-4">
+                            <!-- 수정된 부분: 마이페이지 버튼 추가 -->
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-xl font-bold text-gray-800">개인정보</h3>
+                                <a href="file:///C:/Users/User/Desktop/%EB%AF%BC%EB%8F%99%ED%98%89/13%EC%A3%BC%EC%B0%A8/%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80%20%EB%A7%8C%EB%93%A4%EA%B8%B0/%EA%B0%9C%EC%9D%B8%20%ED%8E%98%EC%9D%B4%EC%A7%80.html" 
+                                   class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 shadow-md transition duration-200" 
+                                   title="마이페이지로 이동"
+                                >마이페이지</a>
+                            </div>
+                            <button id="logout-button" onclick="logout()" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-md transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed" title="로그아웃">
+                                ${getIconSVG('LogOut', 'w-5 h-5')}
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <!-- 개인 정보 항목 -->
+                            <div class="grid grid-cols-3 gap-x-4 gap-y-2">
+                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사번</label><p id="info-employeeId" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이름</label><p id="info-name" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이메일</label><p id="info-email" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사업부</label><p id="info-division" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">부서명</label><p id="info-department" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">직책</label><p id="info-position" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                            </div>
+                            <!-- 다가오는 교육 일정 -->
+                            <div class="border-t pt-4 mt-4">
+                                <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">${getIconSVG('Calendar', 'w-4 h-4 mr-1 text-indigo-500')} 다가오는 교육 일정</h4>
+                                <ul class="space-y-1 text-xs text-gray-600">
+                                    <li class="flex justify-between"><span>[필수] 정보보안 교육</span> <span>11/15</span></li>
+                                    <li class="flex justify-between"><span>[직무] 신규 입사자 OJT</span> <span>11/20</span></li>
+                                </ul>
+                            </div>
+                            <!-- 교육 목표 달성 현황 -->
+                            <div class="border-t pt-4 mt-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h4 class="text-sm font-semibold text-gray-700 flex items-center">${getIconSVG('Target', 'w-4 h-4 mr-1 text-lime-600')} 교육 목표 달성 현황</h4>
+                                    <button onclick="openModal('annual-plan-modal')" class="text-xs font-medium text-lime-600 hover:text-lime-700 transition duration-150 px-2 py-1 rounded-md bg-lime-50 hover:bg-lime-100 disabled:opacity-50 disabled:cursor-not-allowed" title="금년도 교육 계획을 확인합니다.">금년도 계획 조회 &rarr;</button>
+                                </div>
+                                <div class="space-y-3">
+                                    <!-- 전체 목표 달성률 -->
+                                    <div>
+                                        <div class="flex justify-between text-xs font-medium text-gray-600 mb-1">
+                                            <span>전체 목표 달성률</span>
+                                            <span id="progress-goal-text">0h / 0h (0%)</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden">
+                                            <div id="progress-goal-fill" class="bg-indigo-500 h-2 rounded-full" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <!-- 의무 (사외) 교육 달성률 -->
+                                    <div>
+                                        <div class="flex justify-between text-xs font-medium text-gray-600 mb-1">
+                                            <span>의무 (사외) 교육</span>
+                                            <span id="progress-mandatory-text">0h / 12h (0%)</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden">
+                                            <div id="progress-mandatory-fill" class="bg-lime-500 h-2 rounded-full" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 팀 교육 현황 카드 -->
+                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-teal-500" id="training-links-card">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${getIconSVG('Link', 'w-5 h-5 mr-2 text-teal-600')} 팀 교육 현황</h3>
+                        <div class="max-h-[150px] overflow-y-auto db-scroll-area pr-2">
+                            <ul class="space-y-3">
+                                <li><a href="https://www.hunet.co.kr/" target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 연간 교육 계획서 (인사팀)</a></li>
+                                <li><a href="#" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 외부 강의 지원 신청</a></li>
+                                <li><a href="#" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 최신 기술 스터디 그룹</a></li>
+                                <li><a href="#" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 팀 내부 발표 자료 (분기별)</a></li>
+                                <li><a href="#" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 신규 입사자 교육 로드맵</a></li>
+                                <li><a href="#" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 멘토링 프로그램 안내</a></li>
+                                <li><a href="#" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 사내 강사 리스트</a></li>
+                                <li><a href="#" class="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-teal-400 mr-2 flex-shrink-0"></span> 팀 교육 예산 현황</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 4. 개인 교육 이력 카드 -->
+                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-amber-500" id="personal-training-history-card">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${getIconSVG('ListChecks', 'w-5 h-5 mr-2 text-amber-600')} 개인 교육 이력</h3>
+                        <div class="max-h-[150px] overflow-y-auto db-scroll-area pr-2">
+                            <ul class="space-y-2 text-sm text-gray-600">
+                                ${historyItems}
+                                <li><a href="#" onclick="event.preventDefault(); openModal('full-history-modal')" class="text-amber-600 hover:text-amber-700 text-xs font-medium mt-2 inline-block">전체 이력 보기 &rarr;</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+
+        // --- 초기화 로직 ---
+        window.onload = async () => {
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+
+            // 1. 사이드바 내용 생성
+            createSidebarAndMovedCards();
+
+            // 2. Firebase 설정 시도 및 인증 대기
+            const isFirebaseReady = await setupFirebase();
+            if (!isFirebaseReady && !firebaseConfig) {
+                window.displayMessage("⚠️ Firebase 설정 키가 없어 모의 데이터로 실행됩니다.", 'error');
+                enableFeatures(false);
+            } else if (!isFirebaseReady) {
+                window.displayMessage("⚠️ Firebase 연결 실패. 모의 데이터로 실행됩니다.", 'error');
+            }
+
+            // 3. 탭 및 컨텐츠 영역 생성
+            const tabs = [
+                { name: '공지사항', icon: 'Bell', color: 'indigo' },
+                { name: '교육자료 공유', icon: 'BookOpen', color: 'teal' },
+                { name: '동아리/학습조직 신청', icon: 'Users', color: 'amber' },
+                { name: '당근', icon: 'ShoppingBag', color: 'orange' },
+            ];
+            const nav = document.getElementById('tab-nav');
+            const contentContainer = document.getElementById('tab-content-container');
+
+            if (!nav || !contentContainer) return;
+            nav.innerHTML = ''; contentContainer.innerHTML = '';
+
+            tabs.forEach(tab => {
+                const tabNameId = tab.name.replace(/\s|\//g, '-').toLowerCase();
+
+                // 네비게이션 버튼
+                const btn = document.createElement('button');
+                btn.className = 'flex-1 flex items-center justify-center py-3 px-2 rounded-lg text-sm md:text-base font-semibold transition-all duration-300 ease-in-out text-gray-600 hover:bg-gray-50';
+                btn.dataset.tab = tab.name;
+                btn.innerHTML = `${getIconSVG(tab.icon, 'w-5 h-5 mr-2')} ${tab.name}`;
+                btn.onclick = () => setActiveTab(tab.name);
+                nav.appendChild(btn);
+
+                // 컨텐츠 영역 (HTML 구조)
+                const div = document.createElement('div');
+                div.id = tabNameId;
+                div.className = 'tab-content p-6 bg-white rounded-xl shadow-lg h-full overflow-y-auto';
+
+                let contentHTML = '';
+                if (tab.name === '공지사항') {
+                    const noticeItemsHTML = mockNotices.map(notice => `
+                        <div onclick="openNoticeModal('${notice.id}')" class="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:bg-gray-100 cursor-pointer transition duration-150">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="text-lg font-medium text-indigo-600 flex items-center">
+                                    ${notice.title}
+                                    ${notice.isNew ? '<span class="ml-2 px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">NEW</span>' : ''}
+                                </h3>
+                                <span class="text-sm text-gray-500">${notice.date}</span>
+                            </div>
+                            <p class="text-gray-600 text-sm line-clamp-2">${notice.content.split('\n')[0]}</p>
+                        </div>
+                    `).join('');
+
+                    contentHTML = `
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                            ${getIconSVG('Bell', 'w-6 h-6 mr-2 text-red-500')} 공지사항
+                        </h2>
+                        <div class="space-y-4">
+                            ${noticeItemsHTML}
+                        </div>`;
+                } else if (tab.name === '교육자료 공유') {
+                    const completedProposals = trainingProposals.filter(p => p.status === '완료');
+                    const proposalListHtml = completedProposals.map(item => `
+                        <li onclick="openTrainingReportModal('${item.id}')" class="flex justify-between items-center cursor-pointer hover:bg-teal-100 transition duration-150 rounded-lg p-2">
+                            <span class="text-sm font-medium text-gray-700 truncate min-w-0 pr-2">- [${item.status}] ${item.title}</span>
+                            <span class="text-xs text-green-600 font-semibold flex-shrink-0">보고서 완료 &rarr;</span>
+                        </li>
+                    `).join('');
+
+                    contentHTML = `
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                            ${getIconSVG('BookOpen', 'w-6 h-6 mr-2 text-teal-500')} 교육 지원 및 자료 공유
+                        </h2>
+
+                        <!-- Section 1: 교육 품의서 (Training Proposal/Approval) -->
+                        <div class="mb-10 p-6 border border-teal-300 rounded-xl bg-teal-50">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-teal-700 flex items-center">
+                                    ${getIconSVG('Clipboard', 'w-5 h-5 mr-2 text-teal-500')} 완료된 교육 보고서 (클릭 시 상세 조회)
+                                </h3>
+                            </div>
+                            <ul class="space-y-1 text-sm text-gray-700" id="proposal-report-list">
+                                ${proposalListHtml || '<li class="text-gray-500 p-2">완료된 교육 보고서가 없습니다.</li>'}
+                            </ul>
+                        </div>
+
+                        <!-- Section 2: 교육자료 공유 (Material Sharing) - 기존 Top 3 및 DB -->
+                        <div class="mt-10">
+                            <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center justify-between">
+                                <span class="flex items-center">${getIconSVG('BookOpen', 'w-5 h-5 mr-2 text-teal-500')} 교육자료 공유</span>
+                                <!-- 자료 등록 버튼 -->
+                                <button onclick="openModal('training-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-teal-500 text-white hover:bg-teal-600 shadow-md transition duration-200 flex items-center">${getIconSVG('Plus', 'w-4 h-4 mr-1')} 자료 등록</button>
+                            </h3>
+                            
+                            <!-- 기존 Top 3 내용 -->
+                            <div class="mb-10">
+                                <h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${getIconSVG('TrendingUp', 'w-5 h-5 mr-2 text-red-500')} 조회수 Top 3</h4>
+                                <div id="top3-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"><p class="text-gray-500 col-span-3">데이터 로딩 중...</p></div>
+                            </div>
+                            
+                            <!-- 기존 자료 DB 내용 -->
+                            <div id="db-section" class="mt-8 hidden">
+                                <h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${getIconSVG('BookOpen', 'w-5 h-5 mr-2 text-teal-500')} 자료 DB (최신순)</h4>
+                                <div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area"><div id="training-list-container" class="space-y-0"></div></div>
+                            </div>
+                            <p id="no-data-message-training" class="hidden text-center py-10 text-gray-500 border border-dashed rounded-lg">등록된 교육 자료가 없습니다.</p>
+                        </div>
+                    `;
+                } else if (tab.name === '동아리/학습조직 신청') {
+                    contentHTML = `
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between">
+                            <span class="flex items-center">${getIconSVG('Users', 'w-6 h-6 mr-2 text-amber-500')} 동아리/학습조직 신청</span>
+                            <button onclick="openModal('community-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-amber-500 text-white hover:bg-amber-600 shadow-md transition duration-200 flex items-center">${getIconSVG('Plus', 'w-4 h-4 mr-1')} 신청서 작성</button>
+                        </h2>
+
+                        <!-- Section 1: 신청 및 승인 현황 -->
+                        <div class="mb-10 p-6 border border-amber-300 rounded-xl bg-amber-50">
+                            <h3 class="text-xl font-bold text-amber-700 mb-4 flex items-center">${getIconSVG('ClipboardList', 'w-5 h-5 mr-2 text-amber-500')} 신청 및 승인 현황 (개인)</h3>
+                            <ul class="space-y-2 text-sm text-gray-700">
+                                <li class="flex justify-between"><span>- [승인 대기] 2026년 AI 트렌드 학습 조직</span> <span class="text-amber-500 font-semibold">검토 중</span></li>
+                                <li class="flex justify-between"><span>- [승인 완료] 사내 테니스 동호회 (신규)</span> <span class="text-green-600 font-semibold">승인 완료</span></li>
+                                <li class="flex justify-between"><span>- [반려됨] 주식 투자 학습 모임</span> <span class="text-red-500 font-semibold">반려됨</span></li>
+                            </ul>
+                            <a href="#" class="mt-3 inline-block text-xs font-medium text-amber-600 hover:text-amber-700">전체 신청 현황 보기 &rarr;</a>
+                        </div>
+                        
+                        <!-- Section 2: 현재 활동 조직 목록 (정적 리스트로 대체) -->
+                        <div id="community-list-section" class="mt-10">
+                            <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center">${getIconSVG('Users', 'w-5 h-5 mr-2 text-amber-500')} 현재 활동 조직 목록 (30개)</h3>
+                            <div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area">
+                                <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition duration-150 cursor-pointer">
+                                    <span class="text-gray-800 text-base font-medium">✨ 클라우드 아키텍처 스터디 (기술)</span>
+                                    <span class="text-sm text-gray-500">인원 8명</span>
+                                </div>
+                                <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition duration-150 cursor-pointer">
+                                    <span class="text-gray-800 text-base font-medium">⚽ 사내 축구 동호회 (친목)</span>
+                                    <span class="text-sm text-gray-500">인원 22명</span>
+                                </div>
+                                <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition duration-150 cursor-pointer">
+                                    <span class="text-gray-800 text-base font-medium">📚 독서 토론 모임 (교양)</span>
+                                    <span class="text-sm text-gray-500">인원 15명</span>
+                                </div>
+                                <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition duration-150 cursor-pointer">
+                                    <span class="text-gray-800 text-base font-medium">💻 TypeScript 실무 학습조 (기술)</span>
+                                    <span class="text-sm text-gray-500">인원 5명</span>
+                                </div>
+                                <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition duration-150 cursor-pointer">
+                                    <span class="text-gray-800 text-base font-medium">🎧 음악 감상 동호회 (친목)</span>
+                                    <span class="text-sm text-gray-500">인원 12명</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-center text-sm">
+                                <p class="text-gray-600">가입 신청은 해당 조직 리스트에서 직접 할 수 있습니다.</p>
+                            </div>
+                        </div>
+                        <p id="no-data-message-community" class="hidden text-center py-10 text-gray-500 border border-dashed rounded-lg">등록된 조직이 없습니다.</p>
+                    `;
+                } else if (tab.name === '당근') {
+                    contentHTML = `
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between">
+                            <span class="flex items-center">${getIconSVG('ShoppingBag', 'w-6 h-6 mr-2 text-orange-500')} 당근</span>
+                            <button onclick="openModal('danggn-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-orange-500 text-white hover:bg-orange-600 shadow-md transition duration-200 flex items-center">${getIconSVG('Plus', 'w-4 h-4 mr-1')} 새 글 작성</button>
+                        </h2>
+                        <p class="text-gray-600">사내 중고거래 게시판입니다. (구현 예정)</p>
+                        <div class="mt-8 p-6 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-300 text-gray-500">
+                            <p class="text-lg font-semibold mb-2">기능 준비 중 안내</p>
+                            <p>더 나은 사내 교환/나눔 시스템을 위해 당근 탭을 준비 중입니다. 잠시만 기다려 주세요!🥕</p>
+                        </div>
+                    `;
+                }
+                div.innerHTML = contentHTML;
+                contentContainer.appendChild(div);
+            });
+
+            // 4. 폼 이벤트 리스너 연결
+            const trainingForm = document.getElementById('training-post-form');
+            if(trainingForm) trainingForm.addEventListener('submit', window.saveTrainingPost);
+            const communityForm = document.getElementById('community-post-form');
+            if(communityForm) communityForm.addEventListener('submit', window.saveCommunityPost);
+            const annualPlanCreateForm = document.getElementById('annual-plan-create-form');
+            if(annualPlanCreateForm) annualPlanCreateForm.addEventListener('submit', window.saveAnnualPlan);
+
+            // 5. 기본 탭 활성화 (교육자료 공유)
+            setActiveTab(tabs[1].name);
+        };
+    </script>
+</body>
+</html>

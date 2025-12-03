@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사내 정보 공유 허브 (경량화)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .main-content-section:not(.active) { display: none; }
+        .main-content-section.active { display: block; }
+        
+        .db-scroll-area::-webkit-scrollbar { width: 6px; }
+        .db-scroll-area::-webkit-scrollbar-thumb { background-color: #a5b4fc; border-radius: 3px; }
+        .db-scroll-area::-webkit-scrollbar-track { background-color: #e5e7eb; border-radius: 3px; }
+        .db-scroll-area { scrollbar-width: thin; scrollbar-color: #a5b4fc #e5e7eb; }
+
+        #individual-history-list::-webkit-scrollbar { width: 8px; }
+        #individual-history-list::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        #individual-history-list::-webkit-scrollbar-track { background-color: #f1f5f9; }
+        #individual-history-list { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+
+        .progress-bar > div { transition: width 0.5s ease-in-out; }
+    </style>
+    <script>
+        // --- 전역 상수 및 더미 데이터 ---
+        const TRAINING_GOAL_HOURS = 40; 
+        let currentCalendarDate = new Date(); 
+        
+        // 현재 날짜를 기반으로 일정을 생성하여 캘린더에 표시되도록 보장
+        const currentMonth = currentCalendarDate.getMonth();
+        const currentYear = currentCalendarDate.getFullYear();
+        const currentDay = currentCalendarDate.getDate();
+
+        // 데이터 재도입 (Mock Data)
+        const mockInquiryHistory = [
+            { type: '교육 신청', title: 'React 심화 강의 수강 요청', status: '승인 완료', date: '2025-10-25' },
+            { type: '문의', title: '연차 교육 시간 인정 문의', status: '답변 완료', date: '2025-10-15' },
+            { type: '자료 공유', title: '클라우드 보안 가이드 공유', status: '게시 완료', date: '2025-10-20' },
+        ];
+        
+        const mockTrainingHistory = [
+            { id: 't1', course: '정보보안 필수 교육', host: '인사팀', type: '온라인', period: '2025-02', hours: 4, cost: 0, refund: 'O' },
+            { id: 't2', course: '클라우드 아키텍처 기초', host: 'A 교육센터', type: '사외강의', period: '2025-04', hours: 16.5, cost: 800000, refund: 'X' },
+            { id: 't3', course: '파이썬 데이터 분석', host: 'R&D 부서', type: '사내강의', period: '2025-07', hours: 8, cost: 0, refund: 'N/A' },
+        ];
+        
+        // NEW: Local state for simulated user schedules (for calendar)
+        // 캘린더 테스트를 위해 현재 달의 날짜를 사용 (일정 1개는 미래, 1개는 오늘)
+        let localUserSchedules = [
+            { id: 's1', title: '팀 회식', date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(currentDay + 7).padStart(2, '0')}`, type: 'Personal', color: 'red' }, 
+            { id: 's2', title: '개인 면담', date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`, type: 'Personal', color: 'red' },
+        ];
+        
+        const mockUpcomingTraining = [
+            { id: 'ut1', title: 'Generative AI 트렌드', date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(currentDay + 3).padStart(2, '0')}`, type: 'Training', color: 'teal' },
+            { id: 'ut2', title: '애자일 PM 워크숍', date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(currentDay + 5).padStart(2, '0')}`, type: 'Training', color: 'teal' },
+        ];
+
+        // NEW: Dummy structure for shared posts to simulate interaction
+        let simulatedSharedPosts = [
+            { id: 'p1', title: '클라우드 도입 가이드', content: 'AWS 기초 아키텍처 학습 자료 공유', authorId: 'user12345678', timestamp: new Date(2025, 10, 1), isMyPost: false },
+            { id: 'p2', title: 'Vue.js 프론트엔드 교육 후기', content: 'Vue 3와 Composition API 사용법 정리', authorId: 'user98765432', timestamp: new Date(2025, 10, 5), isMyPost: true },
+        ];
+        // NEW: Dummy structure for recommended keywords
+        const mockInterestKeywords = [
+            { tag: '#AI_개발_팀_전략', type: '팀 단위' },
+            { tag: '#기술_연구소_공통_역량', type: '사업부 단위' },
+            { tag: '#전직원_필수_보안', type: '전사 단위' },
+        ];
+
+        // NEW: Local state for scraped IDs (simulates persistence)
+        let localScrapedIds = []; // Stores IDs of posts the user has "hearted"
+
+        // --- 아이콘 SVG 생성 함수 (전역) ---
+        function getIconSVG(name, classes) {
+            const icons = {
+                'User': '<path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+                'ListChecks': '<path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path>',
+                'Target': '<circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>',
+                'ClipboardList': '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path>',
+                'Check': '<polyline points="20 6 9 17 4 12"></polyline>',
+                'X': '<path d="M18 6L6 18"></path><path d="M6 6l12 12"></path>',
+                'Heart': '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path>',
+                'Star': '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+                'Pencil': '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>'
+            };
+            const svgContent = icons[name] || '';
+            return `<svg xmlns="http://www.w3.org/2000/svg" class="${classes}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgContent}</svg>`;
+        }
+        
+        // --- 유틸리티 함수 ---
+        const formatCurrency = (number) => new Intl.NumberFormat('ko-KR', {
+            style: 'currency',
+            currency: 'KRW',
+            minimumFractionDigits: 0
+        }).format(number);
+
+        // --- 메시지 표시 함수 (alert/confirm 대체) ---
+        window.alertMessage = function(message, type = 'info') {
+            const box = document.getElementById('message-box');
+            let bgColor = { 'info': 'bg-blue-500', 'success': 'bg-green-500', 'error': 'bg-red-500' }[type] || 'bg-blue-500';
+            
+            box.textContent = message;
+            box.className = `fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-transform duration-300 transform translate-x-0 ${bgColor}`;
+
+            setTimeout(() => { box.classList.add('translate-x-full'); }, 3000);
+            setTimeout(() => { box.classList.remove('translate-x-full'); }, 3500);
+        }
+
+        // --- Modal Utility Functions ---
+        window.openModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex', 'opacity-100');
+            }
+        };
+
+        window.closeModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('opacity-100', 'flex');
+                modal.classList.add('hidden');
+            }
+        };
+
+        // --- DUMMY/MOCKUP FUNCTIONS (Persistence Removed) ---
+
+        // NEW DUMMY: 관심 등록/해제 (Toggle using local memory)
+        window.toggleInterest = function(postId, event) {
+            event.stopPropagation();
+            const index = localScrapedIds.indexOf(postId);
+            
+            if (index > -1) {
+                localScrapedIds.splice(index, 1);
+                window.alertMessage("스크랩 목록에서 제거되었습니다.", 'info');
+            } else {
+                localScrapedIds.push(postId);
+                window.alertMessage("스크랩 목록에 추가되었습니다! (하트 색상 변경 확인)", 'success');
+            }
+            
+            // Force re-render of both lists to update heart icons and the interest list content
+            window.setupSharingListener(); 
+            window.renderInterestList(); 
+        };
+
+        // DUMMY: 연간 교육 계획 저장
+        window.saveAnnualPlan = function(e) {
+            e.preventDefault();
+            window.alertMessage("🚧 기능 비활성화: 교육 계획 저장 기능이 제거되었습니다.", 'info');
+            window.closeModal('annual-plan-modal');
+        };
+
+        // DUMMY: 개인 일정 저장
+        window.saveUserSchedule = function(e) {
+            e.preventDefault();
+            window.alertMessage("🚧 기능 비활성화: 개인 일정 저장 기능이 제거되었습니다.", 'info');
+            window.closeModal('schedule-add-modal');
+        };
+
+        // DUMMY: 개인 일정 삭제
+        window.deleteUserSchedule = function(scheduleId, event) {
+            event.stopPropagation();
+            window.alertMessage("🚧 기능 비활성화: 개인 일정 삭제 기능이 제거되었습니다.", 'info');
+            window.closeModal('day-detail-modal');
+        }
+
+        // DUMMY: 교육 상세 및 코멘트 저장
+        window.saveTrainingComment = function(e) {
+            e.preventDefault();
+            window.alertMessage("🚧 기능 비활성화: 메모 및 파일 첨부 정보 저장이 제거되었습니다.", 'info');
+            window.closeModal('training-detail-modal');
+        }
+
+        // DUMMY: 게시판 공유 (Updates simulated data)
+        window.sharePost = function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const title = form.elements['title'].value.trim();
+            const content = form.elements['content'].value.trim();
+            
+            if (!title || !content) {
+                window.alertMessage('제목과 내용을 모두 입력해 주세요.', 'error');
+                return;
+            }
+
+            const newPost = {
+                id: `p${Date.now()}`, // Unique ID
+                title: title,
+                content: content,
+                authorId: 'my-dummy-user', // Current user simulation
+                timestamp: new Date(),
+                isMyPost: true
+            };
+            simulatedSharedPosts.unshift(newPost); // Add to the start
+            
+            form.reset();
+            window.alertMessage("게시물이 성공적으로 공유되었습니다! (Mock)", 'success');
+            window.setupSharingListener(); // Re-render the board
+        }
+
+        // --- 렌더링 로직 (Mock Data 기반) ---
+
+        // 1. 개인 정보 (Dummy)
+        function renderPersonalInfo() {
+            // 이메일 주소 수정
+            const data = { employeeId: '98765432', name: '김민수', businessUnit: '기술 연구소', department: '인공지능 개발팀', position: '선임 연구원', email: 'minsu.kim@company.com' };
+            const personalInfoDisplay = document.getElementById('personal-info-display');
+            personalInfoDisplay.innerHTML = `
+                <div class="grid grid-cols-2 gap-y-4 gap-x-4 text-sm">
+                    <div class="col-span-1 flex flex-col">
+                        <strong class="text-xs font-semibold text-gray-500">이름:</strong>
+                        <span class="font-semibold text-gray-800">${data.name}</span>
+                    </div>
+                    <div class="col-span-1 flex flex-col">
+                        <strong class="text-xs font-semibold text-gray-500">사번:</strong>
+                        <span class="text-gray-800">${data.employeeId}</span>
+                    </div>
+                    <div class="col-span-1 flex flex-col">
+                        <strong class="text-xs font-semibold text-gray-500">사업부:</strong>
+                        <span class="text-gray-800">${data.businessUnit}</span>
+                    </div>
+                    <div class="col-span-1 flex flex-col">
+                        <strong class="text-xs font-semibold text-gray-500">부서명:</strong>
+                        <span class="text-gray-800">${data.department}</span>
+                    </div>
+                    <div class="col-span-1 flex flex-col">
+                        <strong class="text-xs font-semibold text-gray-500">직책:</strong>
+                        <span class="text-gray-800">${data.position}</span>
+                    </div>
+                    <div class="col-span-1 flex flex-col">
+                        <strong class="text-xs font-semibold text-gray-500">이메일:</strong>
+                        <span class="text-gray-800 break-all">${data.email}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderAchievementSummary() {
+            let totalHours = mockTrainingHistory.reduce((sum, item) => sum + item.hours, 0);
+            let totalCost = mockTrainingHistory.reduce((sum, item) => sum + item.cost, 0); 
+            let totalNetCost = mockTrainingHistory.filter(item => item.refund !== 'O').reduce((sum, item) => sum + item.cost, 0); 
+            
+            const achievementRate = (totalHours / TRAINING_GOAL_HOURS) * 100;
+            const safeRate = Math.max(0, Math.min(100, achievementRate));
+            const rateText = `${totalHours.toFixed(1)}시간 / ${TRAINING_GOAL_HOURS}시간 (${safeRate.toFixed(1)}%)`;
+            const totalCostText = formatCurrency(totalCost);
+            const totalNetCostText = formatCurrency(totalNetCost); 
+
+            const html = `
+                <div class="grid grid-cols-1 gap-4 mb-4">
+                    <div class="col-span-1">
+                        <p class="text-md font-bold text-indigo-700 mb-2">총 달성율: ${rateText}</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: ${safeRate}%;"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="col-span-1">
+                            <strong class="block text-xs font-semibold text-gray-500">총 교육 비용:</strong>
+                            <span class="font-bold text-teal-600">${totalCostText}</span>
+                        </div>
+                        <div class="col-span-1">
+                            <strong class="block text-xs font-semibold text-gray-500">순수 부담 비용:</strong>
+                            <span class="font-bold text-red-600">${totalNetCostText}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        // DUMMY: 연간 교육 계획 렌더링
+        window.fetchAndRenderAnnualPlan = function() {
+            const planContainer = document.getElementById('annual-plan-display');
+            const writeButton = `
+                <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
+                    ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 
+                    계획 작성하기
+                </button>
+            `;
+            // Mock data for a submitted plan
+            const mockPlan = {
+                title: '2025년 클라우드/AI 역량 강화 계획',
+                details: '1. 클라우드 아키텍처 강의 (16h)\n2. GenAI 기술 동향 세미나 (5h)\n3. 팀 내 지식 공유 2회',
+                status: 'Pending', // Approved, Rejected, Pending
+                createdAt: new Date().toLocaleDateString('ko-KR')
+            };
+            
+            const statusColors = {
+                'Pending': 'bg-yellow-500 text-white',
+                'Approved': 'bg-teal-500 text-white',
+                'Rejected': 'bg-red-500 text-white',
+            };
+            const statusClass = statusColors[mockPlan.status] || 'bg-gray-500 text-white';
+            const statusText = mockPlan.status === 'Pending' ? '승인 대기' : (mockPlan.status === 'Approved' ? '승인 완료' : (mockPlan.status === 'Rejected' ? '반려됨' : '상태 미확인'));
+            
+            planContainer.innerHTML = `
+                <div class="p-4 bg-white border border-indigo-300 rounded-xl shadow-inner space-y-2">
+                    <p class="text-xs font-semibold text-gray-500">나의 금년도 교육 계획 (Mock)</p>
+                    <div class="flex justify-between items-start">
+                        <p class="text-lg font-bold text-indigo-700 truncate pr-4" title="${mockPlan.title}">${mockPlan.title}</p>
+                        <span class="text-xs font-semibold px-3 py-1 rounded-full ${statusClass} flex-shrink-0">${statusText}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 whitespace-pre-wrap max-h-16 overflow-hidden border-l-2 pl-2 border-gray-200">${mockPlan.details}</p>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
+                        <span>작성일: ${mockPlan.createdAt}</span>
+                        ${writeButton}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 2. 교육 이수 이력 (Mock Data 기반)
+        window.applyTrainingFilters = function() {
+            const typeFilter = document.getElementById('type-filter')?.value || 'All';
+            const refundFilter = document.getElementById('refund-filter')?.value || 'All';
+            window.fetchTrainingData(typeFilter, refundFilter);
+        }
+
+        window.fetchTrainingData = function(typeFilter = 'All', refundFilter = 'All') {
+            // NOTE: achievementRateDisplay 제거
+            
+            // Apply filters to the mock data
+            let filteredHistory = [...mockTrainingHistory];
+
+            if (typeFilter !== 'All') {
+                filteredHistory = filteredHistory.filter(item => item.type === typeFilter);
+            }
+
+            if (refundFilter !== 'All') {
+                filteredHistory = filteredHistory.filter(item => item.refund === refundFilter);
+            }
+            
+            const individualHistoryList = document.getElementById('individual-history-list');
+
+            if (filteredHistory.length === 0) {
+                if(individualHistoryList) individualHistoryList.innerHTML = `<p class="text-gray-500 p-2">필터 조건에 맞는 이수 내역이 없습니다. (Mock)</p>`;
+                return;
+            }
+            
+            if(individualHistoryList) individualHistoryList.innerHTML = `
+                <div class="grid grid-cols-12 font-bold text-xs text-gray-600 border-b border-gray-300 py-2 bg-gray-50 sticky top-0">
+                    <span class="col-span-3">과정명</span>
+                    <span class="col-span-2">주관/형태</span>
+                    <span class="col-span-2">기간</span>
+                    <span class="col-span-1 text-right">시간</span>
+                    <span class="col-span-2 text-right">비용</span>
+                    <span class="col-span-2 text-center">환급여부</span>
+                </div>
+                <div class="space-y-2 pt-2">
+                    ${filteredHistory.map(item => `
+                        <div class="grid grid-cols-12 items-center text-sm border-b border-gray-100 pb-2 cursor-pointer hover:bg-indigo-50" onclick="openTrainingDetailModal('${item.id}')" data-id="${item.id}">
+                            <span class="col-span-3 font-medium text-gray-800 pr-1">${item.course}</span>
+                            <span class="col-span-2 text-gray-600 text-xs truncate" title="${item.host} (${item.type})">${item.host} (${item.type})</span>
+                            <span class="col-span-2 text-gray-500 text-xs truncate">${item.period}</span>
+                            <span class="col-span-1 text-gray-700 font-semibold text-right">${item.hours.toFixed(1)}h</span>
+                            <span class="col-span-2 text-indigo-600 text-xs text-right">${formatCurrency(item.cost)}</span>
+                            <span class="col-span-2 text-center ${item.refund === 'O' ? 'text-green-600 font-bold' : 'text-red-500'}">${item.refund}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // DUMMY: 문의/작성 이력 (Mock Data 기반)
+        function renderInquiryHistory() {
+            const container = document.getElementById('inquiry-history-list');
+            if (!container) return;
+            
+            const listHtml = mockInquiryHistory.map(item => {
+                let colorClass = 'text-gray-600 bg-gray-100';
+                if (item.status.includes('완료')) colorClass = 'text-green-600 bg-green-100';
+                if (item.status.includes('반려')) colorClass = 'text-red-600 bg-red-100';
+                
+                return `
+                    <li class="p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition duration-150 flex justify-between items-center">
+                        <div class="flex-1 min-w-0 pr-4">
+                            <p class="text-sm font-semibold text-gray-800">${item.title}</p>
+                            <p class="text-xs text-gray-500">${item.type} (${item.date})</p>
+                        </div>
+                        <span class="text-xs font-medium px-3 py-1 rounded-full ${colorClass} flex-shrink-0">${item.status}</span>
+                    </li>
+                `;
+            }).join('');
+
+            container.innerHTML = listHtml || `<p class="text-center text-gray-500 p-4">문의/작성 이력이 없습니다.</p>`;
+        }
+
+        // NEW: 관심 교육 키워드 목록 렌더링 (Mock Data 기반)
+        function renderKeywordList() {
+            const container = document.getElementById('keyword-list-container');
+            if (!container) return;
+
+            if (mockInterestKeywords.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 col-span-full p-4">키워드 목록 데이터가 없습니다.</p>`;
+                return;
+            }
+            
+            const listHtml = mockInterestKeywords.map(item => `
+                <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition duration-150 cursor-pointer">
+                    <p class="font-semibold text-indigo-700">${item.tag}</p>
+                    <p class="text-xs text-gray-500 mt-1">(${item.type})</p>
+                </div>
+            `).join('');
+
+            container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">${listHtml}</div>`;
+        }
+        
+        // DUMMY: 교육 상세 및 코멘트 모달 열기
+        window.openTrainingDetailModal = function(itemId) {
+            const modal = document.getElementById('training-detail-modal');
+            const item = mockTrainingHistory.find(i => i.id === itemId) || { 
+                id: 't0', course: '샘플 교육 이력', host: 'Mock Data', type: '온라인', period: '2025-01', hours: 10, cost: 0, refund: 'N/A' 
+            };
+            
+            document.getElementById('detail-course-name').textContent = item.course;
+            document.getElementById('detail-item-id').value = itemId; 
+
+            document.getElementById('detail-content-body').innerHTML = `
+                <div class="space-y-2 text-sm text-gray-700">
+                    <div class="flex justify-between border-b pb-1">
+                        <span class="font-semibold text-gray-500">주관/형태:</span>
+                        <span>${item.host} (${item.type})</span>
+                    </div>
+                    <div class="flex justify-between border-b pb-1">
+                        <span class="font-semibold text-gray-500">이수 기간:</span>
+                        <span>${item.period}</span>
+                    </div>
+                    <div class="flex justify-between border-b pb-1">
+                        <span class="font-semibold text-gray-500">인정 시간:</span>
+                        <span class="font-bold text-indigo-600">${item.hours.toFixed(1)}h</span>
+                    </div>
+                    <div class="flex justify-between border-b pb-1">
+                        <span class="font-semibold text-gray-500">총 비용 / 환급 여부:</span>
+                        <span class="font-bold ${item.refund === 'O' ? 'text-teal-600' : 'text-red-600'}">${formatCurrency(item.cost)} (${item.refund})</span>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-gray-100 rounded-lg">
+                    <p class="text-red-500 font-bold mb-1">⚠️ 데이터 저장/로드 기능은 현재 비활성화되어 있습니다.</p>
+                    <p class="text-sm font-semibold text-gray-700">개인 메모 / 첨부 파일 (Mockup)</p>
+                    <p class="text-xs text-gray-500">메모를 작성하고 파일을 선택할 수는 있으나, 저장되지 않습니다.</p>
+                </div>
+            `;
+            document.getElementById('detail-user-comment').value = '';
+            document.getElementById('detail-attachment').value = '';
+            document.getElementById('detail-user-comment').disabled = false;
+            document.getElementById('detail-attachment').disabled = false;
+            document.getElementById('comment-save-btn').disabled = false;
+
+            openModal('training-detail-modal');
+        }
+
+        // DUMMY: 일정 로드 리스너 (빈 함수)
+        window.setupScheduleListener = function() {
+            // No persistence logic needed.
+        }
+
+        // DUMMY: 다가오는 교육 목록 렌더링 (Mock Data 기반)
+        function renderUpcomingTrainingList() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const allSchedules = [
+                ...mockUpcomingTraining,
+                ...localUserSchedules
+            ].filter(item => new Date(item.date) >= today)
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            const upcomingListContainer = document.getElementById('upcoming-list-container');
+            if (!upcomingListContainer) return;
+
+            if (allSchedules.length === 0) {
+                upcomingListContainer.innerHTML = `<p class="text-gray-500 p-2">다가오는 일정이 없습니다. (Mock)</p>`;
+                return;
+            }
+
+            const listHtml = allSchedules.slice(0, 5).map(item => {
+                const dateObj = new Date(item.date);
+                const dateStr = dateObj.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+                const typeText = item.type.includes('Training') ? '교육' : '개인';
+                const colorClass = item.color === 'teal' ? 'bg-teal-100 text-teal-700 border-teal-500' : 'bg-red-100 text-red-700 border-red-500';
+
+                return `
+                    <div class="flex items-center space-x-3 p-2 bg-white rounded-lg shadow-sm border-l-4 ${colorClass}">
+                        <span class="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${colorClass.replace('border-l-4', '').replace('border-', 'bg-').replace('-500', '-600').replace('-100', '-600')} text-white">${dateStr}</span>
+                        <span class="text-sm text-gray-800 truncate" title="${item.title} (${typeText} 일정)">${item.title}</span>
+                        <span class="text-xs font-medium ${colorClass.replace('-100', '-700').replace('bg-', 'text-')} flex-shrink-0">(${typeText})</span>
+                    </div>
+                `;
+            }).join('');
+
+            upcomingListContainer.innerHTML = listHtml;
+        }
+
+        // DUMMY: 캘린더 렌더링 (Mock Data 기반)
+        function renderCalendar() {
+            const calendarContainer = document.getElementById('calendar-container');
+            if (!calendarContainer) return;
+
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            const firstDayOfMonth = new Date(year, month, 1).getDay(); 
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            // Combine mock data for calendar events
+            const calendarEvents = [...mockUpcomingTraining, ...localUserSchedules];
+
+            function getDayColor(dayIndex) {
+                if (dayIndex === 0) return 'text-red-500'; 
+                if (dayIndex === 6) return 'text-blue-500'; 
+                return 'text-gray-700';
+            }
+            
+            let html = `
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="changeMonth(-1)" class="p-2 rounded-full hover:bg-gray-100 text-gray-700" aria-label="이전 달">${getIconSVG('X', 'w-5 h-5 transform rotate-45')}</button>
+                    <h5 class="text-xl font-bold text-indigo-700">${year}년 ${month + 1}월</h5>
+                    <button onclick="changeMonth(1)" class="p-2 rounded-full hover:bg-gray-100 text-gray-700" aria-label="다음 달">${getIconSVG('X', 'w-5 h-5 transform -rotate-45')}</button>
+                </div>
+                <table class="w-full text-center border-collapse rounded-lg overflow-hidden">
+                    <thead>
+                        <tr class="text-xs font-semibold text-gray-500 bg-gray-100">
+                            <th class="py-2 ${getDayColor(0)}">일</th>
+                            <th class="py-2 ${getDayColor(1)}">월</th>
+                            <th class="py-2 ${getDayColor(2)}">화</th>
+                            <th class="py-2 ${getDayColor(3)}">수</th>
+                            <th class="py-2 ${getDayColor(4)}">목</th>
+                            <th class="py-2 ${getDayColor(5)}">금</th>
+                            <th class="py-2 ${getDayColor(6)}">토</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            let day = 1;
+            let todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < 6; i++) { 
+                html += '<tr>';
+                for (let j = 0; j < 7; j++) {
+                    if (i === 0 && j < firstDayOfMonth || day > daysInMonth) {
+                        html += '<td class="p-1 border border-gray-100 bg-gray-50"></td>';
+                    } else {
+                        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const isToday = new Date(dateKey + 'T00:00:00').getTime() === todayDate.getTime();
+                        
+                        const dayEvents = calendarEvents.filter(event => 
+                            event.date && event.date.startsWith(dateKey)
+                        );
+                        
+                        let dayClasses = `p-1 border border-gray-100 text-sm font-medium h-20 align-top cursor-pointer transition duration-150 hover:bg-indigo-50`;
+                        if (isToday) {
+                            dayClasses += ' bg-amber-100 border-2 border-amber-500 rounded-lg shadow-inner';
+                        }
+
+                        html += `<td class="${dayClasses}" onclick="openDayDetailModal('${dateKey}')">`;
+                        html += `<span class="${getDayColor(j)} block">${day}</span>`;
+                        
+                        // Render event indicators
+                        if (dayEvents.length > 0) {
+                            html += `<div class="mt-1 space-y-0.5 max-h-12 overflow-y-hidden px-1">`;
+                            dayEvents.slice(0, 2).forEach(event => { 
+                                const eventColorClass = event.color === 'teal' ? 'bg-teal-500' : 'bg-red-500';
+                                html += `<div class="text-xs font-normal text-white ${eventColorClass} rounded px-1 truncate" title="${event.title}">${event.title}</div>`;
+                            });
+                            if (dayEvents.length > 2) {
+                                 html += `<div class="text-xs text-gray-500 text-left font-semibold mt-1 pl-1">... 외 ${dayEvents.length - 2}개</div>`;
+                            }
+                            html += `</div>`;
+                        }
+
+                        html += `</td>`;
+                        day++;
+                    }
+                }
+                html += '</tr>';
+                if (day > daysInMonth) break;
+            }
+
+            html += `</tbody></table>`;
+            calendarContainer.innerHTML = html;
+        }
+
+        // 월 변경 핸들러
+        window.changeMonth = function(offset) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
+            renderCalendar();
+            renderUpcomingTrainingList(); // 월 변경 시 목록도 업데이트
+        }
+
+        // 일별 상세 모달 열기 (Mock Data 기반)
+        window.openDayDetailModal = function(dateKey) {
+            const detailModal = document.getElementById('day-detail-modal');
+            if (!detailModal) return;
+
+            const dateTitle = document.getElementById('day-detail-date');
+            const listContainer = document.getElementById('day-event-list');
+            const targetDate = new Date(dateKey + 'T00:00:00'); 
+
+            if (dateTitle) dateTitle.textContent = `${targetDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })} 일정`;
+
+            const allEvents = [...mockUpcomingTraining, ...localUserSchedules];
+            const dayEvents = allEvents.filter(event => 
+                event.date && event.date.startsWith(dateKey)
+            ).sort((a, b) => a.title.localeCompare(b.title));
+
+            if (listContainer) {
+                if (dayEvents.length === 0) {
+                    listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">이 날짜에는 등록된 일정이 없습니다. (Mock)</p>`;
+                } else {
+                    listContainer.innerHTML = dayEvents.map(event => {
+                        const isPersonal = event.type.includes('Personal');
+                        const badgeClass = isPersonal ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700';
+                        const deleteButton = isPersonal ? 
+                            `<button onclick="deleteUserSchedule('${event.id}', event)" class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 ml-2" aria-label="일정 삭제">${getIconSVG('X', 'w-4 h-4')}</button>` : '';
+
+                        return `
+                            <li class="p-3 bg-white border border-gray-100 rounded-lg shadow-sm flex justify-between items-center">
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-xs font-medium px-2 py-0.5 rounded-full ${badgeClass} mr-2">${isPersonal ? '개인' : '교육'}</span>
+                                    <span class="text-sm font-semibold text-gray-800">${event.title}</span>
+                                </div>
+                                <div class="flex items-center flex-shrink-0">
+                                    ${deleteButton}
+                                </div>
+                            </li>
+                        `;
+                    }).join('');
+                }
+            }
+
+            openModal('day-detail-modal');
+        }
+        
+        // NEW DUMMY: 나의 관심 스크랩 목록 렌더링 (Updates to use localScrapedIds)
+        window.renderInterestList = function() {
+            const listContainer = document.getElementById('interest-list-container');
+            if (!listContainer) return;
+            
+            if (localScrapedIds.length === 0) {
+                listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">아직 스크랩된 게시물이 없습니다. 교육 공유 게시판에서 하트를 눌러보세요!</p>`;
+                return;
+            }
+
+            // Filter simulatedSharedPosts by localScrapedIds
+            const savedPosts = simulatedSharedPosts.filter(post => localScrapedIds.includes(post.id));
+
+            let listHtml = savedPosts.map(post => {
+                const authorDisplay = post.isMyPost ? '나 (Me)' : post.authorId.substring(0, 8) + '...';
+
+                return `
+                    <li class="p-3 bg-white border border-indigo-100 rounded-lg shadow-sm hover:bg-indigo-50 transition duration-150 flex justify-between items-center">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-indigo-700">${post.title}</p>
+                            <p class="text-xs text-gray-600 truncate mt-1">${post.content}</p>
+                            <p class="text-xs text-gray-400 mt-1">작성자: ${authorDisplay} (스크랩)</p>
+                        </div>
+                        <button onclick="toggleInterest('${post.id}', event)" class="p-1 rounded-full hover:bg-red-100 flex-shrink-0" aria-label="스크랩 제거">
+                            ${getIconSVG('X', 'w-4 h-4 text-red-500')}
+                        </button>
+                    </li>
+                `;
+            }).join('');
+
+            listContainer.innerHTML = listHtml;
+        }
+
+        // DUMMY: 교육 공유 게시판 (Updated to use simulated data for heart status)
+        window.setupSharingListener = function() {
+            const sharedList = document.getElementById('shared-list');
+            if(!sharedList) return;
+            sharedList.innerHTML = ''; // Clear existing content
+
+            if (simulatedSharedPosts.length === 0) {
+                sharedList.innerHTML = `<p class="text-center text-gray-500 p-4">아직 공유된 게시물이 없습니다. 첫 게시물을 작성해 보세요! (Mock)</p>`;
+                return;
+            }
+
+            const listHtml = simulatedSharedPosts.sort((a, b) => b.timestamp - a.timestamp).map(post => {
+                const postId = post.id;
+                const postDate = post.timestamp?.toLocaleDateString('ko-KR') || '날짜 정보 없음';
+                const isMyPost = post.isMyPost;
+                // Check if post is currently in the local scraped list
+                const isInterested = localScrapedIds.includes(postId); 
+                const authorDisplay = isMyPost ? '나 (Me)' : post.authorId.substring(0, 8) + '...';
+
+                const heartIcon = getIconSVG('Heart', `w-5 h-5 transition duration-150 ${isInterested ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-400'}`);
+
+                return `
+                    <div class="p-4 bg-white rounded-xl shadow-md transition-shadow hover:shadow-lg ${isMyPost ? 'border-2 border-teal-400' : 'border border-gray-100'}">
+                        <div class="flex justify-between items-start">
+                            <h3 class="text-xl font-bold text-gray-800">${post.title}</h3>
+                            <button onclick="toggleInterest('${postId}', event)" class="p-1 rounded-full hover:bg-gray-100 flex-shrink-0" aria-label="관심 등록">
+                                ${heartIcon}
+                            </button>
+                        </div>
+                        <p class="mt-2 text-gray-600 whitespace-pre-wrap">${post.content}</p>
+                        <div class="mt-4 pt-3 border-t border-gray-100 text-sm flex justify-between items-center">
+                            <span class="text-gray-500">작성자: <span class="font-medium ${isMyPost ? 'text-teal-600' : 'text-gray-700'}">${authorDisplay}</span></span>
+                            <span class="text-gray-400">${postDate}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            sharedList.innerHTML = listHtml;
+        }
+        
+        // DUMMY: 인증 및 데이터 로드 시작
+        function startDataListeners() {
+            renderPersonalInfo();
+            window.fetchAndRenderAnnualPlan(); 
+            window.setupScheduleListener(); 
+            renderCalendar();
+            renderUpcomingTrainingList(); 
+        }
+
+        // --- 탭 전환 함수 ---
+        window.switchMainContent = function(contentId) {
+            document.querySelectorAll('#sidebar-nav button').forEach(btn => {
+                btn.classList.remove('bg-indigo-100', 'text-indigo-700', 'font-bold');
+                btn.classList.add('text-gray-700', 'hover:bg-gray-50');
+            });
+
+            const activeBtn = document.querySelector(`#sidebar-nav button[data-content="${contentId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-700', 'hover:bg-gray-50');
+                activeBtn.classList.add('bg-indigo-100', 'text-indigo-700', 'font-bold');
+            }
+
+            document.querySelectorAll('.main-content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            const activeSection = document.getElementById(contentId);
+            if (activeSection) {
+                activeSection.classList.add('active');
+            }
+            
+            // Render specific content based on active tab
+            if (contentId === 'personal-info-section') {
+                renderPersonalInfo();
+                document.getElementById('achievement-summary-display').innerHTML = renderAchievementSummary();
+                window.fetchAndRenderAnnualPlan();
+                renderCalendar();
+                renderUpcomingTrainingList();
+            }
+            if (contentId === 'individual-history-section') {
+                window.applyTrainingFilters(); 
+            }
+            if (contentId === 'interest-list-section') { 
+                window.renderInterestList(); // 나의 스크랩 목록
+                renderKeywordList(); // 관심 교육 키워드
+                document.getElementById('team-status-display').innerHTML = `<p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 연동이 비활성화되어 표시되지 않습니다.</p>`;
+            }
+            if (contentId === 'sharing-board-section') {
+                 window.setupSharingListener(); // Re-render shared posts (and heart status)
+            }
+            if (contentId === 'inquiry-section') {
+                renderInquiryHistory();
+            }
+        }
+        
+        // --- 초기화 및 시작 ---
+        window.onload = () => {
+            document.getElementById('auth-status').textContent = 'Mock Data 활성화됨';
+            document.getElementById('loading-indicator').classList.add('hidden');
+            startDataListeners();
+            window.switchMainContent('personal-info-section'); 
+            
+            const sharingForm = document.getElementById('sharing-form');
+            if(sharingForm) {
+                sharingForm.addEventListener('submit', window.sharePost);
+            }
+        }
+    </script>
+
+    <!-- Global Message Box -->
+    <div id="message-box" class="fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-transform transform translate-x-full bg-blue-500"></div>
+
+    <!-- 금년도 교육계획 작성 모달 (DUMMY SUBMIT) -->
+    <div id="annual-plan-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <form onsubmit="window.saveAnnualPlan(event)" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-indigo-700">금년도 교육계획 작성</h3>
+                    <button type="button" onclick="closeModal('annual-plan-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div>
+                    <label for="plan-title" class="block text-sm font-medium text-gray-700 mb-1">계획 제목</label>
+                    <input id="plan-title" type="text" name="plan-title" placeholder="예: 2026년 클라우드 엔지니어링 역량 강화" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                <div>
+                    <label for="course-details" class="block text-sm font-medium text-gray-700 mb-1">세부 교육 과정 및 목표 (팀장 승인용)</label>
+                    <textarea id="course-details" name="course-details" placeholder="1. 필수 교육: 정보보안(4h) 2. 직무 교육: Kubernetes 마스터링 (20h) 3. 목표: 프로젝트 X에 K8S 도입" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required></textarea>
+                </div>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-3 text-sm" role="alert">
+                    <p class="font-semibold">⚠️ 승인 프로세스 안내</p>
+                    <p>작성 후 제출하면 'Pending' 상태로 팀장에게 승인 요청되며, 저장 기능은 비활성화되어 있습니다.</p>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeModal('annual-plan-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> 승인 요청 (Mock)
+                    </button>
+                </div>
+            </form>
+            <script>document.getElementById('annual-plan-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-modal') closeModal('annual-plan-modal'); });</script>
+        </div>
+    </div>
+
+    <!-- NEW MODAL 1: 개인 일정 추가 모달 (DUMMY SUBMIT) -->
+    <div id="schedule-add-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <form onsubmit="window.saveUserSchedule(event)" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-xl font-bold text-teal-700">개인 일정 추가</h3>
+                    <button type="button" onclick="closeModal('schedule-add-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div>
+                    <label for="schedule-title" class="block text-sm font-medium text-gray-700 mb-1">일정 제목</label>
+                    <input id="schedule-title" type="text" name="schedule-title" placeholder="예: 팀 회식" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required>
+                </div>
+                <div>
+                    <label for="schedule-date" class="block text-sm font-medium text-gray-700 mb-1">날짜</label>
+                    <input id="schedule-date" type="date" name="schedule-date" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> 저장 (Mock)
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NEW MODAL 2: 일별 상세 일정 모달 (DUMMY DELETE) -->
+    <div id="day-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 id="day-detail-date" class="text-xl font-bold text-indigo-700">상세 일정</h3>
+                    <button type="button" onclick="closeModal('day-detail-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <ul id="day-event-list" class="space-y-3">
+                    <p class="text-center text-gray-500 p-4">데이터 연동이 비활성화되어 일정을 표시할 수 없습니다.</p>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- NEW MODAL 3: 교육 상세 및 개인 메모 모달 (DUMMY SUBMIT) -->
+    <div id="training-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <form onsubmit="window.saveTrainingComment(event)" class="p-6 bg-white rounded-xl space-y-4">
+                <input type="hidden" id="detail-item-id" value="">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-indigo-700" id="detail-course-name">교육 상세 정보</h3>
+                    <button type="button" onclick="closeModal('training-detail-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <!-- 교육 상세 내용 + 첨부 파일 현황 -->
+                <div id="detail-content-body" class="mb-6 p-4 border border-gray-200 rounded-lg">
+                    <p class="text-gray-500">데이터 로드 중...</p>
+                </div>
+
+                <!-- 개인 메모 / 코멘트 섹션 -->
+                <div class="pt-4 border-t border-gray-100">
+                    <label for="detail-user-comment" class="block text-lg font-semibold text-gray-700 mb-2">나의 개인 메모 / 후기</label>
+                    <textarea id="detail-user-comment" rows="4" placeholder="교육 이수 소감, 적용 계획, 개인적인 코멘트 등을 작성하세요. (저장 기능 비활성화)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required></textarea>
+                    
+                    <!-- NEW: 첨부 파일 입력 필드 -->
+                    <div class="mt-4">
+                        <label for="detail-attachment" class="block text-sm font-semibold text-gray-700 mb-1">첨부 파일 선택 (파일명만 저장됨)</label>
+                        <input type="file" id="detail-attachment" name="detail-attachment" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                    </div>
+
+                    <div class="flex justify-end pt-4">
+                        <button type="submit" id="comment-save-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center">
+                            ${getIconSVG('Check', 'w-4 h-4 mr-1')} 메모 저장 (Mock)
+                        </button>
+                    </div>
+                </div>
+                
+            </form>
+        </div>
+    </div>
+
+
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        <!-- Column 1 (lg:col-span-1): 사이드바/네비게이션 -->
+        <aside class="lg:col-span-1 space-y-6">
+            <header class="p-4 bg-white rounded-xl shadow-lg border-t-4 border-indigo-500">
+                <h1 class="text-2xl font-extrabold text-indigo-700">개인 플랫폼</h1>
+                <p id="auth-status" class="text-xs text-gray-600 mt-1">Mock Data 활성화됨</p>
+                <div id="loading-indicator" class="mt-2 text-indigo-500 font-semibold flex items-center hidden">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    데이터 로드 중...
+                </div>
+            </header>
+
+            <!-- Navigation Buttons -->
+            <nav id="sidebar-nav" class="bg-white p-2 rounded-xl shadow-lg space-y-1">
+                <h3 class="text-sm font-semibold text-gray-500 px-3 pt-2 pb-1">메인 메뉴</h3>
+                <button 
+                    data-content="personal-info-section" 
+                    onclick="switchMainContent('personal-info-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150 active bg-indigo-100 text-indigo-700 font-bold"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 개인 정보
+                </button>
+                <button 
+                    data-content="individual-history-section" 
+                    onclick="switchMainContent('individual-history-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg> 교육 이수 이력
+                </button>
+                <button 
+                    data-content="interest-list-section" 
+                    onclick="switchMainContent('interest-list-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> 저장 목록
+                </button>
+                <button 
+                    data-content="inquiry-section" 
+                    onclick="switchMainContent('inquiry-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> 문의/작성 이력
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Column 2 (lg:col-span-3): 메인 컨텐츠 영역 -->
+        <main class="lg:col-span-3 space-y-8">
+
+            <!-- 1. 개인 정보 섹션 (수정된 부분) -->
+            <div id="personal-info-section" class="main-content-section bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-500 active space-y-8 min-h-[70vh]">
+                <h2 class="text-2xl font-bold text-gray-700 mb-4">개인 정보</h2>
+                
+                <!-- NEW SECTION: 다가오는 교육 및 개인 일정 -->
+                <div class="pb-6 border-b border-gray-200">
+                    <h3 class="text-2xl font-bold text-gray-700 mb-4">다가오는 교육 및 개인 일정</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Upcoming List (1/3) -->
+                        <div class="lg:col-span-1 bg-gray-50 p-4 rounded-xl border border-indigo-200 shadow-md">
+                            <h4 class="text-lg font-bold text-indigo-700 mb-3 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> 
+                                가장 가까운 일정 (최대 5개)
+                            </h4>
+                            <div id="upcoming-list-container" class="space-y-3 db-scroll-area max-h-64 overflow-y-auto">
+                                <p class="text-gray-500">데이터 연동 비활성화됨.</p>
+                            </div>
+                        </div>
+                        <!-- Calendar (2/3) -->
+                        <div class="lg:col-span-2 bg-white p-4 rounded-xl shadow-md border border-indigo-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="text-lg font-bold text-indigo-700">캘린더</h4>
+                                <button onclick="openModal('schedule-add-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition duration-150 shadow-md flex items-center">
+                                    + 개인 일정 추가 (Mock)
+                                </button>
+                            </div>
+                            <div id="calendar-container" class="select-none">
+                                <!-- Calendar will be generated here -->
+                                <p class="text-center text-gray-500 p-8">캘린더 로드 중...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- NEW SECTION END -->
+                
+                <!-- 하위 컨테이너: 개인 정보 & 달성률 -->
+                <!-- 1. 개인 정보 상세 박스 높이 조정: h-full, min-h-[400px] 제거 -->
+                <div class="flex flex-col md:flex-row md:space-x-8 space-y-6 md:space-y-0"> 
+                    
+                    <!-- 서브 섹션 1: 개인 정보 상세 (1/4 너비) -->
+                    <div class="w-full md:w-1/4"> 
+                        <h3 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">상세 프로필</h3>
+                        <!-- 1. 개인 정보 상세 박스 높이 조정: h-full, min-h-[400px] 제거 -->
+                        <div id="personal-info-display" class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg space-y-1 text-sm">
+                            <p class="text-gray-500">데이터 로드 중...</p>
+                        </div>
+                    </div>
+
+                    <!-- 서브 섹션 2: 교육 달성률 요약 (3/4 너비) -->
+                    <div class="w-full md:w-3/4"> 
+                        <h3 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">교육 달성률 요약</h3>
+                        <!-- NEW: 연간 계획 컨테이너 추가 -->
+                        <div id="annual-plan-display" class="mb-4">
+                            <p class="text-gray-500 p-4">교육 계획 로드 중...</p>
+                        </div>
+                        <!-- 3. 달성률 요약 박스 높이 조정: h-full, min-h-[200px] 제거 -->
+                        <div id="achievement-summary-display" class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg">
+                            <p class="text-gray-500">데이터 로드 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 교육 이수 이력 섹션 (기존 교육 현황 + 목록) -->
+            <div id="individual-history-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-600 min-h-[400px]">
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-700">교육 이수 이력</h2>
+                        <!-- REMOVED: 금년도 교육계획 작성 버튼 제거 -->
+                    </div>
+                    
+                    <!-- REMOVED: achievement-rate-display 영역 제거 -->
+                    
+                    <!-- NEW: 필터링 UI 재배치 -->
+                    <div class="flex space-x-4 mb-4 items-center">
+                        <h3 class="text-lg font-semibold text-gray-600">상세 이력 목록</h3>
+                        <select id="type-filter" onchange="applyTrainingFilters()" class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="All">형태 전체</option>
+                            <option value="온라인">온라인</option>
+                            <option value="사외강의">사외강의</option>
+                            <option value="사내강의">사내강의</option>
+                            <option value="워크숍">워크숍</option>
+                        </select>
+                        <select id="refund-filter" onchange="applyTrainingFilters()" class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="All">환급 전체</option>
+                            <option value="O">환급 완료 (O)</option>
+                            <option value="X">환급 불가 (X)</option>
+                            <option value="N/A">해당 없음 (N/A)</option>
+                        </select>
+                    </div>
+
+                    <ul id="individual-history-list" class="space-y-2 max-h-96 overflow-y-auto pr-2 border border-gray-200 rounded-lg p-2 bg-white db-scroll-area">
+                        <p class="text-red-500 p-2 font-semibold">데이터 연동이 비활성화되어 이수 내역을 표시할 수 없습니다.</p>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 3. 관심 교육 리스트 섹션 -->
+            <div id="interest-list-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 min-h-[250px]">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-6">저장 목록</h2>
+
+                    <div class="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 class="text-xl font-bold text-blue-700 mb-3 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-blue-500 fill-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> 관심 교육 키워드 (팀/사업부)
+                        </h3>
+                        <div id="keyword-list-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <p class="text-center text-gray-500 col-span-full p-4">데이터 연동이 비활성화되어 키워드 목록을 표시할 수 없습니다.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 border border-blue-200 rounded-lg space-y-4 bg-gray-50">
+                        <div id="team-status-display" class="p-2 border-b border-blue-200">
+                            <h3 class="text-xl font-bold text-blue-700 mb-2">팀 교육 현황 (목표 대비 진척도)</h3>
+                            <p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 연동이 비활성화되어 표시되지 않습니다.</p>
+                            <p class="text-xs text-gray-500 mt-3">이 항목은 ERP/팀별 데이터 연동이 완료되면 팀원 전체의 평균 달성률을 보여줄 예정입니다.</p>
+                        </div>
+                        
+                        <div class="pt-2">
+                            <h3 class="text-xl font-bold text-indigo-700 mb-2">나의 스크랩 목록</h3>
+                            <ul id="interest-list-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 db-scroll-area border border-indigo-300 rounded-lg p-2 bg-white">
+                                <p class="text-center text-red-500 p-4">데이터 연동이 비활성화되어 관심 목록을 표시할 수 없습니다.</p>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 4. 문의/작성 이력 섹션 -->
+            <div id="inquiry-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-amber-500 min-h-[250px]">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">문의 / 작성 이력</h2>
+                    <h3 class="text-lg font-semibold text-gray-600 mb-3">개인 활동 내역</h3>
+                    <ul id="inquiry-history-list" class="space-y-3 max-h-96 overflow-y-auto pr-2 db-scroll-area">
+                        <p class="text-center text-gray-500 p-4">데이터 연동이 비활성화되어 이력을 표시할 수 없습니다.</p>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 5. 교육 공유 게시판 섹션 -->
+            <div id="sharing-board-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-teal-500">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
+                        교육 공유 게시판 (Mock 데이터)
+                    </h2>
+
+                    <!-- Sharing Form (공유 양식) -->
+                    <form id="sharing-form" class="p-4 bg-teal-50 border border-teal-200 rounded-lg shadow-inner mb-6 space-y-3">
+                        <h3 class="text-lg font-bold text-teal-800">새로운 교육 정보 공유하기 (Mock)</h3>
+                        <div>
+                            <label for="title" class="block text-sm font-medium text-teal-700">제목 (교육/자료 명)</label>
+                            <input type="text" id="title" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label for="content" class="block text-sm font-medium text-teal-700">내용 (간단한 설명/링크)</label>
+                            <textarea id="content" rows="3" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition duration-150 ease-in-out">
+                            정보 공유하기 (Mock)
+                        </button>
+                    </form>
+
+                    <!-- Shared List (공유 리스트) -->
+                    <div id="shared-list" class="space-y-4 max-h-96 overflow-y-auto pr-2 db-scroll-area">
+                        <p class="text-center text-red-500 p-4">게시판 기능이 비활성화되었습니다. (데이터 연동 없음)</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
