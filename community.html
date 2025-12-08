@@ -56,8 +56,9 @@
             }
 
             const messageElement = document.createElement('div');
+            // 자동 삭제 시간을 길게 설정하여 에러 확인 가능하게 함
             messageElement.className = `p-4 rounded-lg shadow-xl text-white font-semibold flex items-center space-x-3 ${color} mb-2 opacity-0 transition-opacity duration-300 transform translate-y-2 pointer-events-auto`;
-            messageElement.innerHTML = `${iconSvg} <span>${message}</span>`;
+            messageElement.innerHTML = `${iconSvg} <span class="text-sm">${message}</span>`;
             container.appendChild(messageElement);
             
             setTimeout(() => {
@@ -71,7 +72,7 @@
                     messageElement.classList.remove('opacity-100', 'translate-y-0');
                     messageElement.classList.add('opacity-0', 'translate-y-2');
                     setTimeout(() => messageElement.remove(), 300);
-                }, 5000);
+                }, 8000); // 8초로 연장
             } else {
                 // info 메시지는 3초 뒤 사라지게 처리
                 setTimeout(() => {
@@ -385,6 +386,7 @@
         let currentUserInfo = { name: '게스트', uid: '-', email: '...', dept: '...', pos: '...' };
 
         // --- ★ [수정됨] Google Apps Script에서 데이터 가져오기 (GET) ---
+        // 수정 사항: HTML 응답(Web App is running 등) 감지 및 에러 처리 강화
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) {
                 console.warn("UID가 제공되지 않았습니다.");
@@ -402,21 +404,44 @@
 
             try {
                 // GET 요청 URL 생성
+                // 주의: GAS Web App은 리다이렉트를 하므로 redirect: 'follow'가 필요합니다. (fetch 기본값이지만 명시)
                 const targetUrl = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
                 console.log("Requesting user info from:", targetUrl);
 
-                const response = await fetch(targetUrl);
+                const response = await fetch(targetUrl, {
+                    redirect: 'follow'
+                });
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
-                const jsonResponse = await response.json();
+                // ★ 핵심 수정: 텍스트로 먼저 받아서 JSON인지 HTML인지 확인합니다.
+                const responseText = await response.text();
+                
+                // HTML 응답(에러 페이지)이 왔는지 확인
+                if (responseText.trim().startsWith('<') || responseText.includes('<!DOCTYPE html>')) {
+                    console.error("서버가 HTML을 반환했습니다:", responseText);
+                    window.displayMessage("서버 설정 오류: 구글 앱스크립트 배포 권한을 '모든 사용자(Anyone)'로 변경해주세요.", 'error');
+                    if(elEmail) elEmail.textContent = '권한 오류';
+                    return;
+                }
+
+                // JSON 파싱 시도
+                let jsonResponse;
+                try {
+                    jsonResponse = JSON.parse(responseText);
+                } catch (e) {
+                    console.error("JSON 파싱 에러:", e);
+                    window.displayMessage("데이터 형식 오류: 서버 응답을 처리할 수 없습니다.", 'error');
+                    if(elEmail) elEmail.textContent = '형식 오류';
+                    return;
+                }
+
                 console.log("Server Response:", jsonResponse);
 
                 if (jsonResponse.result === 'success' && jsonResponse.data) {
                     const userData = jsonResponse.data;
 
-                    // ★ 시트 헤더 이름(sysmail 등)과 매핑
-                    // 값이 없을 경우를 대비해 '||' 연산자 사용
+                    // 시트 헤더 이름(sysmail 등)과 매핑
                     const userEmail = userData.sysmail || '-';
                     const userDept = userData.deptName || '-';
                     const userPos = userData.gradeName || '-';
@@ -437,6 +462,7 @@
                 }
             } catch (error) {
                 console.error("Fetch Error:", error); 
+                window.displayMessage("네트워크 오류가 발생했습니다.", 'error');
                 if(elEmail) elEmail.textContent = '연동 실패';
             }
         }
@@ -531,15 +557,18 @@
 
             try {
                 // no-cors 대신 일반 요청 시도 (GAS 웹앱이 json 리턴하므로)
-                // 하지만 브라우저 정책상 GAS로의 POST는 CORS 오류가 날 수 있음.
-                // 이를 회피하기 위해 보통 no-cors를 쓰지만, 그러면 응답 내용을 못 읽음.
-                // 여기서는 text/plain으로 보내면 GAS가 받아서 처리 가능함.
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
                 
-                const result = await response.json();
+                // POST 요청도 HTML 응답 체크
+                const responseText = await response.text();
+                if (responseText.trim().startsWith('<') || responseText.includes('<!DOCTYPE html>')) {
+                     throw new Error("서버 권한 설정 오류: '모든 사용자' 권한이 필요합니다.");
+                }
+                
+                const result = JSON.parse(responseText);
                 
                 if (result.result === 'success') {
                     return true;
