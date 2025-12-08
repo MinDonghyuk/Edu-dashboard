@@ -359,7 +359,7 @@
     <!-- Scripts -->
     <script type="module">
         // --- ★ 중요: Google Apps Script 배포 URL 설정 ★ ---
-        // TODO: 아래 주소를 새로 배포한 웹 앱 URL로 반드시 변경하세요.
+        // 최신 배포된 exec URL
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoEy4T4NV7IuKLmVs9x_px08TgTibO_G18gpOGDJF8h4deVcgaoiYTZ1rDSET8SpHo/exec";
 
         // --- 아이콘 SVG 상수 정의 ---
@@ -384,34 +384,39 @@
         // --- Global Variables ---
         let currentUserInfo = { name: '게스트', uid: '-', email: '...', dept: '...', pos: '...' };
 
-        // --- ★ [수정됨] Google Apps Script에서 데이터 가져오기 ---
+        // --- ★ [수정됨] Google Apps Script에서 데이터 가져오기 (GET) ---
         async function fetchUserInfoFromSheet(uid) {
-            if (!uid) return;
+            if (!uid) {
+                console.warn("UID가 제공되지 않았습니다.");
+                return;
+            }
+
             const elEmail = document.getElementById('info-email');
             const elDept = document.getElementById('info-department');
             const elPos = document.getElementById('info-position');
             
-            if(elEmail) elEmail.textContent = '불러오는 중...';
+            // 로딩 표시
+            if(elEmail) elEmail.textContent = '조회 중...';
             if(elDept) elDept.textContent = '...';
             if(elPos) elPos.textContent = '...';
 
             try {
+                // GET 요청 URL 생성
                 const targetUrl = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
-                
-                const response = await fetch(targetUrl, {
-                    method: 'GET',
-                    redirect: 'follow',
-                });
+                console.log("Requesting user info from:", targetUrl);
+
+                const response = await fetch(targetUrl);
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
                 const jsonResponse = await response.json();
-                console.log("Fetched Data:", jsonResponse);
+                console.log("Server Response:", jsonResponse);
 
                 if (jsonResponse.result === 'success' && jsonResponse.data) {
                     const userData = jsonResponse.data;
 
-                    // ★ 중요: 스프레드시트 헤더 이름(sysmail, deptName, gradeName)과 정확히 일치시킵니다.
+                    // ★ 시트 헤더 이름(sysmail 등)과 매핑
+                    // 값이 없을 경우를 대비해 '||' 연산자 사용
                     const userEmail = userData.sysmail || '-';
                     const userDept = userData.deptName || '-';
                     const userPos = userData.gradeName || '-';
@@ -427,11 +432,11 @@
                     currentUserInfo.pos = userPos;
 
                 } else {
-                    console.warn("데이터를 찾을 수 없음:", jsonResponse);
+                    console.warn("데이터 조회 실패:", jsonResponse.message);
                     if(elEmail) elEmail.textContent = '정보 없음';
                 }
             } catch (error) {
-                console.error("Sheet Fetch Error:", error); 
+                console.error("Fetch Error:", error); 
                 if(elEmail) elEmail.textContent = '연동 실패';
             }
         }
@@ -525,10 +530,15 @@
             };
 
             try {
+                // no-cors 대신 일반 요청 시도 (GAS 웹앱이 json 리턴하므로)
+                // 하지만 브라우저 정책상 GAS로의 POST는 CORS 오류가 날 수 있음.
+                // 이를 회피하기 위해 보통 no-cors를 쓰지만, 그러면 응답 내용을 못 읽음.
+                // 여기서는 text/plain으로 보내면 GAS가 받아서 처리 가능함.
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify(payload) // GAS Web App으로 JSON 전송
+                    body: JSON.stringify(payload)
                 });
+                
                 const result = await response.json();
                 
                 if (result.result === 'success') {
@@ -717,9 +727,9 @@
                 updateSidebarUserId(nameFromUrl, uidFromUrl);
             }
 
-            // ★ 추가정보(이메일,부서,직책) 스프레드시트에서 가져오기
+            // ★ 추가정보(이메일,부서,직책) 스프레드시트에서 가져오기 (GET)
             if (uidFromUrl) {
-                fetchUserInfoFromSheet(uidFromUrl);
+                await fetchUserInfoFromSheet(uidFromUrl);
             }
 
             // 탭 생성
