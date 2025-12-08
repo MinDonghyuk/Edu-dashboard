@@ -510,27 +510,65 @@
         // --- Google Apps Script에서 데이터 가져오기 (수정됨) ---
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) return;
-            try {
-                // 로딩 표시
-                const nameEl = document.getElementById('info-name');
-                if(nameEl) nameEl.textContent = '조회 중...';
+            const nameEl = document.getElementById('info-name');
+            const idEl = document.getElementById('info-employeeId');
+            
+            if(nameEl) nameEl.textContent = '조회 중...';
 
-                // 전체 사용자 데이터를 가져옵니다.
+            try {
+                // 1. 전체 데이터 조회 시도 (기본)
+                // 많은 경우 GAS 스크립트는 '모든 사용자(Anyone)' 권한이 없으면 CORS 에러 또는 401/403을 반환합니다.
+                // 만약 이 fetch가 실패한다면, 배포 설정 문제일 가능성이 가장 큽니다.
                 const response = await fetch(APPS_SCRIPT_URL);
-                if (!response.ok) throw new Error('Network response was not ok');
                 
-                const jsonResponse = await response.json();
+                // response가 ok가 아니면 에러 처리 (예: 404, 500)
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
                 
-                // GAS 응답 구조 처리 (배열인지 객체인지 확인)
+                // 2. JSON 파싱 시도
+                // 권한이 없어서 구글 로그인 페이지(HTML)가 반환되는 경우 여기서 에러가 발생합니다.
+                let jsonResponse;
+                try {
+                    jsonResponse = await response.json();
+                } catch (e) {
+                    throw new Error("JSON 파싱 실패 (HTML 응답 가능성)");
+                }
+                
+                // 3. 데이터 구조 확인 및 매핑
                 let users = [];
                 if (Array.isArray(jsonResponse)) {
                     users = jsonResponse;
                 } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
                     users = jsonResponse.data;
+                } else {
+                    console.log("Unknown JSON structure:", jsonResponse);
+                    throw new Error("데이터 구조 불일치");
                 }
 
-                // URL 파라미터로 받은 'uid' (로그인 비밀번호/사번)와 'userUid'가 일치하는 사용자 찾기
-                const matchedUser = users.find(u => String(u.userUid) === String(uid));
+                // 4. 사용자 찾기 (문자열 변환 후 비교)
+                let matchedUser = null;
+                if (users.length > 0) {
+                    const firstItem = users[0];
+                    if (Array.isArray(firstItem)) {
+                        // It's a 2D array (Rows)
+                        // Column mapping based on image: 0:Name, 1:UID, 2:Grade, 3:Dept, 4:Email
+                        // We check the second column (index 1) for the UID
+                        const foundRow = users.find(row => String(row[1]) === String(uid));
+                        if (foundRow) {
+                            matchedUser = {
+                                userName: foundRow[0],
+                                userUid: foundRow[1],
+                                gradeName: foundRow[2],
+                                deptName: foundRow[3],
+                                sysmail: foundRow[4]
+                            };
+                        }
+                    } else {
+                        // It's an array of objects
+                        matchedUser = users.find(u => String(u.userUid) === String(uid));
+                    }
+                }
                 
                 if (matchedUser) {
                     const elName = document.getElementById('info-name');
@@ -539,22 +577,34 @@
                     const elDept = document.getElementById('info-department');
                     const elPos = document.getElementById('info-position');
 
-                    // 시트의 컬럼명(userName, userUid, sysmail, deptName, gradeName) 매핑
                     if(elName) elName.textContent = matchedUser.userName || '-'; 
                     if(elId) elId.textContent = matchedUser.userUid || uid || '-';
                     if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
                     if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
                     if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
                 } else {
-                    console.warn("User not found in sheet for UID:", uid);
+                    // 사용자 없음
                     if(nameEl) nameEl.textContent = '정보 없음';
+                    console.warn(`User ID ${uid} not found in sheet.`);
                 }
 
             } catch (error) {
-                console.error("Sheet Fetch Error:", error);
-                window.displayMessage("사용자 정보를 불러오는데 실패했습니다.", 'error');
-                const nameEl = document.getElementById('info-name');
-                if(nameEl) nameEl.textContent = '연동 실패';
+                console.error("Sheet Fetch Error Detailed:", error);
+                
+                // 화면에 에러 원인을 표시하여 디버깅 돕기
+                if(nameEl) {
+                    // 에러 메시지 간소화하여 표시
+                    let msg = '연동 실패';
+                    if (error.message.includes('JSON')) msg = '권한/HTML 응답 오류';
+                    else if (error.message.includes('HTTP')) msg = `서버 오류 (${error.message})`;
+                    else if (error.message.includes('Failed to fetch')) msg = 'CORS/네트워크 오류';
+                    
+                    nameEl.textContent = msg;
+                    nameEl.title = error.message; // 툴팁으로 전체 에러 표시
+                }
+                
+                // 중요: 사용자가 디버깅할 수 있도록 안내 메시지 띄우기
+                window.displayMessage(`데이터 연동 실패: ${error.message}. (GAS 배포 권한이 '모든 사용자'인지 확인하세요)`, 'error');
             }
         }
 
