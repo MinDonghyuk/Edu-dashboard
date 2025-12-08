@@ -148,8 +148,9 @@
         &copy; <span id="current-year"></span> 내부 커뮤니티. All rights reserved.
     </footer>
 
-    <!-- 공통 모달 구조 -->
-    <!-- 새 자료 등록 모달 -->
+    <!-- ================= MODALS START ================= -->
+
+    <!-- 1. 새 자료 등록 모달 -->
     <div id="training-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
             <form id="training-post-form" class="p-6 bg-white rounded-xl space-y-4">
@@ -179,7 +180,7 @@
         </div>
     </div>
 
-    <!-- 커뮤니티 등록 모달 -->
+    <!-- 2. 커뮤니티 등록 모달 -->
     <div id="community-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
             <form id="community-post-form" class="p-6 bg-white rounded-xl space-y-4">
@@ -205,7 +206,7 @@
         </div>
     </div>
     
-     <!-- 당근 등록 모달 -->
+     <!-- 3. 당근 등록 모달 -->
     <div id="danggn-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
          <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
             <form id="danggn-post-form" class="p-6 bg-white rounded-xl space-y-4">
@@ -229,7 +230,7 @@
          </div>
     </div>
 
-    <!-- 기타 모달들 -->
+    <!-- 4. 전체 이력 모달 -->
     <div id="full-history-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
             <div class="p-6 bg-white rounded-xl space-y-4">
@@ -244,10 +245,11 @@
                 </div>
                 <ul id="full-history-list" class="space-y-2"><li class="text-center text-gray-500">데이터가 없습니다.</li></ul>
             </div>
-             <script>document.getElementById('full-history-modal').addEventListener('click', (e) => { if(e.target.id === 'full-history-modal') closeModal('full-history-modal'); });</script>
+            <script>document.getElementById('full-history-modal').addEventListener('click', (e) => { if(e.target.id === 'full-history-modal') closeModal('full-history-modal'); });</script>
         </div>
     </div>
     
+    <!-- 5. 연간 계획 모달 -->
     <div id="annual-plan-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
              <div class="p-6 bg-white rounded-xl space-y-4">
@@ -262,8 +264,8 @@
             <script>document.getElementById('annual-plan-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-modal') closeModal('annual-plan-modal'); });</script>
         </div>
     </div>
-    
-    <!-- 금년도 교육 계획 작성 모달 -->
+
+    <!-- 6. 금년도 교육 계획 작성 모달 (복구됨) -->
     <div id="annual-plan-create-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
             <form id="annual-plan-create-form" class="p-6 bg-white rounded-xl space-y-4">
@@ -273,12 +275,11 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
                     </button>
                 </div>
-                 <!-- 입력 필드 생략 (위의 폼들과 구조 동일) -->
-                 <div><label class="block text-sm font-medium text-gray-700 mb-1">과정명</label><input type="text" name="course" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
-                 <div><label class="block text-sm font-medium text-gray-700 mb-1">분류</label><select name="type" class="w-full p-3 border border-gray-300 rounded-lg bg-white"><option value="필수">필수</option><option value="직무">직무</option></select></div>
-                 <div><label class="block text-sm font-medium text-gray-700 mb-1">기간</label><input type="text" name="period" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">과정명</label><input type="text" name="course" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">분류</label><select name="type" class="w-full p-3 border border-gray-300 rounded-lg bg-white"><option value="필수">필수</option><option value="직무">직무</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">기간</label><input type="text" name="period" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
                  
-                 <div class="flex justify-end space-x-3 pt-4">
+                <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" onclick="closeModal('annual-plan-create-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
                     <button type="submit" class="px-6 py-2 bg-lime-600 text-white rounded-lg font-bold hover:bg-lime-700 flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -290,7 +291,7 @@
         </div>
     </div>
 
-    <!-- 교육 보고서 상세 모달 -->
+    <!-- 7. 교육 보고서 상세 모달 (복구됨) -->
     <div id="training-report-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
             <div class="p-6 bg-white rounded-xl space-y-4">
@@ -328,7 +329,7 @@
         </div>
     </div>
     
-    <!-- 공지사항 상세 모달 -->
+    <!-- 8. 공지사항 상세 모달 (복구됨) -->
     <div id="notice-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
             <div class="p-6 bg-white rounded-xl space-y-4">
@@ -352,6 +353,8 @@
             <script>document.getElementById('notice-detail-modal').addEventListener('click', (e) => { if(e.target.id === 'notice-detail-modal') closeModal('notice-detail-modal'); });</script>
         </div>
     </div>
+    
+    <!-- ================= MODALS END ================= -->
 
     <!-- Scripts -->
     <script type="module">
@@ -359,11 +362,10 @@
         // TODO: 아래 주소를 새로 배포한 웹 앱 URL로 반드시 변경하세요.
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoEy4T4NV7IuKLmVs9x_px08TgTibO_G18gpOGDJF8h4deVcgaoiYTZ1rDSET8SpHo/exec";
 
-        // --- 아이콘 SVG 상수 정의 (함수 대신 상수로 관리) ---
+        // --- 아이콘 SVG 상수 정의 ---
         const ICONS = {
             Bell: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path></svg>',
             BookOpen: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
-            BookOpenWhite: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
             BookOpenTeal: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
             Users: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path></svg>',
             UsersSmall: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path></svg>',
@@ -371,42 +373,34 @@
             Plus: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>',
             Clipboard: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>',
             ClipboardList: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
-            ClipboardListWhite: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
             TrendingUp: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 13 22 17 19 19 16 16 11 21"></polyline><path d="M12 11V5a1 1 0 00-1-1H5"></path></svg>',
             Globe: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-cyan-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>',
-            Link: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07L13 10l-2 3M7 7l-3 3a5 5 0 007.07 7.07l3-3l-2-3M19 19L5 5"></path></svg>',
             ListChecks: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg>',
-            Eye: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
             Calendar: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
             Target: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-lime-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
             LogOut: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>'
         };
 
-        // --- Global Variables (Data Containers) ---
+        // --- Global Variables ---
         let currentUserInfo = { name: '게스트', uid: '-', email: '...', dept: '...', pos: '...' };
 
-        // --- Google Apps Script에서 데이터 가져오기 (사용자 정보 조회) ---
+        // --- ★ [수정됨] Google Apps Script에서 데이터 가져오기 ---
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) return;
             const elEmail = document.getElementById('info-email');
             const elDept = document.getElementById('info-department');
             const elPos = document.getElementById('info-position');
             
-            // 로딩 표시
             if(elEmail) elEmail.textContent = '불러오는 중...';
             if(elDept) elDept.textContent = '...';
             if(elPos) elPos.textContent = '...';
 
             try {
-                // GET 요청은 URL에 파라미터를 붙여야 합니다.
                 const targetUrl = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
                 
                 const response = await fetch(targetUrl, {
                     method: 'GET',
-                    redirect: 'follow', // 리다이렉트 허용
-                    headers: {
-                        "Content-Type": "text/plain;charset=utf-8",
-                    },
+                    redirect: 'follow',
                 });
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
@@ -414,49 +408,67 @@
                 const jsonResponse = await response.json();
                 console.log("Fetched Data:", jsonResponse);
 
-                let matchedUser = null;
-
                 if (jsonResponse.result === 'success' && jsonResponse.data) {
-                    const data = jsonResponse.data;
-                    if (Array.isArray(data)) {
-                        matchedUser = data.find(u => String(u.userUid).trim() === String(uid).trim());
-                    } else {
-                        matchedUser = data;
-                    }
-                } else {
-                    console.warn("API Response indicates failure or no data:", jsonResponse);
-                }
-                
-                // 데이터 업데이트
-                if (matchedUser) {
-                    if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
-                    if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
-                    if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
+                    const userData = jsonResponse.data;
+
+                    // ★ 중요: 스프레드시트 헤더 이름(sysmail, deptName, gradeName)과 정확히 일치시킵니다.
+                    const userEmail = userData.sysmail || '-';
+                    const userDept = userData.deptName || '-';
+                    const userPos = userData.gradeName || '-';
+
+                    // DOM 업데이트
+                    if(elEmail) elEmail.textContent = userEmail;
+                    if(elDept) elDept.textContent = userDept;
+                    if(elPos) elPos.textContent = userPos;
                     
-                    currentUserInfo.email = matchedUser.sysmail;
-                    currentUserInfo.dept = matchedUser.deptName;
-                    currentUserInfo.pos = matchedUser.gradeName;
+                    // 전역 변수 업데이트
+                    currentUserInfo.email = userEmail;
+                    currentUserInfo.dept = userDept;
+                    currentUserInfo.pos = userPos;
+
                 } else {
+                    console.warn("데이터를 찾을 수 없음:", jsonResponse);
                     if(elEmail) elEmail.textContent = '정보 없음';
-                    if(elDept) elDept.textContent = '-';
-                    if(elPos) elPos.textContent = '-';
                 }
             } catch (error) {
                 console.error("Sheet Fetch Error:", error); 
                 if(elEmail) elEmail.textContent = '연동 실패';
-                if(elDept) elDept.textContent = '-';
-                if(elPos) elPos.textContent = '-';
-                window.displayMessage("데이터를 불러오지 못했습니다.", 'error');
             }
         }
         
-        // --- 기능 활성화/비활성화 함수 (단순화) ---
-        function enableFeatures(isLoggedIn) {
-            const buttons = document.querySelectorAll('button[onclick^="openModal"], button[type="submit"], #logout-button');
-            buttons.forEach(button => {
-                button.disabled = false;
-                button.classList.remove('opacity-50', 'cursor-not-allowed');
-            });
+        // --- 로그아웃 함수 ---
+        window.logout = async () => {
+             window.displayMessage("로그아웃되었습니다.", 'success');
+             setTimeout(() => {
+                 window.location.href = 'index.html'; // 로그인 페이지로 이동
+             }, 1000);
+        };
+        
+        // --- 모의 데이터 렌더링 (원복) ---
+        window.renderMockTrainingSummary = function() {
+             const listContainer = document.getElementById('training-list-container');
+             const top3Container = document.getElementById('top3-cards-container');
+             const noDataMessage = document.getElementById('no-data-message-training');
+             const dbSection = document.getElementById('db-section');
+
+             if(top3Container) top3Container.innerHTML = '<p class="text-gray-500 col-span-3 text-center py-4">등록된 데이터가 없습니다.</p>';
+             if(listContainer) listContainer.innerHTML = '';
+             if(dbSection) dbSection.classList.add('hidden');
+             if(noDataMessage) noDataMessage.classList.remove('hidden');
+        }
+
+        // --- 전체 교육 이력 모달 렌더링 함수 (원복) ---
+        window.renderFullTrainingHistory = function() {
+            const listContainer = document.getElementById('full-history-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
+        }
+        
+        // --- 연간 교육 계획 모달 렌더링 함수 (원복) ---
+        window.renderAnnualPlan = function() {
+            const listContainer = document.getElementById('annual-plan-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
         }
 
         // --- 사이드바 사용자 ID 업데이트 함수 ---
@@ -466,24 +478,15 @@
             const displayName = urlName || '게스트';
             const displayUid = urlUid || '-';
 
-            // 전역 변수 초기화
             currentUserInfo.name = displayName;
             currentUserInfo.uid = displayUid;
 
-            const userInfo = {
-                employeeId: displayUid, 
-                name: displayName, 
-                email: '...', 
-                department: '...', 
-                position: '...'
-            };
+            // 기본 정보(사번, 이름) 먼저 세팅
+            const elId = document.getElementById('info-employeeId');
+            const elName = document.getElementById('info-name');
+            if(elId) elId.textContent = displayUid;
+            if(elName) elName.textContent = displayName;
 
-            userInfoFields.forEach(key => {
-                const el = document.getElementById(`info-${key}`);
-                if (el) el.textContent = userInfo[key] || 'N/A';
-            });
-
-            // 프로그레스 바 초기화 (데이터 없음)
             updateProgressBars({ goal: 0, actual: 0, mandatoryExternal: 0 });
         }
 
@@ -508,50 +511,8 @@
             if (mandatoryBarText) mandatoryBarText.textContent = `${mandatoryExternalTime}h / ${mandatoryGoal}h (${mandatoryPercent.toFixed(0)}%)`;
         }
 
-        // --- 로그아웃 함수 (Github Pages용 수정) ---
-        window.logout = async () => {
-             window.displayMessage("로그아웃되었습니다.", 'success');
-             try {
-                 // Github Pages에서 index.html이 로그인 페이지이므로 해당 경로로 이동
-                 const LOGIN_PAGE_PATH = 'index.html';
-                 window.location.href = LOGIN_PAGE_PATH;
-             } catch(e) {
-                 window.displayMessage("페이지 이동 실패.", 'error');
-             }
-        };
-
-        // --- 모의 데이터 렌더링 (비어 있음) ---
-        function renderMockTrainingSummary() {
-             const listContainer = document.getElementById('training-list-container');
-             const top3Container = document.getElementById('top3-cards-container');
-             const noDataMessage = document.getElementById('no-data-message-training');
-             const dbSection = document.getElementById('db-section');
-
-             if(top3Container) top3Container.innerHTML = '<p class="text-gray-500 col-span-3 text-center py-4">등록된 데이터가 없습니다.</p>';
-             if(listContainer) listContainer.innerHTML = '';
-             if(dbSection) dbSection.classList.add('hidden');
-             if(noDataMessage) noDataMessage.classList.remove('hidden');
-        }
-
-        // --- 전체 교육 이력 모달 렌더링 함수 ---
-        window.renderFullTrainingHistory = function() {
-            const listContainer = document.getElementById('full-history-list');
-            if (!listContainer) return;
-            listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
-        }
-        
-        // --- 연간 교육 계획 모달 렌더링 함수 ---
-        window.renderAnnualPlan = function() {
-            const listContainer = document.getElementById('annual-plan-list');
-            if (!listContainer) return;
-            listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
-        }
-
-        // --- 실제 저장 함수 (Google Apps Script 연동) ---
-        
-        // 공통 데이터 전송 함수
+        // --- 공통 데이터 전송 함수 (POST) ---
         async function sendDataToSheet(actionType, formData) {
-            // 전역 변수 currentUserInfo에서 사용자 정보 가져오기
             const payload = {
                 action: actionType,
                 user: {
@@ -563,15 +524,11 @@
                 form: formData
             };
 
-            // APPS_SCRIPT_URL은 상단에 정의된 변수 사용
             try {
-                // Apps Script Web App에 POST 요청
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload) // GAS Web App으로 JSON 전송
                 });
-                
-                // GAS Web App은 보통 JSON 응답을 반환
                 const result = await response.json();
                 
                 if (result.result === 'success') {
@@ -581,9 +538,6 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                // 네트워크 에러나 파싱 에러인 경우에도
-                // 일단 GAS가 200 OK를 주면 성공으로 간주하는 Fallback 로직이 필요할 수 있음
-                // 여기서는 에러를 던져서 catch 블록에서 처리하게 함
                 throw error; 
             }
         }
@@ -597,15 +551,12 @@
                 summary: form.summary.value,
                 tag: form.tag.value
             };
-
             window.displayMessage("저장 중입니다...", "info");
-
             try {
                 await sendDataToSheet('write_training', formData);
                 window.displayMessage("교육 자료가 성공적으로 등록되었습니다!", 'success');
                 form.reset();
                 closeModal('training-post-modal');
-                // 필요 시 목록 새로고침 로직 추가
             } catch (err) {
                 window.displayMessage("저장 실패: " + err.message, 'error');
             }
@@ -621,9 +572,7 @@
                 content: form.content.value,
                 member_count: form.member_count.value
             };
-
             window.displayMessage("신청서를 제출하고 있습니다...", "info");
-
             try {
                 await sendDataToSheet('write_community', formData);
                 window.displayMessage("신청서가 성공적으로 제출되었습니다!", 'success');
@@ -642,9 +591,7 @@
                 title: form.title.value,
                 content: form.content.value
             };
-
             window.displayMessage("글을 게시하는 중입니다...", "info");
-
             try {
                 await sendDataToSheet('write_danggn', formData);
                 window.displayMessage("게시글이 등록되었습니다!", 'success');
@@ -655,13 +602,12 @@
             }
         };
         
-        // 4. 연간 계획 저장 (아직 백엔드 미구현 상태인 경우)
+        // 4. 연간 계획 저장 (아직 백엔드 미구현 상태인 경우) - 복구됨
         window.saveAnnualPlan = (e) => {
             e.preventDefault();
             window.displayMessage("아직 DB가 연결되지 않은 기능입니다.", 'error');
             closeModal('annual-plan-create-modal');
         };
-
 
         // --- UI 및 이벤트 핸들러 ---
         function setActiveTab(tabName) {
@@ -676,51 +622,41 @@
                 btn.classList.toggle('text-gray-600', !isActive);
                 btn.classList.toggle('hover:bg-gray-50', !isActive);
             });
-
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.toggle('active', content.id === tabName.replace(/\s|\//g, '-').toLowerCase());
             });
-
+            
             if (tabName === '교육자료 공유') {
                 renderMockTrainingSummary();
             }
         }
         window.setActiveTab = setActiveTab;
 
-        // --- 사이드바 및 이동된 카드 생성 함수 ---
+        // --- 사이드바 생성 함수 ---
         function createSidebarAndMovedCards() {
             const sidebarContainer = document.getElementById('sidebar-content');
             
             // 데이터가 없으므로 빈 리스트 표시
             const historyItems = '<li class="text-center text-gray-400 py-2">이력이 없습니다.</li>';
-
+            
             if (sidebarContainer) {
                 sidebarContainer.innerHTML = `
-                    <!-- 1. 관련 사이트 카드 -->
                     <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-cyan-500" id="related-sites-card">
                         <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${ICONS.Globe} 관련 사이트</h3>
                         <ul class="space-y-3">
-                            <li><a href="https://www.hunet.co.kr/" target="_blank" rel="noopener noreferrer" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 휴넷 (기업 교육)</a></li>
-                            <li><a href="https://synopex.step.or.kr/main.do" target="_blank" rel="noopener noreferrer" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 스탭 (STEP)</a></li>
+                            <li><a href="https://www.hunet.co.kr/" target="_blank" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 휴넷 (기업 교육)</a></li>
+                            <li><a href="https://synopex.step.or.kr/main.do" target="_blank" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 스탭 (STEP)</a></li>
                         </ul>
                     </div>
-
-                    <!-- 2. 개인정보 카드 -->
                     <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-indigo-500 min-h-[350px]" id="user-profile-card">
                         <div class="flex justify-between items-start mb-4">
                             <div class="flex items-center space-x-2">
                                 <h3 class="text-xl font-bold text-gray-800">개인정보</h3>
-                                <a href="#" onclick="alert('준비중입니다')" 
-                                   class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 shadow-md transition duration-200" 
-                                   title="마이페이지로 이동"
-                                >마이페이지</a>
+                                <button onclick="window.alert('준비중입니다')" class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 shadow-md">마이페이지</button>
                             </div>
-                            <button id="logout-button" onclick="logout()" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-md transition duration-150" title="로그아웃">
-                                ${ICONS.LogOut}
-                            </button>
+                            <button id="logout-button" onclick="logout()" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-md" title="로그아웃">${ICONS.LogOut}</button>
                         </div>
                         <div class="space-y-4">
-                            <!-- 개인 정보 항목 -->
                             <div class="grid grid-cols-2 gap-x-4 gap-y-2">
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사번</label><p id="info-employeeId" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이름</label><p id="info-name" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
@@ -728,46 +664,28 @@
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">부서명</label><p id="info-department" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">직책</label><p id="info-position" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
                             </div>
-                            <!-- 다가오는 교육 일정 -->
                             <div class="border-t pt-4 mt-4">
                                 <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">${ICONS.Calendar} 다가오는 교육 일정</h4>
-                                <ul class="space-y-1 text-xs text-gray-600">
-                                     <li class="text-center text-gray-400 py-1">일정이 없습니다.</li>
-                                </ul>
+                                <ul class="space-y-1 text-xs text-gray-600"><li class="text-center text-gray-400 py-1">일정이 없습니다.</li></ul>
                             </div>
-                            <!-- 교육 목표 달성 현황 -->
                             <div class="border-t pt-4 mt-4">
                                 <div class="flex justify-between items-center mb-3">
                                     <h4 class="text-sm font-semibold text-gray-700 flex items-center">${ICONS.Target} 교육 목표 달성 현황</h4>
-                                    <button onclick="openModal('annual-plan-modal')" class="text-xs font-medium text-lime-600 hover:text-lime-700 transition duration-150 px-2 py-1 rounded-md bg-lime-50 hover:bg-lime-100" title="금년도 교육 계획을 확인합니다.">금년도 계획 조회 &rarr;</button>
+                                    <button onclick="openModal('annual-plan-modal')" class="text-xs font-medium text-lime-600 hover:text-lime-700 transition duration-150 px-2 py-1 rounded-md bg-lime-50 hover:bg-lime-100">계획 조회 &rarr;</button>
                                 </div>
                                 <div class="space-y-3">
-                                    <!-- 전체 목표 달성률 -->
                                     <div>
-                                        <div class="flex justify-between text-xs font-medium text-gray-600 mb-1">
-                                            <span>전체 목표 달성률</span>
-                                            <span id="progress-goal-text">0h / 0h (0%)</span>
-                                        </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden">
-                                            <div id="progress-goal-fill" class="bg-indigo-500 h-2 rounded-full" style="width: 0%"></div>
-                                        </div>
+                                        <div class="flex justify-between text-xs font-medium text-gray-600 mb-1"><span>전체 목표 달성률</span><span id="progress-goal-text">0h / 0h (0%)</span></div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden"><div id="progress-goal-fill" class="bg-indigo-500 h-2 rounded-full" style="width: 0%"></div></div>
                                     </div>
-                                    <!-- 의무 (사외) 교육 달성률 -->
                                     <div>
-                                        <div class="flex justify-between text-xs font-medium text-gray-600 mb-1">
-                                            <span>의무 (사외) 교육</span>
-                                            <span id="progress-mandatory-text">0h / 12h (0%)</span>
-                                        </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden">
-                                            <div id="progress-mandatory-fill" class="bg-lime-500 h-2 rounded-full" style="width: 0%"></div>
-                                        </div>
+                                        <div class="flex justify-between text-xs font-medium text-gray-600 mb-1"><span>의무 (사외) 교육</span><span id="progress-mandatory-text">0h / 12h (0%)</span></div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden"><div id="progress-mandatory-fill" class="bg-lime-500 h-2 rounded-full" style="width: 0%"></div></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- 3. 개인 교육 이력 카드 (팀 교육 현황 삭제됨) -->
                     <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-amber-500" id="personal-training-history-card">
                         <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${ICONS.ListChecks} 개인 교육 이력</h3>
                         <div class="max-h-[150px] overflow-y-auto db-scroll-area pr-2">
@@ -781,35 +699,30 @@
             }
         }
 
-
         // --- 초기화 로직 ---
         window.onload = async () => {
             const currentYearEl = document.getElementById('current-year');
-            if (currentYearEl) {
-                currentYearEl.textContent = new Date().getFullYear();
-            }
+            if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
             
-            // 1. URL 파라미터에서 로그인 정보 확인 (Github Pages용)
-            // Github Pages 환경에서 index.html (로그인) -> main.html (이 페이지)로 넘어올 때
-            // URL에 ?userName=홍길동&userUid=12345 형태로 정보가 전달된다고 가정합니다.
+            // URL 파라미터 확인 (index.html에서 전달된 값)
             const params = new URLSearchParams(window.location.search);
-            const nameFromUrl = params.get('userName') || params.get('name'); // name fallback 추가
-            const uidFromUrl = params.get('userUid') || params.get('uid') || params.get('password'); // uid fallback 추가
+            const nameFromUrl = params.get('userName') || params.get('name');
+            const uidFromUrl = params.get('userUid') || params.get('uid');
 
-            // 2. 사이드바 내용 생성
+            // 사이드바 UI 생성
             createSidebarAndMovedCards();
 
+            // 기본 정보 세팅
             if (nameFromUrl) {
                 updateSidebarUserId(nameFromUrl, uidFromUrl);
             }
 
-            // --- 추가된 부분: 구글 스프레드시트 데이터 연동 ---
-            // URL에 uid가 있으면 GAS WebApp을 통해 상세 정보 호출
+            // ★ 추가정보(이메일,부서,직책) 스프레드시트에서 가져오기
             if (uidFromUrl) {
                 fetchUserInfoFromSheet(uidFromUrl);
             }
 
-            // 4. 탭 및 컨텐츠 영역 생성
+            // 탭 생성
             const tabs = [
                 { name: '공지사항', icon: 'Bell', color: 'indigo' },
                 { name: '교육자료 공유', icon: 'BookOpen', color: 'teal' },
@@ -819,139 +732,75 @@
             const nav = document.getElementById('tab-nav');
             const contentContainer = document.getElementById('tab-content-container');
 
-            if (!nav || !contentContainer) return;
-            nav.innerHTML = ''; contentContainer.innerHTML = '';
+            if (nav && contentContainer) {
+                nav.innerHTML = ''; contentContainer.innerHTML = '';
+                tabs.forEach(tab => {
+                    const tabNameId = tab.name.replace(/\s|\//g, '-').toLowerCase();
+                    const btn = document.createElement('button');
+                    btn.className = 'flex-1 flex items-center justify-center py-3 px-2 rounded-lg text-sm md:text-base font-semibold transition-all duration-300 ease-in-out text-gray-600 hover:bg-gray-50';
+                    btn.dataset.tab = tab.name;
+                    let tabIcon = '';
+                    if(tab.icon === 'Bell') tabIcon = ICONS.Bell;
+                    else if(tab.icon === 'BookOpen') tabIcon = ICONS.BookOpenTeal;
+                    else if(tab.icon === 'Users') tabIcon = ICONS.UsersSmall;
+                    else if(tab.icon === 'ShoppingBag') tabIcon = ICONS.ShoppingBag;
+                    
+                    btn.innerHTML = `${tabIcon} ${tab.name}`;
+                    btn.onclick = () => setActiveTab(tab.name);
+                    nav.appendChild(btn);
 
-            tabs.forEach(tab => {
-                const tabNameId = tab.name.replace(/\s|\//g, '-').toLowerCase();
+                    const div = document.createElement('div');
+                    div.id = tabNameId;
+                    div.className = 'tab-content p-6 bg-white rounded-xl shadow-lg h-full overflow-y-auto';
 
-                // 네비게이션 버튼
-                const btn = document.createElement('button');
-                btn.className = 'flex-1 flex items-center justify-center py-3 px-2 rounded-lg text-sm md:text-base font-semibold transition-all duration-300 ease-in-out text-gray-600 hover:bg-gray-50';
-                btn.dataset.tab = tab.name;
-                // 여기도 아이콘 상수로 변경
-                let tabIcon = '';
-                if(tab.icon === 'Bell') tabIcon = ICONS.Bell;
-                else if(tab.icon === 'BookOpen') tabIcon = ICONS.BookOpenTeal; // Color specific
-                else if(tab.icon === 'Users') tabIcon = ICONS.UsersSmall;
-                else if(tab.icon === 'ShoppingBag') tabIcon = ICONS.ShoppingBag;
-                
-                btn.innerHTML = `${tabIcon} ${tab.name}`;
-                btn.onclick = () => setActiveTab(tab.name);
-                nav.appendChild(btn);
-
-                // 컨텐츠 영역 (HTML 구조)
-                const div = document.createElement('div');
-                div.id = tabNameId;
-                div.className = 'tab-content p-6 bg-white rounded-xl shadow-lg h-full overflow-y-auto';
-
-                let contentHTML = '';
-                if (tab.name === '공지사항') {
-                    // 공지사항 데이터 없음 처리
-                    contentHTML = `
-                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                            ${ICONS.Bell} 공지사항
-                        </h2>
+                    let contentHTML = '';
+                    if (tab.name === '공지사항') {
+                        contentHTML = `
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">${ICONS.Bell} 공지사항</h2>
                         <div class="space-y-4">
                             <p class="text-center text-gray-500 py-10 border border-dashed rounded-lg">등록된 공지사항이 없습니다.</p>
                         </div>`;
-                } else if (tab.name === '교육자료 공유') {
-                    contentHTML = `
-                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                            ${ICONS.BookOpen} 교육 지원 및 자료 공유
-                        </h2>
-
-                        <!-- Section 1: 교육 품의서 (Training Proposal/Approval) -->
-                        <div class="mb-10 p-6 border border-teal-300 rounded-xl bg-teal-50">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-xl font-bold text-teal-700 flex items-center">
-                                    ${ICONS.Clipboard} 완료된 교육 보고서 (클릭 시 상세 조회)
-                                </h3>
+                    } else if (tab.name === '교육자료 공유') {
+                        contentHTML = `
+                            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">${ICONS.BookOpen} 교육 지원 및 자료 공유</h2>
+                            <div class="mb-10 p-6 border border-teal-300 rounded-xl bg-teal-50">
+                                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-teal-700 flex items-center">${ICONS.Clipboard} 완료된 교육 보고서</h3></div>
+                                <ul class="space-y-1 text-sm text-gray-700" id="proposal-report-list"><li class="text-gray-500 p-2 text-center">완료된 교육 보고서가 없습니다.</li></ul>
                             </div>
-                            <ul class="space-y-1 text-sm text-gray-700" id="proposal-report-list">
-                                <li class="text-gray-500 p-2 text-center">완료된 교육 보고서가 없습니다.</li>
-                            </ul>
-                        </div>
+                            <div class="mt-10">
+                                <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center justify-between"><span class="flex items-center">${ICONS.BookOpen} 교육자료 공유</span><button onclick="openModal('training-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-teal-500 text-white hover:bg-teal-600 shadow-md flex items-center">${ICONS.Plus} 자료 등록</button></h3>
+                                <div class="mb-10"><h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${ICONS.TrendingUp} 조회수 Top 3</h4><div id="top3-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"><p class="text-gray-500 col-span-3 text-center">데이터가 없습니다.</p></div></div>
+                                <div id="db-section" class="mt-8 hidden"><h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${ICONS.BookOpen} 자료 DB (최신순)</h4><div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area"><div id="training-list-container" class="space-y-0"></div></div></div>
+                                <p id="no-data-message-training" class="hidden text-center py-10 text-gray-500 border border-dashed rounded-lg">등록된 교육 자료가 없습니다.</p>
+                            </div>`;
+                    } else if (tab.name === '동아리/학습조직 신청') {
+                        contentHTML = `
+                            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between"><span class="flex items-center">${ICONS.Users} 동아리/학습조직 신청</span><button onclick="openModal('community-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-amber-500 text-white hover:bg-amber-600 shadow-md flex items-center">${ICONS.Plus} 신청서 작성</button></h2>
+                            <div class="mb-10 p-6 border border-amber-300 rounded-xl bg-amber-50"><h3 class="text-xl font-bold text-amber-700 mb-4 flex items-center">${ICONS.ClipboardList} 신청 및 승인 현황 (개인)</h3><ul class="space-y-2 text-sm text-gray-700"><li class="text-center text-gray-500">신청 내역이 없습니다.</li></ul><a href="#" class="mt-3 inline-block text-xs font-medium text-amber-600 hover:text-amber-700">전체 신청 현황 보기 &rarr;</a></div>
+                            <div id="community-list-section" class="mt-10"><h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center">${ICONS.Users} 현재 활동 조직 목록</h3><div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area"><p class="text-center text-gray-500 py-4">등록된 조직이 없습니다.</p></div></div>`;
+                    } else if (tab.name === '당근') {
+                        contentHTML = `
+                            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between"><span class="flex items-center">${ICONS.ShoppingBag} 당근</span><button onclick="openModal('danggn-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-orange-500 text-white hover:bg-orange-600 shadow-md flex items-center">${ICONS.Plus} 새 글 작성</button></h2>
+                            <p class="text-gray-600">사내 중고거래 게시판입니다.</p><div class="mt-8 p-6 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-300 text-gray-500"><p class="text-lg font-semibold mb-2">기능 준비 중 안내</p><p>더 나은 사내 교환/나눔 시스템을 위해 당근 탭을 준비 중입니다. 잠시만 기다려 주세요!🥕</p></div>`;
+                    }
+                    div.innerHTML = contentHTML;
+                    contentContainer.appendChild(div);
+                });
+                
+                // 5. 폼 이벤트 리스너 연결 (복구됨)
+                const trainingForm = document.getElementById('training-post-form');
+                if(trainingForm) trainingForm.addEventListener('submit', window.saveTrainingPost);
+                const communityForm = document.getElementById('community-post-form');
+                if(communityForm) communityForm.addEventListener('submit', window.saveCommunityPost);
+                const annualPlanCreateForm = document.getElementById('annual-plan-create-form');
+                if(annualPlanCreateForm) annualPlanCreateForm.addEventListener('submit', window.saveAnnualPlan);
+                const danggnForm = document.getElementById('danggn-post-form');
+                if(danggnForm) danggnForm.addEventListener('submit', window.saveDanggnPost);
 
-                        <!-- Section 2: 교육자료 공유 (Material Sharing) -->
-                        <div class="mt-10">
-                            <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center justify-between">
-                                <span class="flex items-center">${ICONS.BookOpen} 교육자료 공유</span>
-                                <!-- 자료 등록 버튼 -->
-                                <button onclick="openModal('training-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-teal-500 text-white hover:bg-teal-600 shadow-md transition duration-200 flex items-center">${ICONS.Plus} 자료 등록</button>
-                            </h3>
-                            
-                            <!-- Top 3 내용 -->
-                            <div class="mb-10">
-                                <h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${ICONS.TrendingUp} 조회수 Top 3</h4>
-                                <div id="top3-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"><p class="text-gray-500 col-span-3 text-center">데이터가 없습니다.</p></div>
-                            </div>
-                            
-                            <!-- 자료 DB 내용 -->
-                            <div id="db-section" class="mt-8 hidden">
-                                <h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${ICONS.BookOpen} 자료 DB (최신순)</h4>
-                                <div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area"><div id="training-list-container" class="space-y-0"></div></div>
-                            </div>
-                            <p id="no-data-message-training" class="hidden text-center py-10 text-gray-500 border border-dashed rounded-lg">등록된 교육 자료가 없습니다.</p>
-                        </div>
-                    `;
-                } else if (tab.name === '동아리/학습조직 신청') {
-                    contentHTML = `
-                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between">
-                            <span class="flex items-center">${ICONS.Users} 동아리/학습조직 신청</span>
-                            <button onclick="openModal('community-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-amber-500 text-white hover:bg-amber-600 shadow-md transition duration-200 flex items-center">${ICONS.Plus} 신청서 작성</button>
-                        </h2>
-
-                        <!-- Section 1: 신청 및 승인 현황 -->
-                        <div class="mb-10 p-6 border border-amber-300 rounded-xl bg-amber-50">
-                            <h3 class="text-xl font-bold text-amber-700 mb-4 flex items-center">${ICONS.ClipboardList} 신청 및 승인 현황 (개인)</h3>
-                            <ul class="space-y-2 text-sm text-gray-700">
-                                <li class="text-center text-gray-500">신청 내역이 없습니다.</li>
-                            </ul>
-                            <a href="#" class="mt-3 inline-block text-xs font-medium text-amber-600 hover:text-amber-700">전체 신청 현황 보기 &rarr;</a>
-                        </div>
-                        
-                        <!-- Section 2: 현재 활동 조직 목록 -->
-                        <div id="community-list-section" class="mt-10">
-                            <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center">${ICONS.Users} 현재 활동 조직 목록</h3>
-                            <div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area">
-                                 <p class="text-center text-gray-500 py-4">등록된 조직이 없습니다.</p>
-                            </div>
-                        </div>
-                    `;
-                } else if (tab.name === '당근') {
-                    contentHTML = `
-                        <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between">
-                            <span class="flex items-center">${ICONS.ShoppingBag} 당근</span>
-                            <button onclick="openModal('danggn-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-orange-500 text-white hover:bg-orange-600 shadow-md transition duration-200 flex items-center">${ICONS.Plus} 새 글 작성</button>
-                        </h2>
-                        <p class="text-gray-600">사내 중고거래 게시판입니다.</p>
-                        <div class="mt-8 p-6 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-300 text-gray-500">
-                            <p class="text-lg font-semibold mb-2">기능 준비 중 안내</p>
-                            <p>더 나은 사내 교환/나눔 시스템을 위해 당근 탭을 준비 중입니다. 잠시만 기다려 주세요!🥕</p>
-                        </div>
-                    `;
-                }
-                div.innerHTML = contentHTML;
-                contentContainer.appendChild(div);
-            });
-
-            // 5. 폼 이벤트 리스너 연결
-            const trainingForm = document.getElementById('training-post-form');
-            if(trainingForm) trainingForm.addEventListener('submit', window.saveTrainingPost);
-            const communityForm = document.getElementById('community-post-form');
-            if(communityForm) communityForm.addEventListener('submit', window.saveCommunityPost);
-            const annualPlanCreateForm = document.getElementById('annual-plan-create-form');
-            if(annualPlanCreateForm) annualPlanCreateForm.addEventListener('submit', window.saveAnnualPlan);
-            
-            // 당근 폼 이벤트 리스너 추가
-            const danggnForm = document.getElementById('danggn-post-form');
-            if(danggnForm) danggnForm.addEventListener('submit', window.saveDanggnPost);
-
-            // 6. 기본 탭 활성화 (교육자료 공유)
-            setActiveTab(tabs[1].name);
+                // 탭 초기화
+                setActiveTab(tabs[1].name);
+            }
         };
     </script>
 </body>
 </html>
-
