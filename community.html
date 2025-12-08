@@ -510,9 +510,6 @@
         // --- Google Apps Script에서 데이터 가져오기 (수정됨) ---
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) return;
-            const nameEl = document.getElementById('info-name');
-            const idEl = document.getElementById('info-employeeId');
-            
             // 타겟 엘리먼트 (이메일, 부서, 직책만)
             const elEmail = document.getElementById('info-email');
             const elDept = document.getElementById('info-department');
@@ -524,51 +521,73 @@
             if(elPos) elPos.textContent = '...';
 
             try {
-                // 수정: 파라미터를 제거하고 전체 데이터를 요청하도록 변경 (서버 사이드 필터링 대신 클라이언트 사이드 필터링 사용)
-                // 이유: GAS 웹앱이 쿼리 파라미터를 지원하지 않거나 CORS 문제로 인해 특정 파라미터 요청이 실패할 수 있음
-                const url = APPS_SCRIPT_URL; 
+                // 수정: 파라미터를 userUid로 변경
+                const url = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
                 
                 // Fetch 옵션에 no-cors나 다른 설정을 넣으면 opaque response가 되어 데이터를 못 읽을 수 있음.
-                // 기본 fetch로 시도하되, 실패 시 전체 데이터를 가져오는 시도를 해볼 수도 있음 (여기선 생략)
-                const response = await fetch(url, { redirect: 'follow' }); // redirect 옵션 추가
+                const response = await fetch(url, { redirect: 'follow' }); // 리다이렉트 처리 추가
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
                 const jsonResponse = await response.json();
-                
+                console.log("Sheet Data:", jsonResponse); // 디버깅용 로그
+
                 let users = [];
+                // 데이터 구조 유연하게 처리
                 if (Array.isArray(jsonResponse)) {
                     users = jsonResponse;
                 } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
                     users = jsonResponse.data;
+                } else if (typeof jsonResponse === 'object') {
+                     // 단일 객체일 경우 배열로 감싸서 처리
+                     users = [jsonResponse];
                 }
 
-                // 4. 사용자 찾기
+                // 4. 사용자 찾기 logic
                 let matchedUser = null;
+                
+                // 데이터가 비어있지 않다면
                 if (users.length > 0) {
                     const firstItem = users[0];
+                    
                     if (Array.isArray(firstItem)) {
                         // 2차원 배열인 경우 (행 데이터)
                         // A:0(Name), B:1(UID), C:2(Grade), D:3(Dept), E:4(Email)
-                        const foundRow = users.find(row => String(row[1]) === String(uid));
+                        const foundRow = users.find(row => String(row[1]).trim() === String(uid).trim());
                         if (foundRow) {
                             matchedUser = {
-                                userName: foundRow[0],
-                                userUid: foundRow[1],
-                                gradeName: foundRow[2],
-                                deptName: foundRow[3],
-                                sysmail: foundRow[4]
+                                gradeName: foundRow[2], // C열: 직책
+                                deptName: foundRow[3],  // D열: 부서명
+                                sysmail: foundRow[4]    // E열: 이메일
                             };
                         }
-                    } else {
+                    } else if (typeof firstItem === 'object') {
                         // 객체 배열인 경우 (키값 매칭)
-                        matchedUser = users.find(u => String(u.userUid) === String(uid));
+                        const foundObj = users.find(u => String(u.userUid).trim() === String(uid).trim());
+                        if(foundObj) {
+                             matchedUser = foundObj;
+                        }
+                    } else {
+                        // 응답 자체가 단일 1차원 배열(한 행)인 경우 처리
+                         // users 자체가 ["홍길동", "사번", ...] 형태일 수 있음
+                         // 원래 jsonResponse가 1차원 배열이었다면 users도 1차원 배열. 
+                         // 하지만 위에서 Array.isArray(jsonResponse)로 users에 할당했으므로
+                         // jsonResponse가 ["A", "B"] 였다면 users도 ["A", "B"]임.
+                         // users[0]은 "A" (string).
+                         
+                         // 이 경우 users 자체가 하나의 Row라고 가정하고 인덱스 1 체크
+                         if (String(users[1]).trim() === String(uid).trim()) {
+                             matchedUser = {
+                                gradeName: users[2],
+                                deptName: users[3],
+                                sysmail: users[4]
+                            };
+                         }
                     }
                 }
                 
                 // 데이터 업데이트 (이름/사번 제외하고 나머지 필드만)
                 if (matchedUser) {
-                    // 사용자가 요청한 매핑: 이메일=sysmail, 부서명=deptName, 직책=gradeName
                     if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
                     if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
                     if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
@@ -577,6 +596,7 @@
                     if(elEmail) elEmail.textContent = '-';
                     if(elDept) elDept.textContent = '-';
                     if(elPos) elPos.textContent = '-';
+                    console.warn(`User ID ${uid} not found in sheet.`);
                 }
             } catch (error) {
                 console.error("Sheet Fetch Error:", error); 
@@ -584,9 +604,6 @@
                 if(elEmail) elEmail.textContent = '-';
                 if(elDept) elDept.textContent = '-';
                 if(elPos) elPos.textContent = '-';
-                
-                // 더 이상 팝업 메시지를 띄우지 않습니다. (사용자 요청 반영)
-                // window.displayMessage(...) 
             }
         }
         
