@@ -461,6 +461,9 @@
             getFirestore, collection, query, onSnapshot, addDoc, serverTimestamp, setLogLevel
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- Google Apps Script URL (Sheet Connection) ---
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSzCH66xjcAePJVBRCJogEHVw0GUp4nrbYCCdheL0YSUGdAc2nmFIa4iX-Xrh1-P_r/exec";
+
         // --- Firebase Canvas Environment Variables ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
@@ -503,6 +506,46 @@
             { id: 'p3', title: '신규 장비 구매를 위한 교육 요청', status: '반려됨', statusColor: 'red', applicant: '인프라팀 (박영희)', date: '2025-09-10', details: '신규 네트워크 장비 운영을 위한 외부 전문 교육 요청. 해당 교육은 사내 강사 교육으로 대체 가능하다는 인사팀의 검토 의견으로 반려됨.', rejectionReason: '사내 교육 대체 가능' },
             { id: 'p4', title: '직무 역량 진단 도구 사용법 교육', status: '완료', statusColor: 'green', applicant: '인사팀 (최지영)', date: '2025-08-20', details: '직무 역량 진단 도구(TalentMapper)의 정확한 사용 및 해석을 위한 교육. 전담 인력 2인 대상. 외부 강사 초빙 완료.', rejectionReason: null },
         ];
+
+        // --- Google Apps Script에서 데이터 가져오기 ---
+        async function fetchUserInfoFromSheet(uid) {
+            if (!uid) return;
+            try {
+                // 로딩 표시
+                const nameEl = document.getElementById('info-name');
+                if(nameEl) nameEl.textContent = '불러오는 중...';
+
+                const response = await fetch(`${APPS_SCRIPT_URL}?uid=${uid}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                
+                // 데이터 매핑 (API 응답에 따라 key 확인 필요, 여기서는 일반적인 상황 가정)
+                // 만약 GAS가 { result: 'success', data: { ... } } 형태로 준다면 data.data.name 등으로 접근
+                // 여기서는 GAS가 바로 User Object를 리턴한다고 가정합니다.
+                
+                if (data) {
+                    const elName = document.getElementById('info-name');
+                    const elId = document.getElementById('info-employeeId');
+                    const elEmail = document.getElementById('info-email');
+                    const elDept = document.getElementById('info-department');
+                    const elPos = document.getElementById('info-position');
+
+                    if(elName) elName.textContent = data.name || '-';
+                    if(elId) elId.textContent = data.employeeId || uid || '-';
+                    if(elEmail) elEmail.textContent = data.sysmail || '-'; // sysmail 매핑
+                    if(elDept) elDept.textContent = data.deptName || '-'; // deptName 매핑
+                    if(elPos) elPos.textContent = data.gradeName || '-'; // gradeName 매핑
+                }
+
+            } catch (error) {
+                console.error("Sheet Fetch Error:", error);
+                window.displayMessage("사용자 정보를 불러오는데 실패했습니다.", 'error');
+                const nameEl = document.getElementById('info-name');
+                if(nameEl) nameEl.textContent = '연동 실패';
+            }
+        }
+
 
         // --- Firebase 초기화 및 인증 ---
         async function setupFirebase() {
@@ -573,22 +616,23 @@
         }
 
         // --- 사이드바 사용자 ID 업데이트 함수 ---
-        const userInfoFields = ['employeeId', 'name', 'email', 'division', 'department', 'position'];
+        // 사업부(division) 제거 및 필드 매핑 준비
+        const userInfoFields = ['employeeId', 'name', 'email', 'department', 'position'];
         
-        // 함수 수정: URL에서 받아온 이름과 UID를 반영하도록 변경
         function updateSidebarUserId(firebaseUid, urlName, urlUid) {
             // URL 파라미터가 있으면 우선 사용, 없으면 Firebase UID 사용, 둘 다 없으면 기본값
             const displayName = urlName || '게스트';
             const displayUid = urlUid || firebaseUid || '-';
 
+            // 초기값 설정 (나중에 fetchUserInfoFromSheet로 덮어씌워질 수 있음)
             const userInfo = (urlName || firebaseUid) ? {
                 employeeId: displayUid, 
                 name: displayName, 
-                email: 'user@company.com',
-                division: '기술 연구소', department: '개발팀', position: '연구원'
+                email: 'loading...',
+                department: 'loading...', position: 'loading...'
             } : {
                 employeeId: '-', name: '-', email: '-',
-                division: '-', department: '-', position: '-'
+                department: '-', position: '-'
             };
 
             userInfoFields.forEach(key => {
@@ -988,6 +1032,7 @@
         window.setActiveTab = setActiveTab;
 
         // --- 사이드바 및 이동된 카드 생성 함수 ---
+        // 수정: 1. 관련 사이트 정리, 2. 개인정보 필드 수정
         function createSidebarAndMovedCards() {
             const sidebarContainer = document.getElementById('sidebar-content');
             
@@ -1004,21 +1049,18 @@
 
             if (sidebarContainer) {
                 sidebarContainer.innerHTML = `
-                    <!-- 1. 관련 사이트 카드 -->
+                    <!-- 1. 관련 사이트 카드 (수정됨: 위키, Jira 제거) -->
                     <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-cyan-500" id="related-sites-card">
                         <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${getIconSVG('Globe', 'w-5 h-5 mr-2 text-cyan-600')} 관련 사이트</h3>
                         <ul class="space-y-3">
                             <li><a href="https://www.hunet.co.kr/" target="_blank" rel="noopener noreferrer" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 휴넷 (기업 교육)</a></li>
                             <li><a href="https://synopex.step.or.kr/main.do" target="_blank" rel="noopener noreferrer" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 스탭 (STEP)</a></li>
-                            <li><a href="#" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 사내 위키 (Confluence)</a></li>
-                            <li><a href="#" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> IT 헬프데스크 (Jira)</a></li>
                         </ul>
                     </div>
 
-                    <!-- 2. 개인정보 카드 (로그아웃 버튼 포함) -->
+                    <!-- 2. 개인정보 카드 (수정됨: 사업부 제거) -->
                     <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-indigo-500 min-h-[350px]" id="user-profile-card">
                         <div class="flex justify-between items-start mb-4">
-                            <!-- 수정된 부분: 마이페이지 버튼 (경로 수정 필요시 수정하세요) -->
                             <div class="flex items-center space-x-2">
                                 <h3 class="text-xl font-bold text-gray-800">개인정보</h3>
                                 <a href="#" onclick="alert('준비중입니다')" 
@@ -1032,11 +1074,10 @@
                         </div>
                         <div class="space-y-4">
                             <!-- 개인 정보 항목 -->
-                            <div class="grid grid-cols-3 gap-x-4 gap-y-2">
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-2">
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사번</label><p id="info-employeeId" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이름</label><p id="info-name" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
-                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이메일</label><p id="info-email" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
-                                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사업부</label><p id="info-division" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                                <div class="col-span-2"><label class="block text-xs font-medium text-gray-500">이메일</label><p id="info-email" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">부서명</label><p id="info-department" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
                                 <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">직책</label><p id="info-position" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
                             </div>
@@ -1134,6 +1175,12 @@
             } else if (!isFirebaseReady && !firebaseConfig) {
                 // window.displayMessage("⚠️ Firebase 설정 키가 없어 모의 데이터로 실행됩니다.", 'error');
                 enableFeatures(false);
+            }
+
+            // --- 추가된 부분: 구글 스프레드시트 데이터 연동 ---
+            // URL에 uid가 있으면 GAS WebApp을 통해 상세 정보 호출
+            if (uidFromUrl) {
+                fetchUserInfoFromSheet(uidFromUrl);
             }
 
             // 4. 탭 및 컨텐츠 영역 생성
