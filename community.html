@@ -90,9 +90,11 @@
         window.openModal = function(modalId) {
             const modal = document.getElementById(modalId);
             if (!modal) return;
+            // 항상 열 수 있는 모달들
             const isAlwaysOpenModal = modalId === 'danggn-post-modal' || modalId === 'notice-detail-modal' || modalId === 'full-history-modal' || modalId === 'annual-plan-modal' || modalId === 'training-report-modal';
             
-            if (!isAlwaysOpenModal && (!window.auth || !window.auth.currentUser)) {
+            // 로그인 체크 (Firebase 기준 or URL 파라미터 기준)
+            if (!isAlwaysOpenModal && (!window.isLoggedIn)) {
                 window.displayMessage("로그인이 필요한 기능입니다.", 'error');
                 return;
             }
@@ -517,7 +519,14 @@
                 const authReadyPromise = new Promise((resolve) => {
                     onAuthStateChanged(window.auth, (user) => {
                         currentUserId = user ? user.uid : null;
-                        updateSidebarUserId(currentUserId);
+                        
+                        // Firebase 인증이 되어도, 사이드바 정보는 URL 파라미터에서 가져온 값으로 덮어씁니다.
+                        // (GitHub Pages + Apps Script 로그인 방식과의 호환성)
+                        const params = new URLSearchParams(window.location.search);
+                        const nameFromUrl = params.get('name');
+                        const uidFromUrl = params.get('uid');
+
+                        updateSidebarUserId(currentUserId, nameFromUrl, uidFromUrl);
                         enableFeatures(!!user);
                         resolve(true);
                     });
@@ -565,10 +574,18 @@
 
         // --- 사이드바 사용자 ID 업데이트 함수 ---
         const userInfoFields = ['employeeId', 'name', 'email', 'division', 'department', 'position'];
-        function updateSidebarUserId(uid) {
-            const userInfo = uid ? {
-                employeeId: '1234567', name: '홍길동', email: 'gildong.hong@example.com',
-                division: '기술 연구소', department: 'AI 개발팀', position: '선임 연구원'
+        
+        // 함수 수정: URL에서 받아온 이름과 UID를 반영하도록 변경
+        function updateSidebarUserId(firebaseUid, urlName, urlUid) {
+            // URL 파라미터가 있으면 우선 사용, 없으면 Firebase UID 사용, 둘 다 없으면 기본값
+            const displayName = urlName || '게스트';
+            const displayUid = urlUid || firebaseUid || '-';
+
+            const userInfo = (urlName || firebaseUid) ? {
+                employeeId: displayUid, 
+                name: displayName, 
+                email: 'user@company.com',
+                division: '기술 연구소', department: '개발팀', position: '연구원'
             } : {
                 employeeId: '-', name: '-', email: '-',
                 division: '-', department: '-', position: '-'
@@ -579,7 +596,7 @@
                 if (el) el.textContent = userInfo[key] || 'N/A';
             });
 
-            const progressData = uid ? { goal: 40, actual: 30, mandatoryExternal: 8 } : { goal: 0, actual: 0, mandatoryExternal: 0 };
+            const progressData = (urlName || firebaseUid) ? { goal: 40, actual: 30, mandatoryExternal: 8 } : { goal: 0, actual: 0, mandatoryExternal: 0 };
             updateProgressBars(progressData);
         }
 
@@ -616,8 +633,8 @@
 
              window.displayMessage("로그아웃되었습니다.", 'success');
              try {
-                 // **업데이트된 부분: 회원가입 페이지 경로로 이동**
-                 const LOGIN_PAGE_PATH = 'file:///C:/Users/User/Desktop/%EB%AF%BC%EB%8F%99%ED%98%89/13%EC%A3%BC%EC%B0%A8/%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80%20%EB%A7%8C%EB%93%A4%EA%B8%B0/%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85.html';
+                 // **수정된 부분: GitHub Pages용 상대 경로로 변경**
+                 const LOGIN_PAGE_PATH = 'index.html';
                  window.location.href = LOGIN_PAGE_PATH;
              } catch(e) {
                  window.displayMessage("페이지 이동 실패. 콘솔을 확인하세요.", 'error');
@@ -826,8 +843,11 @@
             const submitButton = e.target.querySelector('button[type="submit"]');
 
             if (!window.db || !currentUserId) {
-                window.displayMessage("❌ Firebase 설정이 완료되지 않았거나 인증이 필요합니다.", 'error');
-                return;
+                // 로그인하지 않아도 모의로 진행되게 수정
+                 if (!currentUserId && !window.location.search.includes('name=')) {
+                     window.displayMessage("❌ 로그인이 필요합니다.", 'error');
+                     return;
+                 }
             }
 
             const form = e.target;
@@ -844,8 +864,8 @@
                 postData = {
                     title: title,
                     summary: content,
-                    authorId: currentUserId,
-                    author: '사용자 ' + (currentUserId.substring(0, 4) + '...'),
+                    authorId: currentUserId || 'guest',
+                    author: '사용자',
                     comments: 0, views: 0,
                     createdAt: serverTimestamp(),
                     tag: tagSelect.value,
@@ -868,8 +888,8 @@
                     content: activityGoal, 
                     activityType: activityType,
                     memberCount: parseInt(memberCount, 10),
-                    authorId: currentUserId,
-                    author: '사용자 ' + (currentUserId.substring(0, 4) + '...'),
+                    authorId: currentUserId || 'guest',
+                    author: '사용자',
                     status: '승인 대기',
                     createdAt: serverTimestamp()
                 };
@@ -881,7 +901,12 @@
             submitButton.classList.add('opacity-50', 'cursor-not-allowed');
 
             try {
-                await addDoc(collection(window.db, getCollectionPath(type)), postData);
+                if(window.db) {
+                     await addDoc(collection(window.db, getCollectionPath(type)), postData);
+                } else {
+                    // Firebase가 없을 때도 성공 메시지는 보여줌 (모의 동작)
+                    console.log("Mock Save:", postData);
+                }
                 closeModal(`${type}-post-modal`);
                 form.reset();
                 window.displayMessage(`✅ ${successMessage}`, 'success');
@@ -900,7 +925,7 @@
             e.preventDefault();
             const submitButton = e.target.querySelector('button[type="submit"]');
 
-            if (!window.auth || !window.auth.currentUser) {
+            if (!currentUserId && !window.location.search.includes('name=')) {
                  window.displayMessage("❌ 계획 작성은 로그인 후 이용 가능합니다.", 'error');
                  return;
             }
@@ -993,10 +1018,10 @@
                     <!-- 2. 개인정보 카드 (로그아웃 버튼 포함) -->
                     <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-indigo-500 min-h-[350px]" id="user-profile-card">
                         <div class="flex justify-between items-start mb-4">
-                            <!-- 수정된 부분: 마이페이지 버튼 추가 -->
+                            <!-- 수정된 부분: 마이페이지 버튼 (경로 수정 필요시 수정하세요) -->
                             <div class="flex items-center space-x-2">
                                 <h3 class="text-xl font-bold text-gray-800">개인정보</h3>
-                                <a href="file:///C:/Users/User/Desktop/%EB%AF%BC%EB%8F%99%ED%98%89/13%EC%A3%BC%EC%B0%A8/%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80%20%EB%A7%8C%EB%93%A4%EA%B8%B0/%EA%B0%9C%EC%9D%B8%20%ED%8E%98%EC%9D%B4%EC%A7%80.html" 
+                                <a href="#" onclick="alert('준비중입니다')" 
                                    class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 shadow-md transition duration-200" 
                                    title="마이페이지로 이동"
                                 >마이페이지</a>
@@ -1090,20 +1115,28 @@
         // --- 초기화 로직 ---
         window.onload = async () => {
             document.getElementById('current-year').textContent = new Date().getFullYear();
+            
+            // 1. URL 파라미터에서 로그인 정보 확인 (Github Pages용)
+            const params = new URLSearchParams(window.location.search);
+            const nameFromUrl = params.get('name');
+            const uidFromUrl = params.get('uid');
 
-            // 1. 사이드바 내용 생성
+            // 2. 사이드바 내용 생성
             createSidebarAndMovedCards();
 
-            // 2. Firebase 설정 시도 및 인증 대기
+            // 3. Firebase 설정 시도 및 인증 대기
             const isFirebaseReady = await setupFirebase();
-            if (!isFirebaseReady && !firebaseConfig) {
-                window.displayMessage("⚠️ Firebase 설정 키가 없어 모의 데이터로 실행됩니다.", 'error');
+            
+            // Firebase가 안 되어도 URL에 이름이 있으면 로그인된 것처럼 보이게 함
+            if (!isFirebaseReady && nameFromUrl) {
+                updateSidebarUserId(null, nameFromUrl, uidFromUrl);
+                enableFeatures(true);
+            } else if (!isFirebaseReady && !firebaseConfig) {
+                // window.displayMessage("⚠️ Firebase 설정 키가 없어 모의 데이터로 실행됩니다.", 'error');
                 enableFeatures(false);
-            } else if (!isFirebaseReady) {
-                window.displayMessage("⚠️ Firebase 연결 실패. 모의 데이터로 실행됩니다.", 'error');
             }
 
-            // 3. 탭 및 컨텐츠 영역 생성
+            // 4. 탭 및 컨텐츠 영역 생성
             const tabs = [
                 { name: '공지사항', icon: 'Bell', color: 'indigo' },
                 { name: '교육자료 공유', icon: 'BookOpen', color: 'teal' },
@@ -1155,14 +1188,6 @@
                             ${noticeItemsHTML}
                         </div>`;
                 } else if (tab.name === '교육자료 공유') {
-                    const completedProposals = trainingProposals.filter(p => p.status === '완료');
-                    const proposalListHtml = completedProposals.map(item => `
-                        <li onclick="openTrainingReportModal('${item.id}')" class="flex justify-between items-center cursor-pointer hover:bg-teal-100 transition duration-150 rounded-lg p-2">
-                            <span class="text-sm font-medium text-gray-700 truncate min-w-0 pr-2">- [${item.status}] ${item.title}</span>
-                            <span class="text-xs text-green-600 font-semibold flex-shrink-0">보고서 완료 &rarr;</span>
-                        </li>
-                    `).join('');
-
                     contentHTML = `
                         <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
                             ${getIconSVG('BookOpen', 'w-6 h-6 mr-2 text-teal-500')} 교육 지원 및 자료 공유
@@ -1176,7 +1201,12 @@
                                 </h3>
                             </div>
                             <ul class="space-y-1 text-sm text-gray-700" id="proposal-report-list">
-                                ${proposalListHtml || '<li class="text-gray-500 p-2">완료된 교육 보고서가 없습니다.</li>'}
+                                ${trainingProposals.filter(p => p.status === '완료').map(item => `
+                                    <li onclick="openTrainingReportModal('${item.id}')" class="flex justify-between items-center cursor-pointer hover:bg-teal-100 transition duration-150 rounded-lg p-2">
+                                        <span class="text-sm font-medium text-gray-700 truncate min-w-0 pr-2">- [${item.status}] ${item.title}</span>
+                                        <span class="text-xs text-green-600 font-semibold flex-shrink-0">보고서 완료 &rarr;</span>
+                                    </li>
+                                `).join('') || '<li class="text-gray-500 p-2">완료된 교육 보고서가 없습니다.</li>'}
                             </ul>
                         </div>
 
@@ -1268,7 +1298,7 @@
                 contentContainer.appendChild(div);
             });
 
-            // 4. 폼 이벤트 리스너 연결
+            // 5. 폼 이벤트 리스너 연결
             const trainingForm = document.getElementById('training-post-form');
             if(trainingForm) trainingForm.addEventListener('submit', window.saveTrainingPost);
             const communityForm = document.getElementById('community-post-form');
@@ -1276,7 +1306,7 @@
             const annualPlanCreateForm = document.getElementById('annual-plan-create-form');
             if(annualPlanCreateForm) annualPlanCreateForm.addEventListener('submit', window.saveAnnualPlan);
 
-            // 5. 기본 탭 활성화 (교육자료 공유)
+            // 6. 기본 탭 활성화 (교육자료 공유)
             setActiveTab(tabs[1].name);
         };
     </script>
