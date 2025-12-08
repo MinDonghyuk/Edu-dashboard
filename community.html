@@ -273,44 +273,36 @@
             if(elPos) elPos.textContent = '...';
 
             try {
-                // 수정: 파라미터를 제거하고 전체 데이터를 요청하도록 변경 (서버 사이드 필터링 대신 클라이언트 사이드 필터링 사용)
-                // 이유: GAS 웹앱이 쿼리 파라미터를 지원하지 않거나 CORS 문제로 인해 특정 파라미터 요청이 실패할 수 있음
-                const url = APPS_SCRIPT_URL; 
+                // 수정: 파라미터를 userUid로 변경하고 URL에 붙여서 호출
+                const url = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
                 
                 // Fetch 옵션에 no-cors나 다른 설정을 넣으면 opaque response가 되어 데이터를 못 읽을 수 있음.
+                // 기본 fetch로 시도하되, 실패 시 전체 데이터를 가져오는 시도를 해볼 수도 있음 (여기선 생략)
                 const response = await fetch(url, { redirect: 'follow' }); // redirect 옵션 추가
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
                 const jsonResponse = await response.json();
                 
-                let users = [];
-                if (Array.isArray(jsonResponse)) {
-                    users = jsonResponse;
-                } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
-                    users = jsonResponse.data;
-                }
-
-                // 4. 사용자 찾기
                 let matchedUser = null;
-                if (users.length > 0) {
-                    const firstItem = users[0];
-                    if (Array.isArray(firstItem)) {
-                        // 2차원 배열인 경우 (행 데이터)
-                        // A:0(Name), B:1(UID), C:2(Grade), D:3(Dept), E:4(Email)
-                        const foundRow = users.find(row => String(row[1]) === String(uid));
-                        if (foundRow) {
-                            matchedUser = {
-                                userName: foundRow[0],
-                                userUid: foundRow[1],
-                                gradeName: foundRow[2],
-                                deptName: foundRow[3],
-                                sysmail: foundRow[4]
-                            };
-                        }
-                    } else {
-                        // 객체 배열인 경우 (키값 매칭)
-                        matchedUser = users.find(u => String(u.userUid) === String(uid));
+                
+                // 응답이 단일 객체(특정 유저)인지, 리스트(전체 유저)인지 확인
+                if (jsonResponse.userUid) {
+                    // 단일 객체로 반환된 경우 (앱스크립트가 userUid를 찾아서 하나만 보낸 경우)
+                    matchedUser = jsonResponse;
+                } else {
+                     // 리스트로 반환된 경우
+                     let users = [];
+                    if (Array.isArray(jsonResponse)) {
+                        users = jsonResponse;
+                    } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
+                        users = jsonResponse.data;
+                    }
+                    
+                    if (users.length > 0) {
+                         const firstItem = users[0];
+                         // 객체 배열인 경우 (키값 매칭)
+                         matchedUser = users.find(u => String(u.userUid).trim() === String(uid).trim());
                     }
                 }
                 
