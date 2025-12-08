@@ -37,38 +37,32 @@
             }
         }
 
-        // --- 아이콘 SVG 생성 함수 (전역) ---
-        function getIconSVG(name, classes) {
-            const icons = {
-                'Bell': '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path>',
-                'BookOpen': '<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path>',
-                'Users': '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path>',
-                'User': '<path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
-                'Link': '<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07L13 10l-2 3M7 7l-3 3a5 5 0 007.07 7.07l3-3l-2-3M19 19L5 5"></path>',
-                'ClipboardList': '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path>',
-                'Globe': '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>',
-                'Calendar': '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>',
-                'Target': '<circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>',
-                'ListChecks': '<path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path>',
-                'ShoppingBag': '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path>',
-                'Plus': '<path d="M12 5v14"></path><path d="M5 12h14"></path>',
-                'X': '<path d="M18 6L6 18"></path><path d="M6 6l12 12"></path>',
-                'Eye': '<path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"></path><circle cx="12" cy="12" r="3"></circle>',
-                'TrendingUp': '<polyline points="18 13 22 17 19 19 16 16 11 21"></polyline><path d="M12 11V5a1 1 0 00-1-1H5"></path>',
-                'MessageSquare': '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>',
-                'Check': '<polyline points="20 6 9 17 4 12"></polyline>',
-                'LogOut': '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
-                'Clipboard': '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>'
-            };
-            const svgContent = icons[name] || '';
-            return `<svg xmlns="http://www.w3.org/2000/svg" class="${classes}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgContent}</svg>`;
-        }
+        // --- 아이콘 SVG 상수 정의 (HTML 및 JS 공용) ---
+        const ICONS = {
+            Bell: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path></svg>',
+            BookOpen: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
+            BookOpenWhite: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
+            BookOpenTeal: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
+            Users: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path></svg>',
+            UsersSmall: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path></svg>',
+            ShoppingBag: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>',
+            Plus: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>',
+            Clipboard: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>',
+            ClipboardList: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
+            TrendingUp: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 13 22 17 19 19 16 16 11 21"></polyline><path d="M12 11V5a1 1 0 00-1-1H5"></path></svg>',
+            Globe: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-cyan-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>',
+            Link: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07L13 10l-2 3M7 7l-3 3a5 5 0 007.07 7.07l3-3l-2-3M19 19L5 5"></path></svg>',
+            ListChecks: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg>',
+            Eye: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+            Calendar: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
+            Target: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-lime-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
+            LogOut: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>'
+        };
 
         // --- 메시지 표시 함수 (전역) ---
         window.displayMessage = function(message, type = 'error') {
             const container = document.getElementById('message-container');
-            if (!container) { console.error("Message container not found."); return; }
-            // 스크립트 문자열 대신 실제 SVG 태그 사용
+            if (!container) return;
             const iconSvg = type === 'error' 
                 ? '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>'
                 : '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
@@ -89,32 +83,17 @@
             }, 5000);
         };
 
-        // 모달 열기/닫기 함수 (전역)
+        // 모달 열기/닫기 함수
         window.openModal = function(modalId) {
             const modal = document.getElementById(modalId);
             if (!modal) return;
-            // 항상 열 수 있는 모달들
-            const isAlwaysOpenModal = modalId === 'danggn-post-modal' || modalId === 'notice-detail-modal' || modalId === 'full-history-modal' || modalId === 'annual-plan-modal' || modalId === 'training-report-modal';
-            
-            // 로그인 체크 (Firebase 기준 or URL 파라미터 기준)
-            if (!isAlwaysOpenModal && (!window.isLoggedIn)) {
-                window.displayMessage("로그인이 필요한 기능입니다.", 'error');
-                return;
-            }
-
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.add('opacity-100');
                 modal.querySelector('.bg-white').classList.add('scale-100');
                 modal.querySelector('.bg-white').classList.remove('scale-95');
-
-                if (modalId === 'full-history-modal' && typeof window.renderFullTrainingHistory === 'function') {
-                    window.renderFullTrainingHistory();
-                }
-                
-                if (modalId === 'annual-plan-modal' && typeof window.renderAnnualPlan === 'function') {
-                    window.renderAnnualPlan();
-                }
+                if (modalId === 'full-history-modal' && window.renderFullTrainingHistory) window.renderFullTrainingHistory();
+                if (modalId === 'annual-plan-modal' && window.renderAnnualPlan) window.renderAnnualPlan();
             }, 10);
         }
 
@@ -171,7 +150,6 @@
     </footer>
 
     <!-- 공통 모달 구조는 유지하되 데이터는 비웁니다 -->
-    <!-- 모든 모달의 닫기 버튼 및 아이콘에서 자바스크립트 템플릿 리터럴(${...})을 제거하고 실제 SVG 태그로 교체했습니다. -->
 
     <!-- 새 자료 등록 모달 -->
     <div id="training-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
@@ -282,7 +260,11 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
                     </button>
                 </div>
-                 <!-- 입력 필드 생략 -->
+                 <!-- 입력 필드 생략 (위의 폼들과 구조 동일) -->
+                 <div><label class="block text-sm font-medium text-gray-700 mb-1">과정명</label><input type="text" name="course" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
+                 <div><label class="block text-sm font-medium text-gray-700 mb-1">분류</label><select name="type" class="w-full p-3 border border-gray-300 rounded-lg bg-white"><option value="필수">필수</option><option value="직무">직무</option></select></div>
+                 <div><label class="block text-sm font-medium text-gray-700 mb-1">기간</label><input type="text" name="period" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
+                 
                  <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" onclick="closeModal('annual-plan-create-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
                     <button type="submit" class="px-6 py-2 bg-lime-600 text-white rounded-lg font-bold hover:bg-lime-700 flex items-center">
@@ -382,21 +364,17 @@
             Link: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07L13 10l-2 3M7 7l-3 3a5 5 0 007.07 7.07l3-3l-2-3M19 19L5 5"></path></svg>',
             ListChecks: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg>',
             Eye: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
-            EyeGray: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
+            Calendar: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
+            Target: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-lime-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
+            LogOut: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>'
         };
 
-        // --- Mock Data Removed (Initialized as empty arrays) ---
-        const mockNotices = [];
-        const fullTrainingHistory = [];
-        const annualTrainingPlan = [];
-        const trainingProposals = [];
+        // --- Global Variables (Data Containers) ---
+        let currentUserInfo = { name: '게스트', uid: '-', email: '...', dept: '...', pos: '...' };
 
         // --- Google Apps Script에서 데이터 가져오기 ---
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) return;
-            const nameEl = document.getElementById('info-name');
-            const idEl = document.getElementById('info-employeeId');
-            
             const elEmail = document.getElementById('info-email');
             const elDept = document.getElementById('info-department');
             const elPos = document.getElementById('info-position');
@@ -406,13 +384,8 @@
             if(elPos) elPos.textContent = '...';
 
             try {
-                // 수정: 파라미터를 제거하고 전체 데이터를 요청하도록 변경 (서버 사이드 필터링 대신 클라이언트 사이드 필터링 사용)
-                // 이유: GAS 웹앱이 쿼리 파라미터를 지원하지 않거나 CORS 문제로 인해 특정 파라미터 요청이 실패할 수 있음
                 const url = APPS_SCRIPT_URL; 
-                
-                // Fetch 옵션에 no-cors나 다른 설정을 넣으면 opaque response가 되어 데이터를 못 읽을 수 있음.
-                // 기본 fetch로 시도하되, 실패 시 전체 데이터를 가져오는 시도를 해볼 수도 있음 (여기선 생략)
-                const response = await fetch(url, { redirect: 'follow' }); // redirect 옵션 추가
+                const response = await fetch(url, { redirect: 'follow' }); 
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
@@ -430,8 +403,6 @@
                 if (users.length > 0) {
                     const firstItem = users[0];
                     if (Array.isArray(firstItem)) {
-                        // 2차원 배열인 경우 (행 데이터)
-                        // A:0(Name), B:1(UID), C:2(Grade), D:3(Dept), E:4(Email)
                         const foundRow = users.find(row => String(row[1]) === String(uid));
                         if (foundRow) {
                             matchedUser = {
@@ -443,16 +414,19 @@
                             };
                         }
                     } else {
-                        // 객체 배열인 경우 (키값 매칭)
                         matchedUser = users.find(u => String(u.userUid).trim() === String(uid).trim());
                     }
                 }
                 
-                // 데이터 업데이트 (이름/사번 제외하고 나머지 필드만)
                 if (matchedUser) {
                     if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
                     if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
                     if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
+                    
+                    // 전역 변수에 저장 (저장 기능 등에서 사용)
+                    currentUserInfo.email = matchedUser.sysmail;
+                    currentUserInfo.dept = matchedUser.deptName;
+                    currentUserInfo.pos = matchedUser.gradeName;
                 } else {
                     if(elEmail) elEmail.textContent = '-';
                     if(elDept) elDept.textContent = '-';
@@ -466,23 +440,16 @@
             }
         }
         
-        // --- 기능 활성화/비활성화 함수 (단순화) ---
-        function enableFeatures(isLoggedIn) {
-            const buttons = document.querySelectorAll('button[onclick^="openModal"], button[type="submit"], #logout-button');
-            buttons.forEach(button => {
-                // 로그인 여부와 상관없이 일단 활성화하거나, 필요시 로직 추가
-                // 여기서는 간단하게 모두 활성화 (데이터가 없어서 동작은 제한적)
-                button.disabled = false;
-                button.classList.remove('opacity-50', 'cursor-not-allowed');
-            });
-        }
-
         // --- 사이드바 사용자 ID 업데이트 함수 ---
         const userInfoFields = ['employeeId', 'name', 'email', 'department', 'position'];
         
         function updateSidebarUserId(urlName, urlUid) {
             const displayName = urlName || '게스트';
             const displayUid = urlUid || '-';
+
+            // 전역 변수 초기화
+            currentUserInfo.name = displayName;
+            currentUserInfo.uid = displayUid;
 
             const userInfo = {
                 employeeId: displayUid, 
@@ -533,49 +500,150 @@
              }
         };
 
-        // --- 모의 데이터 렌더링 (비어 있음) ---
-        function renderMockTrainingSummary() {
-             const listContainer = document.getElementById('training-list-container');
-             const top3Container = document.getElementById('top3-cards-container');
-             const noDataMessage = document.getElementById('no-data-message-training');
-             const dbSection = document.getElementById('db-section');
-
-             if(top3Container) top3Container.innerHTML = '<p class="text-gray-500 col-span-3 text-center py-4">등록된 데이터가 없습니다.</p>';
-             if(listContainer) listContainer.innerHTML = '';
-             if(dbSection) dbSection.classList.add('hidden');
-             if(noDataMessage) noDataMessage.classList.remove('hidden');
+        // --- 데이터 저장 함수 (POST Request) ---
+        async function sendDataToSheet(payload) {
+             try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                
+                // GAS Web App often returns opaque response or redirects, 
+                // so we might not get a clean JSON response depending on CORS setup.
+                // Assuming success if no network error thrown.
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error("Save Error:", error);
+                throw error;
+            }
         }
 
-        // --- 전체 교육 이력 모달 렌더링 함수 ---
-        window.renderFullTrainingHistory = function() {
-            const listContainer = document.getElementById('full-history-list');
-            if (!listContainer) return;
-            listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
-        }
-        
-        // --- 연간 교육 계획 모달 렌더링 함수 ---
-        window.renderAnnualPlan = function() {
-            const listContainer = document.getElementById('annual-plan-list');
-            if (!listContainer) return;
-            listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
-        }
+        // --- 저장 핸들러들 ---
+        window.saveTrainingPost = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '저장 중...';
 
-        // --- 가짜 저장 함수 (UI 반응만 함) ---
-        window.saveTrainingPost = (e) => {
-            e.preventDefault();
-            window.displayMessage("저장 기능은 현재 사용할 수 없습니다 (서버 미연동)", 'error');
-            closeModal('training-post-modal');
+            const form = e.target;
+            const payload = {
+                action: 'write',
+                type: 'training',
+                userUid: currentUserInfo.uid,
+                userName: currentUserInfo.name,
+                title: form.title.value,
+                content: form.summary.value,
+                tag: form.tag.value,
+                extra: '' 
+            };
+
+            try {
+                await sendDataToSheet(payload);
+                window.displayMessage("교육 자료가 등록되었습니다.", 'success');
+                closeModal('training-post-modal');
+                form.reset();
+            } catch (err) {
+                window.displayMessage("저장 실패: " + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `${ICONS.Plus} 등록`; // 아이콘 복구 어려우니 텍스트로 대체하거나 간단히 처리
+            }
         };
-        window.saveCommunityPost = (e) => {
+
+        window.saveCommunityPost = async (e) => {
             e.preventDefault();
-            window.displayMessage("저장 기능은 현재 사용할 수 없습니다 (서버 미연동)", 'error');
-            closeModal('community-post-modal');
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '저장 중...';
+
+            const form = e.target;
+            const payload = {
+                action: 'write',
+                type: 'community',
+                userUid: currentUserInfo.uid,
+                userName: currentUserInfo.name,
+                title: form.title.value,
+                content: form.content.value,
+                tag: form.tag.value, // 활동 분류
+                extra: `인원: ${form.member_count.value}`
+            };
+
+            try {
+                await sendDataToSheet(payload);
+                window.displayMessage("신청서가 제출되었습니다.", 'success');
+                closeModal('community-post-modal');
+                form.reset();
+            } catch (err) {
+                window.displayMessage("제출 실패: " + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `제출`;
+            }
         };
-        window.saveAnnualPlan = (e) => {
+
+        window.saveDanggnPost = async (e) => {
             e.preventDefault();
-            window.displayMessage("저장 기능은 현재 사용할 수 없습니다 (서버 미연동)", 'error');
-            closeModal('annual-plan-create-modal');
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '저장 중...';
+
+            const form = e.target;
+            const payload = {
+                action: 'write',
+                type: 'danggn',
+                userUid: currentUserInfo.uid,
+                userName: currentUserInfo.name,
+                title: form.title.value,
+                content: form.content.value,
+                tag: '당근', 
+                extra: ''
+            };
+
+            try {
+                await sendDataToSheet(payload);
+                window.displayMessage("게시글이 등록되었습니다.", 'success');
+                closeModal('danggn-post-modal');
+                form.reset();
+            } catch (err) {
+                window.displayMessage("등록 실패: " + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `등록`;
+            }
         };
+
+        window.saveAnnualPlan = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '저장 중...';
+
+            const form = e.target;
+            const payload = {
+                action: 'write',
+                type: 'annual_plan',
+                userUid: currentUserInfo.uid,
+                userName: currentUserInfo.name,
+                title: form.course.value,
+                content: `기간: ${form.period.value}`,
+                tag: form.type.value,
+                extra: ''
+            };
+
+             try {
+                await sendDataToSheet(payload);
+                window.displayMessage("교육 계획이 저장되었습니다.", 'success');
+                closeModal('annual-plan-create-modal');
+                form.reset();
+            } catch (err) {
+                window.displayMessage("저장 실패: " + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `저장`;
+            }
+        };
+
 
         // --- UI 및 이벤트 핸들러 ---
         function setActiveTab(tabName) {
@@ -596,7 +664,7 @@
             });
 
             if (tabName === '교육자료 공유') {
-                renderMockTrainingSummary();
+                // renderMockTrainingSummary(); // 데이터 없음 처리
             }
         }
         window.setActiveTab = setActiveTab;
@@ -630,7 +698,7 @@
                                 >마이페이지</a>
                             </div>
                             <button id="logout-button" onclick="logout()" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-md transition duration-150" title="로그아웃">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                                ${ICONS.LogOut}
                             </button>
                         </div>
                         <div class="space-y-4">
@@ -852,6 +920,10 @@
             if(communityForm) communityForm.addEventListener('submit', window.saveCommunityPost);
             const annualPlanCreateForm = document.getElementById('annual-plan-create-form');
             if(annualPlanCreateForm) annualPlanCreateForm.addEventListener('submit', window.saveAnnualPlan);
+            
+            // 당근 폼 이벤트 리스너 추가
+            const danggnForm = document.getElementById('danggn-post-form');
+            if(danggnForm) danggnForm.addEventListener('submit', window.saveDanggnPost);
 
             // 6. 기본 탭 활성화 (교육자료 공유)
             setActiveTab(tabs[1].name);
