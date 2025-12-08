@@ -510,6 +510,8 @@
         // --- Google Apps Script에서 데이터 가져오기 (수정됨) ---
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) return;
+            const nameEl = document.getElementById('info-name');
+            const idEl = document.getElementById('info-employeeId');
             
             // 타겟 엘리먼트 (이메일, 부서, 직책만)
             const elEmail = document.getElementById('info-email');
@@ -522,65 +524,72 @@
             if(elPos) elPos.textContent = '...';
 
             try {
-                // GAS WebApp 호출 (파라미터 전달)
-                const url = `${APPS_SCRIPT_URL}?uid=${encodeURIComponent(uid)}`;
+                // 수정: 파라미터를 userUid로 변경하고, 요청 실패 시 전체 조회를 시도하도록 fallback 로직 추가 고려 가능하나
+                // 일단 요청하신대로 파라미터 이름 수정에 집중합니다.
+                const url = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
+                
+                // Fetch 옵션에 no-cors나 다른 설정을 넣으면 opaque response가 되어 데이터를 못 읽을 수 있음.
+                // 기본 fetch로 시도하되, 실패 시 전체 데이터를 가져오는 시도를 해볼 수도 있음 (여기선 생략)
                 const response = await fetch(url);
                 
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
                 const jsonResponse = await response.json();
                 
                 let users = [];
-                // 데이터 구조 유연하게 처리 (배열/객체/data프로퍼티)
                 if (Array.isArray(jsonResponse)) {
                     users = jsonResponse;
                 } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
                     users = jsonResponse.data;
                 }
 
-                // userUid(Column B)가 일치하는 행 찾기
+                // 4. 사용자 찾기
                 let matchedUser = null;
-                
-                // 데이터가 2차원 배열인지 객체 배열인지 확인
-                const isArrayData = users.length > 0 && Array.isArray(users[0]);
-
-                if (isArrayData) {
-                    // 배열 형태인 경우: 인덱스로 접근 (A=0, B=1, C=2, D=3, E=4)
-                    const foundRow = users.find(row => String(row[1]) === String(uid));
-                    if (foundRow) {
-                        matchedUser = {
-                            gradeName: foundRow[2], // C열
-                            deptName: foundRow[3],  // D열
-                            sysmail: foundRow[4]    // E열
-                        };
+                if (users.length > 0) {
+                    const firstItem = users[0];
+                    if (Array.isArray(firstItem)) {
+                        // 2차원 배열인 경우 (행 데이터)
+                        // A:0(Name), B:1(UID), C:2(Grade), D:3(Dept), E:4(Email)
+                        const foundRow = users.find(row => String(row[1]) === String(uid));
+                        if (foundRow) {
+                            matchedUser = {
+                                userName: foundRow[0],
+                                userUid: foundRow[1],
+                                gradeName: foundRow[2],
+                                deptName: foundRow[3],
+                                sysmail: foundRow[4]
+                            };
+                        }
+                    } else {
+                        // 객체 배열인 경우 (키값 매칭)
+                        matchedUser = users.find(u => String(u.userUid) === String(uid));
                     }
-                } else {
-                    // 객체 형태인 경우: 키값으로 접근 (userUid 키 확인)
-                    matchedUser = users.find(u => String(u.userUid) === String(uid));
                 }
-
-                // 값 업데이트
+                
+                // 데이터 업데이트 (이름/사번 제외하고 나머지 필드만)
                 if (matchedUser) {
-                    if(elEmail) elEmail.textContent = matchedUser.sysmail || '-';
-                    if(elDept) elDept.textContent = matchedUser.deptName || '-';
-                    if(elPos) elPos.textContent = matchedUser.gradeName || '-';
+                    if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
+                    if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
+                    if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
                 } else {
-                    // 일치하는 데이터 없음
+                    // 사용자 없음 -> 추가 정보만 '-' 처리 (이름/사번은 유지)
                     if(elEmail) elEmail.textContent = '-';
                     if(elDept) elDept.textContent = '-';
                     if(elPos) elPos.textContent = '-';
                 }
-
             } catch (error) {
-                console.error("Fetch Error:", error);
-                // 에러 시 조용히 처리 (사용자 경험 저해 방지)
+                console.error("Sheet Fetch Error:", error); 
+                // 에러 발생 시에도 이름/사번은 건드리지 않고 나머지 필드만 초기화
                 if(elEmail) elEmail.textContent = '-';
                 if(elDept) elDept.textContent = '-';
                 if(elPos) elPos.textContent = '-';
+                
+                // 더 이상 팝업 메시지를 띄우지 않습니다. (사용자 요청 반영)
+                // window.displayMessage(...) 
             }
         }
-
-
+        
+        // ... (나머지 코드는 동일)
         // --- Firebase 초기화 및 인증 ---
         async function setupFirebase() {
             try {
@@ -600,8 +609,9 @@
                         // Firebase 인증이 되어도, 사이드바 정보는 URL 파라미터에서 가져온 값으로 덮어씁니다.
                         // (GitHub Pages + Apps Script 로그인 방식과의 호환성)
                         const params = new URLSearchParams(window.location.search);
-                        const nameFromUrl = params.get('name');
-                        const uidFromUrl = params.get('uid');
+                        // 수정: 파라미터 이름 유연하게 처리
+                        const nameFromUrl = params.get('userName') || params.get('name');
+                        const uidFromUrl = params.get('userUid') || params.get('uid') || params.get('password');
 
                         updateSidebarUserId(currentUserId, nameFromUrl, uidFromUrl);
                         enableFeatures(!!user);
@@ -1196,8 +1206,8 @@
             
             // 1. URL 파라미터에서 로그인 정보 확인 (Github Pages용)
             const params = new URLSearchParams(window.location.search);
-            const nameFromUrl = params.get('name');
-            const uidFromUrl = params.get('uid');
+            const nameFromUrl = params.get('userName') || params.get('name'); // name fallback 추가
+            const uidFromUrl = params.get('userUid') || params.get('uid') || params.get('password'); // uid fallback 추가
 
             // 2. 사이드바 내용 생성
             createSidebarAndMovedCards();
