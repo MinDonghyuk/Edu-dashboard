@@ -166,6 +166,7 @@
     </footer>
 
     <!-- 공통 모달 구조는 유지하되 데이터는 비웁니다 -->
+    <!-- 모든 모달의 닫기 버튼 및 아이콘에서 자바스크립트 템플릿 리터럴(${...})을 제거하고 실제 SVG 태그로 교체했습니다. -->
 
     <!-- 새 자료 등록 모달 -->
     <div id="training-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
@@ -173,14 +174,19 @@
             <form id="training-post-form" class="p-6 bg-white rounded-xl space-y-4">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h3 class="text-2xl font-bold text-teal-700">새 교육 자료 등록</h3>
-                    <button type="button" onclick="closeModal('training-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">${getIconSVG('X', 'w-6 h-6')}</button>
+                    <button type="button" onclick="closeModal('training-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
                 </div>
                 <!-- 입력 필드는 유지 -->
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">제목</label><input type="text" name="title" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">내용</label><textarea name="summary" class="w-full p-3 border border-gray-300 rounded-lg" required></textarea></div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" onclick="closeModal('training-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
-                    <button type="submit" class="px-6 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700">등록</button>
+                    <button type="submit" class="px-6 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                        등록
+                    </button>
                 </div>
             </form>
             <script>document.getElementById('training-post-modal').addEventListener('click', (e) => { if(e.target.id === 'training-post-modal') closeModal('training-post-modal'); });</script>
@@ -193,13 +199,18 @@
             <form id="community-post-form" class="p-6 bg-white rounded-xl space-y-4">
                  <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h3 class="text-2xl font-bold text-amber-700">신청서 작성</h3>
-                    <button type="button" onclick="closeModal('community-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100" aria-label="닫기">${getIconSVG('X', 'w-6 h-6')}</button>
+                    <button type="button" onclick="closeModal('community-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
                 </div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">조직명</label><input type="text" name="title" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">내용</label><textarea name="content" class="w-full p-3 border border-gray-300 rounded-lg" required></textarea></div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" onclick="closeModal('community-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
-                    <button type="submit" class="px-6 py-2 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700">제출</button>
+                    <button type="submit" class="px-6 py-2 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        제출
+                    </button>
                 </div>
             </form>
              <script>document.getElementById('community-post-modal').addEventListener('click', (e) => { if(e.target.id === 'community-post-modal') closeModal('community-post-modal'); });</script>
@@ -212,7 +223,9 @@
             <div class="p-6 bg-white rounded-xl space-y-4">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h3 class="text-2xl font-bold text-orange-700">새 글 작성</h3>
-                     <button type="button" onclick="closeModal('danggn-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100" aria-label="닫기">${getIconSVG('X', 'w-6 h-6')}</button>
+                     <button type="button" onclick="closeModal('danggn-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                     </button>
                 </div>
                  <div class="bg-orange-50 border-l-4 border-orange-500 text-orange-700 p-4"><p>현재 기능 준비 중입니다.</p></div>
             </div>
@@ -226,7 +239,9 @@
             <div class="p-6 bg-white rounded-xl space-y-4">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h3 class="text-2xl font-bold text-amber-700">전체 이력</h3>
-                    <button type="button" onclick="closeModal('full-history-modal')" class="p-2 text-gray-500">${getIconSVG('X', 'w-6 h-6')}</button>
+                    <button type="button" onclick="closeModal('full-history-modal')" class="p-2 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
                 </div>
                 <ul id="full-history-list" class="space-y-2"><li class="text-center text-gray-500">데이터가 없습니다.</li></ul>
             </div>
@@ -239,18 +254,61 @@
              <div class="p-6 bg-white rounded-xl space-y-4">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h3 class="text-2xl font-bold text-lime-700">교육 계획</h3>
-                    <button type="button" onclick="closeModal('annual-plan-modal')" class="p-2 text-gray-500">${getIconSVG('X', 'w-6 h-6')}</button>
+                    <button type="button" onclick="closeModal('annual-plan-modal')" class="p-2 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
                 </div>
                 <ul id="annual-plan-list" class="space-y-2"><li class="text-center text-gray-500">데이터가 없습니다.</li></ul>
             </div>
             <script>document.getElementById('annual-plan-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-modal') closeModal('annual-plan-modal'); });</script>
         </div>
     </div>
+    
+    <!-- 교육 보고서 상세 모달 (추가 수정) -->
+    <div id="training-report-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 id="report-modal-title" class="text-2xl font-bold text-teal-700 truncate max-w-[80%]">교육 보고서 상세</h3>
+                    <button type="button" onclick="closeModal('training-report-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <!-- ... 나머지 내용 생략 ... -->
+                <div class="flex justify-end pt-4">
+                    <button type="button" onclick="closeModal('training-report-modal')" class="px-6 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md">닫기</button>
+                </div>
+            </div>
+            <script>document.getElementById('training-report-modal').addEventListener('click', (e) => { if(e.target.id === 'training-report-modal') closeModal('training-report-modal'); });</script>
+        </div>
+    </div>
+    
+    <!-- 공지사항 상세 모달 (추가 수정) -->
+    <div id="notice-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 id="notice-modal-title" class="text-2xl font-bold text-indigo-700 truncate max-w-[80%]">공지사항 제목</h3>
+                    <button type="button" onclick="closeModal('notice-detail-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <!-- ... 나머지 내용 생략 ... -->
+                <div class="flex justify-end pt-4">
+                    <button type="button" onclick="closeModal('notice-detail-modal')" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md">닫기</button>
+                </div>
+            </div>
+            <script>document.getElementById('notice-detail-modal').addEventListener('click', (e) => { if(e.target.id === 'notice-detail-modal') closeModal('notice-detail-modal'); });</script>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <script type="module">
-        // --- Google Apps Script URL (Sheet Connection) ---
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSzCH66xjcAePJVBRCJogEHVw0GUp4nrbYCCdheL0YSUGdAc2nmFIa4iX-Xrh1-P_r/exec";
+        // --- Google Apps Script URL (Base64 인코딩하여 난독화) ---
+        // 클라이언트 사이드 코드 특성상 URL 노출을 완벽히 막을 수는 없으나, 
+        // 봇이나 단순 검색으로부터 주소를 감추기 위해 Base64로 인코딩했습니다.
+        const ENCODED_URL = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J6U3pDSDY2eGpYZEFlUEpWQlJDSm9nRUhWdzBHVXA0bnJiWUNDZGhlTDBZU1VHZEFjMm5tRklhNGlYLVhyaDEtUF9yL2V4ZWM=";
+        const APPS_SCRIPT_URL = atob(ENCODED_URL);
 
         // --- Mock Data Removed (Initialized as empty arrays) ---
         const mockNotices = [];
@@ -273,8 +331,9 @@
             if(elPos) elPos.textContent = '...';
 
             try {
-                // 수정: 파라미터를 userUid로 변경하고 URL에 붙여서 호출
-                const url = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
+                // 수정: 파라미터를 제거하고 전체 데이터를 요청하도록 변경 (서버 사이드 필터링 대신 클라이언트 사이드 필터링 사용)
+                // 이유: GAS 웹앱이 쿼리 파라미터를 지원하지 않거나 CORS 문제로 인해 특정 파라미터 요청이 실패할 수 있음
+                const url = APPS_SCRIPT_URL; 
                 
                 // Fetch 옵션에 no-cors나 다른 설정을 넣으면 opaque response가 되어 데이터를 못 읽을 수 있음.
                 // 기본 fetch로 시도하되, 실패 시 전체 데이터를 가져오는 시도를 해볼 수도 있음 (여기선 생략)
@@ -284,25 +343,33 @@
                 
                 const jsonResponse = await response.json();
                 
+                let users = [];
+                if (Array.isArray(jsonResponse)) {
+                    users = jsonResponse;
+                } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
+                    users = jsonResponse.data;
+                }
+
+                // 4. 사용자 찾기
                 let matchedUser = null;
-                
-                // 응답이 단일 객체(특정 유저)인지, 리스트(전체 유저)인지 확인
-                if (jsonResponse.userUid) {
-                    // 단일 객체로 반환된 경우 (앱스크립트가 userUid를 찾아서 하나만 보낸 경우)
-                    matchedUser = jsonResponse;
-                } else {
-                     // 리스트로 반환된 경우
-                     let users = [];
-                    if (Array.isArray(jsonResponse)) {
-                        users = jsonResponse;
-                    } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
-                        users = jsonResponse.data;
-                    }
-                    
-                    if (users.length > 0) {
-                         const firstItem = users[0];
-                         // 객체 배열인 경우 (키값 매칭)
-                         matchedUser = users.find(u => String(u.userUid).trim() === String(uid).trim());
+                if (users.length > 0) {
+                    const firstItem = users[0];
+                    if (Array.isArray(firstItem)) {
+                        // 2차원 배열인 경우 (행 데이터)
+                        // A:0(Name), B:1(UID), C:2(Grade), D:3(Dept), E:4(Email)
+                        const foundRow = users.find(row => String(row[1]) === String(uid));
+                        if (foundRow) {
+                            matchedUser = {
+                                userName: foundRow[0],
+                                userUid: foundRow[1],
+                                gradeName: foundRow[2],
+                                deptName: foundRow[3],
+                                sysmail: foundRow[4]
+                            };
+                        }
+                    } else {
+                        // 객체 배열인 경우 (키값 매칭)
+                        matchedUser = users.find(u => String(u.userUid).trim() === String(uid).trim());
                     }
                 }
                 
