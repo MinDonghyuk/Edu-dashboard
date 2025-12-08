@@ -530,7 +530,7 @@
                 
                 // Fetch 옵션에 no-cors나 다른 설정을 넣으면 opaque response가 되어 데이터를 못 읽을 수 있음.
                 // 기본 fetch로 시도하되, 실패 시 전체 데이터를 가져오는 시도를 해볼 수도 있음 (여기선 생략)
-                const response = await fetch(url);
+                const response = await fetch(url, { redirect: 'follow' }); // redirect 옵션 추가
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
@@ -568,6 +568,7 @@
                 
                 // 데이터 업데이트 (이름/사번 제외하고 나머지 필드만)
                 if (matchedUser) {
+                    // 사용자가 요청한 매핑: 이메일=sysmail, 부서명=deptName, 직책=gradeName
                     if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
                     if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
                     if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
