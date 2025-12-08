@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>사내 정보 공유 허브</title>
-    <!-- Tailwind CSS 로드 -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS 버전 명시 (경고 해결) -->
+    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -359,6 +359,7 @@
     <!-- Scripts -->
     <script type="module">
         // --- Google Apps Script URL (Base64 인코딩하여 난독화) ---
+        // TODO: 새로 배포한 웹 앱 URL을 Base64로 인코딩해서 여기에 넣으세요.
         const ENCODED_URL = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J6U3pDSDY2eGpYZEFlUEpWQlJDSm9nRUhWdzBHVXA0bnJiWUNDZGhlTDBZU1VHZEFjMm5tRklhNGlYLVhyaDEtUF9yL2V4ZWM=";
         const APPS_SCRIPT_URL = atob(ENCODED_URL);
 
@@ -395,54 +396,47 @@
             const elDept = document.getElementById('info-department');
             const elPos = document.getElementById('info-position');
             
-            if(elEmail) elEmail.textContent = '...';
+            // 로딩 표시
+            if(elEmail) elEmail.textContent = '불러오는 중...';
             if(elDept) elDept.textContent = '...';
             if(elPos) elPos.textContent = '...';
 
             try {
-                // 수정: 파라미터를 제거하고 전체 데이터를 요청하도록 변경 (서버 사이드 필터링 대신 클라이언트 사이드 필터링 사용)
-                // 이유: GAS 웹앱이 쿼리 파라미터를 지원하지 않거나 CORS 문제로 인해 특정 파라미터 요청이 실패할 수 있음
-                const url = APPS_SCRIPT_URL; 
+                // 중요: GET 요청은 URL에 파라미터를 붙여야 합니다.
+                // Apps Script URL + ?userUid=값
+                const targetUrl = `${APPS_SCRIPT_URL}?userUid=${encodeURIComponent(uid)}`;
                 
-                // Fetch 옵션에 no-cors나 다른 설정을 넣으면 opaque response가 되어 데이터를 못 읽을 수 있음.
-                // 기본 fetch로 시도하되, 실패 시 전체 데이터를 가져오는 시도를 해볼 수도 있음 (여기선 생략)
-                const response = await fetch(url, { redirect: 'follow' }); // redirect 옵션 추가
+                const response = await fetch(targetUrl, {
+                    method: 'GET',
+                    redirect: 'follow', // 리다이렉트 허용
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8",
+                    },
+                });
                 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
                 const jsonResponse = await response.json();
-                
-                let users = [];
-                if (Array.isArray(jsonResponse)) {
-                    users = jsonResponse;
-                } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
-                    users = jsonResponse.data;
-                }
+                console.log("Fetched Data:", jsonResponse);
 
-                // 4. 사용자 찾기
                 let matchedUser = null;
-                if (users.length > 0) {
-                    const firstItem = users[0];
-                    if (Array.isArray(firstItem)) {
-                        // 2차원 배열인 경우 (행 데이터)
-                        // A:0(Name), B:1(UID), C:2(Grade), D:3(Dept), E:4(Email)
-                        const foundRow = users.find(row => String(row[1]) === String(uid));
-                        if (foundRow) {
-                            matchedUser = {
-                                userName: foundRow[0],
-                                userUid: foundRow[1],
-                                gradeName: foundRow[2],
-                                deptName: foundRow[3],
-                                sysmail: foundRow[4]
-                            };
-                        }
+
+                // 응답 구조가 {result: 'success', data: {...}} 인지 확인
+                if (jsonResponse.result === 'success' && jsonResponse.data) {
+                    // 단일 객체 혹은 배열일 수 있음 (서버 로직에 따라)
+                    const data = jsonResponse.data;
+                    if (Array.isArray(data)) {
+                        // 전체 목록이 넘어온 경우 (여기서 다시 찾음)
+                        matchedUser = data.find(u => String(u.userUid).trim() === String(uid).trim());
                     } else {
-                        // 객체 배열인 경우 (키값 매칭)
-                        matchedUser = users.find(u => String(u.userUid).trim() === String(uid).trim());
+                        // 단일 객체가 넘어온 경우
+                        matchedUser = data;
                     }
+                } else {
+                    console.warn("API Response indicates failure or no data:", jsonResponse);
                 }
                 
-                // 데이터 업데이트 (이름/사번 제외하고 나머지 필드만)
+                // 데이터 업데이트
                 if (matchedUser) {
                     if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
                     if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
@@ -452,15 +446,16 @@
                     currentUserInfo.dept = matchedUser.deptName;
                     currentUserInfo.pos = matchedUser.gradeName;
                 } else {
-                    if(elEmail) elEmail.textContent = '-';
+                    if(elEmail) elEmail.textContent = '정보 없음';
                     if(elDept) elDept.textContent = '-';
                     if(elPos) elPos.textContent = '-';
                 }
             } catch (error) {
                 console.error("Sheet Fetch Error:", error); 
-                if(elEmail) elEmail.textContent = '-';
+                if(elEmail) elEmail.textContent = '연동 실패';
                 if(elDept) elDept.textContent = '-';
                 if(elPos) elPos.textContent = '-';
+                window.displayMessage("데이터를 불러오지 못했습니다.", 'error');
             }
         }
         
