@@ -510,10 +510,15 @@
         // --- Google Apps Script에서 데이터 가져오기 (수정됨) ---
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) return;
-            const nameEl = document.getElementById('info-name');
-            const idEl = document.getElementById('info-employeeId');
+            // 이름과 사번 요소는 가져오되, 로딩 텍스트로 덮어쓰지 않음 (로그인 정보 유지)
+            const elEmail = document.getElementById('info-email');
+            const elDept = document.getElementById('info-department');
+            const elPos = document.getElementById('info-position');
             
-            if(nameEl) nameEl.textContent = '조회 중...';
+            // 추가 정보 필드만 로딩 표시
+            if(elEmail) elEmail.textContent = '조회 중...';
+            if(elDept) elDept.textContent = '조회 중...';
+            if(elPos) elPos.textContent = '조회 중...';
 
             try {
                 // 수정됨: URL에 uid 파라미터 추가
@@ -575,37 +580,32 @@
                 if (matchedUser) {
                     const elName = document.getElementById('info-name');
                     const elId = document.getElementById('info-employeeId');
-                    const elEmail = document.getElementById('info-email');
-                    const elDept = document.getElementById('info-department');
-                    const elPos = document.getElementById('info-position');
+                    // ... 요소 가져오기
 
-                    if(elName) elName.textContent = matchedUser.userName || '-'; 
-                    if(elId) elId.textContent = matchedUser.userUid || uid || '-';
+                    // 데이터가 있으면 업데이트 (없으면 기존 값 유지)
+                    if(elName && matchedUser.userName) elName.textContent = matchedUser.userName; 
+                    if(elId && matchedUser.userUid) elId.textContent = matchedUser.userUid;
                     if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
                     if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
                     if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
                 } else {
-                    // 사용자 없음
-                    if(nameEl) nameEl.textContent = '정보 없음';
+                    // 사용자 없음 -> 추가 정보만 '-' 처리
+                    if(elEmail) elEmail.textContent = '-';
+                    if(elDept) elDept.textContent = '-';
+                    if(elPos) elPos.textContent = '-';
                     console.warn(`User ID ${uid} not found in sheet.`);
                 }
 
             } catch (error) {
                 console.error("Sheet Fetch Error Detailed:", error);
                 
-                // 화면에 에러 원인을 표시하여 디버깅 돕기
-                if(nameEl) {
-                    // 에러 메시지 간소화하여 표시
-                    let msg = '연동 실패';
-                    if (error.message.includes('JSON') || error.message.includes('HTML')) msg = '권한 설정 확인 필요';
-                    else if (error.message.includes('HTTP')) msg = `서버 오류 (${error.message})`;
-                    else if (error.message.includes('Failed to fetch')) msg = 'CORS/네트워크 오류';
-                    
-                    nameEl.textContent = msg;
-                    nameEl.title = error.message; // 툴팁으로 전체 에러 표시
-                }
+                // 에러 발생 시 추가 정보 필드에 에러 표시
+                if(elEmail) elEmail.textContent = '연동 실패';
+                if(elDept) elDept.textContent = '-';
+                if(elPos) elPos.textContent = '-';
                 
-                // 중요: 사용자가 디버깅할 수 있도록 안내 메시지 띄우기
+                // 이름/사번 필드는 건드리지 않음 (로그인 값 유지)
+                
                 window.displayMessage(`데이터 연동 실패: ${error.message}`, 'error');
             }
         }
