@@ -510,103 +510,73 @@
         // --- Google Apps Script에서 데이터 가져오기 (수정됨) ---
         async function fetchUserInfoFromSheet(uid) {
             if (!uid) return;
-            // 이름과 사번 요소는 가져오되, 로딩 텍스트로 덮어쓰지 않음 (로그인 정보 유지)
+            
+            // 타겟 엘리먼트 (이메일, 부서, 직책만)
             const elEmail = document.getElementById('info-email');
             const elDept = document.getElementById('info-department');
             const elPos = document.getElementById('info-position');
             
-            // 추가 정보 필드만 로딩 표시
-            if(elEmail) elEmail.textContent = '조회 중...';
-            if(elDept) elDept.textContent = '조회 중...';
-            if(elPos) elPos.textContent = '조회 중...';
+            // 로딩 상태 표시 (이름/사번은 건드리지 않음)
+            if(elEmail) elEmail.textContent = '...';
+            if(elDept) elDept.textContent = '...';
+            if(elPos) elPos.textContent = '...';
 
             try {
-                // 수정됨: URL에 uid 파라미터 추가
-                // GAS 스크립트가 파라미터를 필요로 할 경우를 대비해 복구
+                // GAS WebApp 호출 (파라미터 전달)
                 const url = `${APPS_SCRIPT_URL}?uid=${encodeURIComponent(uid)}`;
                 const response = await fetch(url);
                 
-                // response가 ok가 아니면 에러 처리 (예: 404, 500)
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status}`);
-                }
+                if (!response.ok) throw new Error('Network response was not ok');
                 
-                // 2. JSON 파싱 시도
-                // 권한이 없어서 구글 로그인 페이지(HTML)가 반환되는 경우 여기서 에러가 발생합니다.
-                let jsonResponse;
-                try {
-                    jsonResponse = await response.json();
-                } catch (e) {
-                    // JSON 파싱 실패 시 텍스트로 읽어서 HTML인지 확인 (디버깅용)
-                    // 보통 권한 문제면 HTML 응답이 옴
-                    throw new Error("JSON 파싱 실패 (HTML 응답 가능성 - GAS 권한 설정을 '모든 사용자'로 변경하세요)");
-                }
+                const jsonResponse = await response.json();
                 
-                // 3. 데이터 구조 확인 및 매핑
                 let users = [];
+                // 데이터 구조 유연하게 처리 (배열/객체/data프로퍼티)
                 if (Array.isArray(jsonResponse)) {
                     users = jsonResponse;
                 } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
                     users = jsonResponse.data;
-                } else {
-                    console.log("Unknown JSON structure:", jsonResponse);
-                    throw new Error("데이터 구조 불일치");
                 }
 
-                // 4. 사용자 찾기 (문자열 변환 후 비교)
+                // userUid(Column B)가 일치하는 행 찾기
                 let matchedUser = null;
-                if (users.length > 0) {
-                    const firstItem = users[0];
-                    if (Array.isArray(firstItem)) {
-                        // It's a 2D array (Rows)
-                        // Column mapping based on image: 0:Name, 1:UID, 2:Grade, 3:Dept, 4:Email
-                        // We check the second column (index 1) for the UID
-                        const foundRow = users.find(row => String(row[1]) === String(uid));
-                        if (foundRow) {
-                            matchedUser = {
-                                userName: foundRow[0],
-                                userUid: foundRow[1],
-                                gradeName: foundRow[2],
-                                deptName: foundRow[3],
-                                sysmail: foundRow[4]
-                            };
-                        }
-                    } else {
-                        // It's an array of objects
-                        matchedUser = users.find(u => String(u.userUid) === String(uid));
-                    }
-                }
                 
-                if (matchedUser) {
-                    const elName = document.getElementById('info-name');
-                    const elId = document.getElementById('info-employeeId');
-                    // ... 요소 가져오기
+                // 데이터가 2차원 배열인지 객체 배열인지 확인
+                const isArrayData = users.length > 0 && Array.isArray(users[0]);
 
-                    // 데이터가 있으면 업데이트 (없으면 기존 값 유지)
-                    if(elName && matchedUser.userName) elName.textContent = matchedUser.userName; 
-                    if(elId && matchedUser.userUid) elId.textContent = matchedUser.userUid;
-                    if(elEmail) elEmail.textContent = matchedUser.sysmail || '-'; 
-                    if(elDept) elDept.textContent = matchedUser.deptName || '-'; 
-                    if(elPos) elPos.textContent = matchedUser.gradeName || '-'; 
+                if (isArrayData) {
+                    // 배열 형태인 경우: 인덱스로 접근 (A=0, B=1, C=2, D=3, E=4)
+                    const foundRow = users.find(row => String(row[1]) === String(uid));
+                    if (foundRow) {
+                        matchedUser = {
+                            gradeName: foundRow[2], // C열
+                            deptName: foundRow[3],  // D열
+                            sysmail: foundRow[4]    // E열
+                        };
+                    }
                 } else {
-                    // 사용자 없음 -> 추가 정보만 '-' 처리
+                    // 객체 형태인 경우: 키값으로 접근 (userUid 키 확인)
+                    matchedUser = users.find(u => String(u.userUid) === String(uid));
+                }
+
+                // 값 업데이트
+                if (matchedUser) {
+                    if(elEmail) elEmail.textContent = matchedUser.sysmail || '-';
+                    if(elDept) elDept.textContent = matchedUser.deptName || '-';
+                    if(elPos) elPos.textContent = matchedUser.gradeName || '-';
+                } else {
+                    // 일치하는 데이터 없음
                     if(elEmail) elEmail.textContent = '-';
                     if(elDept) elDept.textContent = '-';
                     if(elPos) elPos.textContent = '-';
-                    console.warn(`User ID ${uid} not found in sheet.`);
                 }
 
             } catch (error) {
-                console.error("Sheet Fetch Error Detailed:", error);
-                
-                // 에러 발생 시 추가 정보 필드에 에러 표시
-                if(elEmail) elEmail.textContent = '연동 실패';
+                console.error("Fetch Error:", error);
+                // 에러 시 조용히 처리 (사용자 경험 저해 방지)
+                if(elEmail) elEmail.textContent = '-';
                 if(elDept) elDept.textContent = '-';
                 if(elPos) elPos.textContent = '-';
-                
-                // 이름/사번 필드는 건드리지 않음 (로그인 값 유지)
-                
-                window.displayMessage(`데이터 연동 실패: ${error.message}`, 'error');
             }
         }
 
@@ -689,11 +659,14 @@
             const displayUid = urlUid || firebaseUid || '-';
 
             // 초기값 설정 (나중에 fetchUserInfoFromSheet로 덮어씌워질 수 있음)
+            // 주의: 여기서 'loading...'으로 설정하면 fetchUserInfoFromSheet가 완료되기 전까지 해당 텍스트가 보임
+            // 이름과 사번은 이미 있으므로 확정값 사용
             const userInfo = (urlName || firebaseUid) ? {
                 employeeId: displayUid, 
                 name: displayName, 
-                email: 'loading...',
-                department: 'loading...', position: 'loading...'
+                email: '...', // 로딩 중 표시
+                department: '...', 
+                position: '...'
             } : {
                 employeeId: '-', name: '-', email: '-',
                 department: '-', position: '-'
