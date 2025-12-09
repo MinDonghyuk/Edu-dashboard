@@ -90,7 +90,8 @@
                 'X': '<path d="M18 6L6 18"></path><path d="M6 6l12 12"></path>',
                 'Heart': '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path>',
                 'Star': '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
-                'Pencil': '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>'
+                'Pencil': '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>',
+                'Bulb': '<path d="M9 21h6"></path><path d="M12 3a7 7 0 0 0-7 7c0 3 6 4 6 9h2c0-5 6-6 6-9a7 7 0 0 0-7-7z"></path>'
             };
             const svgContent = icons[name] || '';
             return `<svg xmlns="http://www.w3.org/2000/svg" class="${classes}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgContent}</svg>`;
@@ -140,9 +141,69 @@
             window.renderInterestList(); 
         };
 
+        // ********** [수정] 계획 저장 기능 활성화 (연간 계획 구조로 변경) **********
         window.saveAnnualPlan = function(e) {
             e.preventDefault();
-            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
+            
+            // 1. 입력값 가져오기 (수정된 폼 ID 사용)
+            const title = document.getElementById('plan-title').value;
+            const goal = document.getElementById('plan-goal').value;
+            const focus = document.getElementById('plan-focus').value;
+            const actions = document.getElementById('plan-actions').value; // 교육 계획 목록
+            const budget = document.getElementById('plan-budget').value;
+
+            // 2. UI 업데이트 (저장된 것처럼 화면 갱신 - 구조 변경)
+            const planContainer = document.getElementById('annual-plan-display');
+            if (planContainer) {
+                const today = new Date().toLocaleDateString();
+                
+                // 줄바꿈 문자를 <br>로 변환하여 표시
+                const formattedActions = actions.replace(/\n/g, '<br>');
+
+                planContainer.innerHTML = `
+                    <div class="p-4 bg-white border border-indigo-300 rounded-xl shadow-inner space-y-3 h-full flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <!-- 헤더: 제목 및 상태 -->
+                            <div class="flex justify-between items-start border-b border-gray-100 pb-2">
+                                <div>
+                                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 mb-1 inline-block">🎯 ${focus}</span>
+                                    <p class="text-lg font-bold text-gray-800 leading-tight">${title}</p>
+                                </div>
+                                <span class="text-xs font-semibold px-2 py-1 rounded bg-blue-500 text-white shadow-sm flex-shrink-0">결재 대기</span>
+                            </div>
+
+                            <!-- 목표 섹션 -->
+                            <div class="bg-yellow-50 p-2 rounded border border-yellow-100">
+                                <p class="text-xs font-bold text-yellow-700 mb-1">🏁 연간 핵심 목표</p>
+                                <p class="text-sm text-gray-700 font-medium">${goal}</p>
+                            </div>
+
+                            <!-- 실천 방안 (교육 목록) -->
+                            <div class="flex-grow">
+                                <p class="text-xs font-bold text-gray-500 mb-1">📋 교육 및 실천 계획</p>
+                                <div class="text-sm text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 max-h-32 overflow-y-auto custom-scrollbar">
+                                    ${formattedActions}
+                                </div>
+                            </div>
+                            
+                            <!-- 예산 -->
+                            <div class="flex justify-end text-xs text-gray-500 font-medium">
+                                <span>💰 예상 예산: ${budget ? parseInt(budget).toLocaleString() + '원' : '미정'}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
+                            <span>제출일: ${today}</span>
+                            <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition duration-150 flex items-center">
+                                수정
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 3. 알림 및 모달 닫기
+            window.alertMessage("✅ 2025년도 연간 역량개발 계획이 제출되었습니다.", 'success');
             window.closeModal('annual-plan-modal');
         };
 
@@ -210,9 +271,9 @@
             if (!planContainer) return;
 
             const writeButton = `
-                <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
+                <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
                     ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 
-                    계획 작성하기 (비활성화)
+                    계획 수립하기
                 </button>
             `;
             
@@ -221,10 +282,10 @@
                     <div>
                         <p class="text-xs font-semibold text-gray-500">나의 금년도 교육 계획</p>
                         <div class="flex justify-between items-start">
-                            <p class="text-lg font-bold text-gray-500 truncate pr-4">데이터 로드 불가</p>
-                            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-500 text-white flex-shrink-0">비활성화</span>
+                            <p class="text-lg font-bold text-gray-400 truncate pr-4">등록된 연간 계획이 없습니다.</p>
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">미수립</span>
                         </div>
-                        <p class="text-sm text-gray-600 whitespace-pre-wrap max-h-16 overflow-hidden border-l-2 pl-2 border-gray-200">데이터 연동 로직이 제거되어 내용을 불러올 수 없습니다. 새로운 계획을 작성해도 저장되지 않습니다.</p>
+                        <p class="text-sm text-gray-400 mt-2">1년 동안 달성할 역량 목표와 구체적인 교육 계획을 수립해보세요.</p>
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
                         <span>작성일: -</span>
@@ -534,32 +595,69 @@
     <!-- Global Message Box -->
     <div id="message-box" class="fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-transform transform translate-x-full bg-blue-500"></div>
 
-    <!-- 금년도 교육계획 작성 모달 -->
+    <!-- 금년도 교육계획 작성 모달 (수정: 연간 목표 중심) -->
     <div id="annual-plan-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
-            <form onsubmit="window.saveAnnualPlan(event)" class="p-6 bg-white rounded-xl space-y-4">
-                <div class="flex justify-between items-center border-b pb-3 mb-4">
-                    <h3 class="text-2xl font-bold text-indigo-700">금년도 교육계획 작성</h3>
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <form onsubmit="window.saveAnnualPlan(event)" class="p-6 bg-white rounded-xl space-y-5">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="text-2xl font-bold text-indigo-700">연간 역량개발 계획서</h3>
                     <button type="button" onclick="closeModal('annual-plan-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
                     </button>
                 </div>
-                <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
-                    <p class="font-semibold">⚠️ 기능 비활성화</p>
-                    <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
+                
+                <div class="bg-indigo-50 border-l-4 border-indigo-400 p-3 text-sm text-indigo-700 mb-4">
+                    <p class="font-bold mb-1">💡 작성 가이드</p>
+                    <p>단순 교육 나열이 아닌, 1년 동안 달성하고자 하는 <strong>'핵심 목표'</strong>를 중심으로 작성해주세요.</p>
                 </div>
-                <div>
-                    <label for="plan-title" class="block text-sm font-medium text-gray-700 mb-1">계획 제목</label>
-                    <input id="plan-title" type="text" name="plan-title" placeholder="예: 2026년 클라우드 엔지니어링 역량 강화" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required disabled>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- 기본 정보 -->
+                    <div class="col-span-2">
+                        <label for="plan-title" class="block text-sm font-bold text-gray-700 mb-1">계획서 제목 (Title) <span class="text-red-500">*</span></label>
+                        <input id="plan-title" type="text" placeholder="예: 2025년 데이터 분석 전문가로의 성장 계획" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                    </div>
+                    
+                    <div>
+                        <label for="plan-focus" class="block text-sm font-medium text-gray-700 mb-1">중점 역량 (Focus Area) <span class="text-red-500">*</span></label>
+                        <select id="plan-focus" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="직무 전문성 심화">직무 전문성 심화</option>
+                            <option value="신기술/트렌드 습득">신기술/트렌드 습득</option>
+                            <option value="리더십/조직관리">리더십/조직관리</option>
+                            <option value="공통/기초역량">공통/기초역량</option>
+                            <option value="어학/글로벌">어학/글로벌</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="plan-budget" class="block text-sm font-medium text-gray-700 mb-1">연간 예상 예산 (Total Budget)</label>
+                        <input id="plan-budget" type="number" placeholder="0" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-right">
+                    </div>
+
+                    <!-- 핵심: 목표 설정 -->
+                    <div class="col-span-2">
+                        <label for="plan-goal" class="block text-sm font-bold text-gray-800 mb-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                            금년도 핵심 목표 (Key Objective) <span class="text-red-500 ml-1">*</span>
+                        </label>
+                        <input id="plan-goal" type="text" placeholder="예: 현업 데이터 분석 파이프라인 구축 능력 확보 및 자격증 취득" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-yellow-50" required>
+                        <p class="text-xs text-gray-500 mt-1">이 목표를 달성했을 때 본인과 조직에 어떤 변화가 있을지 상상하며 적어주세요.</p>
+                    </div>
+
+                    <!-- 핵심: 실천 방안 -->
+                    <div class="col-span-2">
+                        <label for="plan-actions" class="block text-sm font-bold text-gray-800 mb-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg>
+                            교육 및 실천 계획 (Action Plan) <span class="text-red-500 ml-1">*</span>
+                        </label>
+                        <textarea id="plan-actions" rows="6" placeholder="목표 달성을 위해 시기별로 어떤 교육이나 활동을 할 것인지 구체적으로 나열해주세요.&#13;&#10;(예시)&#13;&#10;1분기: 파이썬 기초 온라인 강의 수강&#13;&#10;2분기: 데이터 분석 관련 사외 세미나 참석&#13;&#10;3분기: 사내 데이터 스터디 그룹 참여&#13;&#10;4분기: ADsP 자격증 취득" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 leading-relaxed" required></textarea>
+                    </div>
                 </div>
-                <div>
-                    <label for="course-details" class="block text-sm font-medium text-gray-700 mb-1">세부 교육 과정 및 목표 (팀장 승인용)</label>
-                    <textarea id="course-details" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required disabled></textarea>
-                </div>
-                <div class="flex justify-end space-x-3 pt-4">
+
+                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
                     <button type="button" onclick="closeModal('annual-plan-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
-                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
-                        ${getIconSVG('Check', 'w-4 h-4 mr-1')} 승인 요청 (비활성화)
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> 계획 제출 (저장)
                     </button>
                 </div>
             </form>
@@ -650,7 +748,7 @@
 
                     <div class="flex justify-end pt-4">
                         <button type="submit" id="comment-save-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
-                            ${getIconSVG('Check', 'w-4 h-4 mr-1')} 메모 저장 (비활성화)
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> 메모 저장 (비활성화)
                         </button>
                     </div>
                 </div>
@@ -813,8 +911,8 @@
                                         <p class="text-sm text-gray-600">데이터 연동 로직이 제거되어 내용을 불러올 수 없습니다.</p>
                                     </div>
                                     <div class="flex justify-end pt-2 border-t border-gray-200">
-                                        <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
-                                            ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 계획 작성
+                                        <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg> 계획 수립하기
                                         </button>
                                     </div>
                                 </div>
