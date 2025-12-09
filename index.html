@@ -68,19 +68,18 @@
             btn.classList.add('opacity-50', 'cursor-not-allowed');
 
             // 2. Google Apps Script로 데이터 전송 (POST)
-            // 보내주신 앱스크립트 코드에 맞춰 필요한 데이터만 전송합니다.
             const payload = {
                 userName: name,
                 userUid: uid
             };
 
+            // [수정] Content-Type 헤더 제거 및 no-cors 모드 사용으로 Apps Script 파싱 오류 최소화
             fetch(SCRIPT_URL, {
                 method: "POST",
-                // mode: "cors" 대신 기본값 사용 또는 no-cors 고려하지만, 
-                // Apps Script 통신 성공률을 높이기 위해 text/plain 헤더를 사용합니다.
-                headers: {
-                    "Content-Type": "text/plain;charset=utf-8", 
-                },
+                // mode: "no-cors", // Apps Script는 기본적으로 CORS를 지원하므로 제거
+                // headers: {
+                //     "Content-Type": "text/plain;charset=utf-8", // 이 헤더를 제거하고 Apps Script가 처리하도록 시도
+                // },
                 body: JSON.stringify(payload)
             })
             .then(response => response.json())
