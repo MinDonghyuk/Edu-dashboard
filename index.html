@@ -42,32 +42,18 @@
 
     <script>
         // ▼▼▼▼▼▼ 설정 영역 ▼▼▼▼▼▼
-        
-        // [중요] 앱스크립트에서 '새 배포' 후 생성된 URL을 이곳에 덮어씌워주세요.
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXUC8CQxinA2jAPZrYncRLXC-klSfJE-nK9u51b_lK8q4LiFylvMRFFfmO0k1sn2MI/exec";
+        
+        // 1. 배포한 Google Apps Script URL (제공해주신 테스트 URL로 수정)
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw8AlnqUZtK5w5LvWewreq86cndgv_BdqWATsCasdA/dev";
 
-        // 이동할 페이지 이름
+        // 2. 이동할 페이지 이름
         const TARGET_URL = "community.html";
 
         // ▲▲▲▲▲▲ 설정 끝 ▲▲▲▲▲▲
 
-        // 지수 백오프를 포함하는 fetch 함수
-        async function fetchWithRetry(url, options, maxRetries = 3) {
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    return response;
-                } catch (error) {
-                    if (i === maxRetries - 1) throw error; // 마지막 시도에서 실패하면 던짐
-                    const delay = Math.pow(2, i) * 1000;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-
-        async function handleLogin(e) {
+        function handleLogin(e) {
             e.preventDefault();
-            
+            
             const name = document.getElementById('inputName').value.trim();
             const uid = document.getElementById('inputUid').value.trim();
             const msgBox = document.getElementById('msg');
@@ -77,70 +63,48 @@
             msgBox.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-green-50', 'text-green-700');
             msgBox.className = "mt-4 text-center text-sm font-medium text-blue-600 block bg-blue-50 p-3 rounded-lg";
             msgBox.innerHTML = `<span class="inline-block animate-spin mr-2">↻</span>정보 확인 중...`;
-            
+            
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
 
             // 2. Google Apps Script로 데이터 전송 (POST)
-            
-            const formData = new URLSearchParams();
-            formData.append('userName', name);
-            formData.append('userUid', uid);
-
-            try {
-                const response = await fetchWithRetry(SCRIPT_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/x-www-form-urlencoded"
-                    },
-                    body: formData.toString()
-                });
-
-                // 응답이 성공적이지 않으면 (예: 4xx, 5xx 에러)
-                if (!response.ok) {
-                    // 응답 본문을 텍스트로 읽어 오류 메시지로 사용 (GAS 오류 페이지 등)
-                    const errorText = await response.text();
-                    console.error("Server responded with error status:", response.status, errorText);
-                    // HTML 태그를 제거하고 첫 200자만 표시하도록 메시지 처리
-                    const cleanText = errorText.replace(/<[^>]*>?/gm, ' ').trim();
-                    throw new Error(`서버 오류 (HTTP ${response.status}): Apps Script 응답이 JSON 형식이 아닙니다. 응답 내용: ${cleanText.substring(0, 200)}...`);
-                }
-
-                // 응답을 JSON으로 파싱 시도
-                const data = await response.json();
-                
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ userName: name, userUid: uid })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // [디버깅] 서버가 보낸 전체 데이터를 콘솔에 출력
                 console.log("서버 응답 데이터:", data);
 
                 // 3. 결과 처리
-                if (data.result === "success") {
+                // 💡 수정된 부분: GAS 응답 필드를 'result' -> 'status'로 변경
+                if (data.status === "success") { 
                     msgBox.className = "mt-4 text-center text-sm font-medium text-green-700 block bg-green-50 p-3 rounded-lg";
                     msgBox.innerHTML = `✅ <b>로그인 성공!</b><br>${data.user.userName}님 환영합니다.`;
-                    
+                    
                     setTimeout(() => {
-                        const finalUrl = `${TARGET_URL}?name=${encodeURIComponent(data.user.userName)}&uid=${encodeURIComponent(data.user.userUid)}`;
+                        // GAS에서 반환된 전체 user 객체의 userName과 userUid를 사용
+                        const finalUrl = `${TARGET_URL}?name=${encodeURIComponent(data.user.userName)}&uid=${encodeURIComponent(data.user.userUid)}`;
                         window.location.href = finalUrl;
                     }, 1000);
 
                 } else {
-                    const failMsg = data.message || "로그인에 실패했습니다.";
+                    // 💡 수정된 부분: 실패 메시지를 data.message에서 가져옴
+                    const failMsg = data.message || "알 수 없는 오류가 발생했습니다."; 
                     throw new Error(failMsg);
                 }
-
-            } catch (error) {
+            })
+            .catch(error => {
                 console.error("Login Error:", error);
                 msgBox.className = "mt-4 text-center text-sm font-medium text-red-600 block bg-red-50 p-3 rounded-lg";
-                
-                // 오류 메시지에 "JSON 파싱 오류" 대신 상세 정보가 나오도록 처리
-                let errorText = error.message.replace(/\n/g, "<br>");
-                if (error.message.includes("JSON 파싱 오류")) {
-                    errorText = "<b>[JSON 파싱 오류]</b> Apps Script 서버 응답을 확인하세요. (배포 권한 오류일 수 있음)";
-                }
-
+                
+                const errorText = error.message.replace(/\n/g, "<br>");
                 msgBox.innerHTML = `⚠️ <b>로그인 실패</b><br>${errorText}`;
-                
+                
                 btn.disabled = false;
                 btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
+            });
         }
     </script>
 </body>
