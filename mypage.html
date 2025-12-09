@@ -72,9 +72,21 @@
             if (!LOGIN_USER_NAME) LOGIN_USER_NAME = localStorage.getItem('userName');
         }
 
-        // 3. 확보된 정보 재저장 (페이지 새로고침 시 유지용)
-        if (LOGIN_USER_UID) localStorage.setItem('userUid', LOGIN_USER_UID);
-        if (LOGIN_USER_NAME) localStorage.setItem('userName', LOGIN_USER_NAME);
+        // 3. 확보된 정보 재저장 (페이지 새로고침 시 유지용 & 세션 동기화)
+        if (LOGIN_USER_UID && LOGIN_USER_NAME) {
+            // 구버전 방식 호환성 유지
+            localStorage.setItem('userUid', LOGIN_USER_UID);
+            localStorage.setItem('userName', LOGIN_USER_NAME);
+
+            // 신버전 방식(edu_user_session)도 없으면 생성 (통일성 유지)
+            if (!localStorage.getItem('edu_user_session')) {
+                localStorage.setItem('edu_user_session', JSON.stringify({
+                    uid: LOGIN_USER_UID,
+                    name: LOGIN_USER_NAME,
+                    loginAt: new Date().getTime()
+                }));
+            }
+        }
 
         console.log("Current User:", LOGIN_USER_NAME, "(", LOGIN_USER_UID, ")");
 
