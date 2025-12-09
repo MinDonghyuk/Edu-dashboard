@@ -68,19 +68,19 @@
             btn.classList.add('opacity-50', 'cursor-not-allowed');
 
             // 2. Google Apps Script로 데이터 전송 (POST)
-            const payload = {
-                userName: name,
-                userUid: uid
-            };
+            
+            // [수정된 부분]: 폼 데이터 형식(URLSearchParams)을 사용하여 데이터 전송
+            const formData = new URLSearchParams();
+            formData.append('userName', name);
+            formData.append('userUid', uid);
 
-            // [수정] Content-Type 헤더 제거 및 no-cors 모드 사용으로 Apps Script 파싱 오류 최소화
             fetch(SCRIPT_URL, {
                 method: "POST",
-                // mode: "no-cors", // Apps Script는 기본적으로 CORS를 지원하므로 제거
-                // headers: {
-                //     "Content-Type": "text/plain;charset=utf-8", // 이 헤더를 제거하고 Apps Script가 처리하도록 시도
-                // },
-                body: JSON.stringify(payload)
+                // Apps Script의 e.parameter와 호환되도록 Content-Type 설정
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: formData.toString() // 폼 데이터 문자열을 본문에 담아 전송
             })
             .then(response => response.json())
             .then(data => {
