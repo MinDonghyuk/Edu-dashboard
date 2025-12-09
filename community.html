@@ -478,8 +478,11 @@
       }
     }
     
-    // --- 로그아웃 함수 ---
+    // --- 로그아웃 함수 (수정됨: 로컬 스토리지 삭제) ---
     window.logout = async () => {
+      // 로컬 스토리지에서 세션 삭제
+      localStorage.removeItem('edu_user_session');
+      
       window.displayMessage("로그아웃되었습니다.", 'success');
       setTimeout(() => {
         window.location.href = 'index.html'; // 로그인 페이지로 이동
@@ -682,13 +685,16 @@
     }
     window.setActiveTab = setActiveTab;
 
-    // --- 사이드바 생성 함수 ---
+    // --- 사이드바 생성 함수 (수정됨: 마이페이지 링크에 파라미터 추가) ---
     function createSidebarAndMovedCards() {
       const sidebarContainer = document.getElementById('sidebar-content');
       
       // 데이터가 없으므로 빈 리스트 표시
       const historyItems = '<li class="text-center text-gray-400 py-2">이력이 없습니다.</li>';
       
+      // 마이페이지 URL 생성 (현재 사용자 정보 포함)
+      const myPageUrl = `mypage.html?name=${encodeURIComponent(currentUserInfo.name)}&uid=${encodeURIComponent(currentUserInfo.uid)}`;
+
       if (sidebarContainer) {
         sidebarContainer.innerHTML = `
           <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-cyan-500" id="related-sites-card">
@@ -702,8 +708,8 @@
             <div class="flex justify-between items-start mb-4">
               <div class="flex items-center space-x-2">
                 <h3 class="text-xl font-bold text-gray-800">개인정보</h3>
-                <!-- mypage.html로 이동하도록 수정됨 (이전 요청 반영) -->
-                <a href="mypage.html" class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 shadow-md">마이페이지</a>
+                <!-- 동적으로 생성된 URL 사용 -->
+                <a href="${myPageUrl}" class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 shadow-md">마이페이지</a>
               </div>
               <button id="logout-button" onclick="logout()" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-md" title="로그아웃">${ICONS.LogOut}</button>
             </div>
@@ -757,16 +763,39 @@
       
       // URL 파라미터 확인 (index.html에서 전달된 값)
       const params = new URLSearchParams(window.location.search);
-      const nameFromUrl = params.get('userName') || params.get('name');
-      const uidFromUrl = params.get('userUid') || params.get('uid');
+      let nameFromUrl = params.get('userName') || params.get('name');
+      let uidFromUrl = params.get('userUid') || params.get('uid');
 
-      // 사이드바 UI 생성
-      createSidebarAndMovedCards();
-
-      // 기본 정보 세팅
-      if (nameFromUrl) {
-        updateSidebarUserId(nameFromUrl, uidFromUrl);
+      // ★ [수정됨] URL 파라미터가 없으면 로컬 스토리지 확인
+      if (!nameFromUrl || !uidFromUrl) {
+        const savedSession = localStorage.getItem('edu_user_session');
+        if (savedSession) {
+          try {
+            const parsedSession = JSON.parse(savedSession);
+            nameFromUrl = parsedSession.name;
+            uidFromUrl = parsedSession.uid;
+            console.log("세션 복구됨:", nameFromUrl);
+          } catch (e) {
+            console.error("세션 파싱 오류", e);
+          }
+        } else {
+            // 만약 로그인이 필수라면 여기서 index.html로 리다이렉트 할 수 있습니다.
+            // window.location.href = 'index.html';
+        }
       }
+
+      // 사이드바 UI 생성 (이 시점에는 데이터가 있거나 게스트 상태)
+      // updateSidebarUserId 안에서 전역 변수 currentUserInfo가 업데이트 됨
+      if (nameFromUrl) {
+          updateSidebarUserId(nameFromUrl, uidFromUrl);
+      } else {
+          updateSidebarUserId(null, null); // 게스트 처리
+      }
+      
+      // ★ 사이드바 다시 그리기 (마이페이지 링크에 정보가 반영되도록)
+      // 위에서 updateSidebarUserId를 호출했지만, createSidebarAndMovedCards는 그 안에서 호출되지 않고
+      // currentUserInfo만 업데이트 하므로, UI 반영을 위해 명시적으로 호출합니다.
+      createSidebarAndMovedCards();
 
       // ★ 추가정보(이메일,부서,직책) 스프레드시트에서 가져오기 (GET)
       if (uidFromUrl) {
