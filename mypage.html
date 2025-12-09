@@ -23,16 +23,28 @@
         #individual-history-list { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
 
         .progress-bar > div { transition: width 0.5s ease-in-out; }
+        
+        /* 캘린더 일정 표시 스타일 (사용하지 않지만 스타일 정의는 유지) */
+        .schedule-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 2px;
+        }
+        .schedule-vacation { background-color: #f87171; } /* Red for vacation */
+        .schedule-meeting { background-color: #3b82f6; } /* Blue for meeting */
+        .schedule-training { background-color: #10b981; } /* Green for training */
     </style>
     <script>
         // --- 전역 상수 및 초기화된 데이터 ---
         const TRAINING_GOAL_HOURS = 40;
         let currentCalendarDate = new Date();
         
-        // Mock Data 모두 빈 배열 또는 기본값으로 초기화
+        // ********** Mock Data 및 관련 변수 모두 제거/초기화 **********
+        let localUserSchedules = [];
         const mockInquiryHistory = [];
         const mockTrainingHistory = [];
-        let localUserSchedules = [];
         const mockUpcomingTraining = [];
         let simulatedSharedPosts = [];
         const mockInterestKeywords = [];
@@ -50,6 +62,7 @@
                 'ListChecks': '<path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path>',
                 'Target': '<circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>',
                 'ClipboardList': '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path>',
+                'Calendar': '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>', // Added Calendar Icon
                 'Check': '<polyline points="20 6 9 17 4 12"></polyline>',
                 'X': '<path d="M18 6L6 18"></path><path d="M6 6l12 12"></path>',
                 'Heart': '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path>',
@@ -96,61 +109,63 @@
             }
         };
 
-        // --- DUMMY/MOCKUP FUNCTIONS (모두 기능 비활성화 메시지 출력) ---
+        // --- DUMMY/MOCKUP FUNCTIONS (모두 비활성화) ---
 
-        // NEW DUMMY: 관심 등록/해제
         window.toggleInterest = function(postId, event) {
             event.stopPropagation();
-            window.alertMessage("🚧 기능 비활성화: 스크랩/관심 등록 기능이 제거되었습니다.", 'info');
-            // Force re-render just to show current state (no data change)
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
             window.setupSharingListener(); 
             window.renderInterestList(); 
         };
 
-        // DUMMY: 연간 교육 계획 저장
         window.saveAnnualPlan = function(e) {
             e.preventDefault();
-            window.alertMessage("🚧 기능 비활성화: 교육 계획 저장 기능이 제거되었습니다.", 'info');
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
             window.closeModal('annual-plan-modal');
         };
 
-        // DUMMY: 개인 일정 저장
+        // ********** 개인 일정 저장 로직 비활성화 **********
         window.saveUserSchedule = function(e) {
             e.preventDefault();
-            window.alertMessage("🚧 기능 비활성화: 개인 일정 저장 기능이 제거되었습니다.", 'info');
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
             window.closeModal('schedule-add-modal');
         };
 
-        // DUMMY: 개인 일정 삭제
+        // ********** 개인 일정 삭제 로직 비활성화 **********
         window.deleteUserSchedule = function(scheduleId, event) {
             event.stopPropagation();
-            window.alertMessage("🚧 기능 비활성화: 개인 일정 삭제 기능이 제거되었습니다.", 'info');
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
             window.closeModal('day-detail-modal');
         }
 
-        // DUMMY: 교육 상세 및 코멘트 저장
         window.saveTrainingComment = function(e) {
             e.preventDefault();
-            window.alertMessage("🚧 기능 비활성화: 메모 및 파일 첨부 정보 저장이 제거되었습니다.", 'info');
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
             window.closeModal('training-detail-modal');
         }
 
-        // DUMMY: 게시판 공유 (Updates simulated data)
         window.sharePost = function(e) {
             e.preventDefault();
-            window.alertMessage("🚧 기능 비활성화: 게시물 공유 기능이 제거되었습니다. (Mock)", 'info');
-            // Do not update simulatedSharedPosts
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
         }
 
-        // --- 렌더링 로직 (데이터 제거 후) ---
+        // --- 렌더링 로직 (데이터 제거 및 초기화) ---
 
-        // 1. 개인 정보 (HTML에 직접 렌더링하도록 변경, JS 함수 제거)
+        // 헬퍼: 두 날짜 사이의 모든 날짜 배열을 반환합니다. (로직은 유지하지만 데이터는 비어 있음)
+        function getDatesBetween(startDate, endDate) {
+            return [];
+        }
         
-        // 2. 교육 달성률 요약 (Mock Data 제거)
+        // 헬퍼: 캘린더 월에 해당하는 모든 일정을 가져와 날짜별로 그룹화합니다. (데이터는 비어 있음)
+        function getSchedulesForMonth(year, month) {
+            return {};
+        }
+
+
         function renderAchievementSummary() {
-            let totalHours = 0; // 데이터 없음
-            let totalCost = 0; // 데이터 없음
-            let totalNetCost = 0; // 데이터 없음
+            let totalHours = 0; 
+            let totalCost = 0; 
+            let totalNetCost = 0; 
             
             const achievementRate = (totalHours / TRAINING_GOAL_HOURS) * 100;
             const safeRate = Math.max(0, Math.min(100, achievementRate));
@@ -176,32 +191,34 @@
                             <span class="font-bold text-red-600">${totalNetCostText}</span>
                         </div>
                     </div>
-                    <div class="bg-red-100 p-2 text-sm text-red-700 rounded-md">⚠️ 이 섹션의 데이터는 현재 비활성화되어 있습니다.</div>
+                    <div class="bg-red-100 p-2 text-sm text-red-700 rounded-md">⚠️ 이 섹션의 데이터는 비활성화되었습니다.</div>
                 </div>
             `;
-            return html;
+            // h-full 적용 (상위 h-60에 맞춤)
+            return `<div class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg h-full">${html}</div>`;
         }
 
-        // DUMMY: 연간 교육 계획 렌더링 (Mock Data 제거)
         window.fetchAndRenderAnnualPlan = function() {
             const planContainer = document.getElementById('annual-plan-display');
             if (!planContainer) return;
 
             const writeButton = `
-                <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
+                <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
                     ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 
-                    계획 작성하기 (Mock)
+                    계획 작성하기 (비활성화)
                 </button>
             `;
             
             planContainer.innerHTML = `
-                <div class="p-4 bg-white border border-indigo-300 rounded-xl shadow-inner space-y-2">
-                    <p class="text-xs font-semibold text-gray-500">나의 금년도 교육 계획</p>
-                    <div class="flex justify-between items-start">
-                        <p class="text-lg font-bold text-gray-500 truncate pr-4">데이터 로드 불가</p>
-                        <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-500 text-white flex-shrink-0">비활성화</span>
+                <div class="p-4 bg-white border border-indigo-300 rounded-xl shadow-inner space-y-2 h-full flex flex-col justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-gray-500">나의 금년도 교육 계획</p>
+                        <div class="flex justify-between items-start">
+                            <p class="text-lg font-bold text-gray-500 truncate pr-4">데이터 로드 불가</p>
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-500 text-white flex-shrink-0">비활성화</span>
+                        </div>
+                        <p class="text-sm text-gray-600 whitespace-pre-wrap max-h-16 overflow-hidden border-l-2 pl-2 border-gray-200">데이터 연동 로직이 제거되어 내용을 불러올 수 없습니다. 새로운 계획을 작성해도 저장되지 않습니다.</p>
                     </div>
-                    <p class="text-sm text-gray-600 whitespace-pre-wrap max-h-16 overflow-hidden border-l-2 pl-2 border-gray-200">데이터 연동이 비활성화되어 이전 계획을 불러올 수 없습니다. 새로운 계획을 작성하세요.</p>
                     <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
                         <span>작성일: -</span>
                         ${writeButton}
@@ -210,7 +227,6 @@
             `;
         }
 
-        // 3. 교육 이수 이력 (Mock Data 제거)
         window.applyTrainingFilters = function() {
             const typeFilter = document.getElementById('type-filter')?.value || 'All';
             const refundFilter = document.getElementById('refund-filter')?.value || 'All';
@@ -220,29 +236,26 @@
         window.fetchTrainingData = function(typeFilter = 'All', refundFilter = 'All') {
             const individualHistoryList = document.getElementById('individual-history-list');
             
-            if(individualHistoryList) individualHistoryList.innerHTML = `<p class="text-gray-500 p-4 font-semibold">⚠️ 데이터 연동이 비활성화되어 이수 내역을 표시할 수 없습니다.</p>`;
+            if(individualHistoryList) individualHistoryList.innerHTML = `<p class="text-gray-500 p-4 font-semibold">⚠️ 데이터 로직이 제거되어 이수 내역을 표시할 수 없습니다.</p>`;
         }
 
-        // 4. 문의/작성 이력 (Mock Data 제거)
         function renderInquiryHistory() {
             const container = document.getElementById('inquiry-history-list');
             if (!container) return;
             
-            container.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 연동이 비활성화되어 문의/작성 이력을 표시할 수 없습니다.</p>`;
+            container.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 이력을 표시할 수 없습니다.</p>`;
         }
 
-        // 5. 관심 교육 키워드 목록 렌더링 (Mock Data 제거)
         function renderKeywordList() {
             const container = document.getElementById('keyword-list-container');
             if (!container) return;
             
-            container.innerHTML = `<p class="text-center text-gray-500 col-span-full p-4">⚠️ 데이터 연동이 비활성화되어 키워드 목록을 표시할 수 없습니다.</p>`;
+            container.innerHTML = `<p class="text-center text-gray-500 col-span-full p-4">⚠️ 데이터 로직이 제거되어 키워드 목록을 표시할 수 없습니다 ạ</p>`;
         }
         
-        // 6. 교육 상세 및 코멘트 모달 열기
         window.openTrainingDetailModal = function(itemId) {
             const modal = document.getElementById('training-detail-modal');
-            const item = { course: '데이터 비활성화로 로드 불가', host: 'N/A', type: 'N/A', period: 'N/A', hours: 0, cost: 0, refund: 'N/A' };
+            const item = { course: '데이터 로드 불가', host: 'N/A', type: 'N/A', period: 'N/A', hours: 0, cost: 0, refund: 'N/A' };
             
             document.getElementById('detail-course-name').textContent = item.course;
             document.getElementById('detail-item-id').value = itemId;
@@ -255,7 +268,7 @@
                     <div class="flex justify-between border-b pb-1"><span class="font-semibold text-gray-500">총 비용 / 환급 여부:</span><span class="font-bold text-gray-500">${formatCurrency(item.cost)} (${item.refund})</span></div>
                 </div>
                 <div class="mt-4 p-3 bg-red-100 rounded-lg">
-                    <p class="text-red-500 font-bold mb-1">⚠️ 데이터 저장/로드 기능은 현재 비활성화되어 있습니다.</p>
+                    <p class="text-red-500 font-bold mb-1">⚠️ 데이터 저장/로드 기능은 제거되었습니다.</p>
                 </div>
             `;
             document.getElementById('detail-user-comment').value = '';
@@ -267,15 +280,16 @@
             openModal('training-detail-modal');
         }
 
-        // 7. 다가오는 교육 목록 렌더링 (Mock Data 제거)
+        // ********** 다가오는 교육 목록 렌더링 (데이터 없음) **********
         function renderUpcomingTrainingList() {
             const upcomingListContainer = document.getElementById('upcoming-list-container');
             if (!upcomingListContainer) return;
-
-            upcomingListContainer.innerHTML = `<p class="text-gray-500 p-2 font-semibold">⚠️ 데이터 연동이 비활성화되어 다가오는 일정을 표시할 수 없습니다.</p>`;
+            
+            upcomingListContainer.innerHTML = `<p class="text-gray-500 p-2 font-semibold">⚠️ 데이터 로직이 제거되어 일정을 표시할 수 없습니다.</p>`;
         }
 
-        // 8. 캘린더 렌더링 (Mock Data 제거)
+
+        // ********** 캘린더 렌더링 (데이터 없음) **********
         function renderCalendar() {
             const calendarContainer = document.getElementById('calendar-container');
             if (!calendarContainer) return;
@@ -285,6 +299,9 @@
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             
+            // 데이터가 없으므로 빈 객체 반환
+            const schedulesInMonth = {};
+            
             function getDayColor(dayIndex) {
                 if (dayIndex === 0) return 'text-red-500'; 
                 if (dayIndex === 6) return 'text-blue-500'; 
@@ -292,24 +309,25 @@
             }
             
             let html = `
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-center mb-2">
                     <button onclick="changeMonth(-1)" class="p-2 rounded-full hover:bg-gray-100 text-gray-700" aria-label="이전 달">${getIconSVG('X', 'w-5 h-5 transform rotate-45')}</button>
                     <h5 class="text-xl font-bold text-indigo-700">${year}년 ${month + 1}월</h5>
                     <button onclick="changeMonth(1)" class="p-2 rounded-full hover:bg-gray-100 text-gray-700" aria-label="다음 달">${getIconSVG('X', 'w-5 h-5 transform -rotate-45')}</button>
                 </div>
-                <table class="w-full text-center border-collapse rounded-lg overflow-hidden">
-                    <thead>
-                        <tr class="text-xs font-semibold text-gray-500 bg-gray-100">
-                            <th class="py-2 ${getDayColor(0)}">일</th>
-                            <th class="py-2 ${getDayColor(1)}">월</th>
-                            <th class="py-2 ${getDayColor(2)}">화</th>
-                            <th class="py-2 ${getDayColor(3)}">수</th>
-                            <th class="py-2 ${getDayColor(4)}">목</th>
-                            <th class="py-2 ${getDayColor(5)}">금</th>
-                            <th class="py-2 ${getDayColor(6)}">토</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <div class="flex-grow flex flex-col justify-between">
+                    <table class="w-full text-center border-collapse rounded-lg overflow-hidden flex-grow">
+                        <thead>
+                            <tr class="text-xs font-semibold text-gray-500 bg-gray-100">
+                                <th class="py-1 ${getDayColor(0)}">일</th>
+                                <th class="py-1 ${getDayColor(1)}">월</th>
+                                <th class="py-1 ${getDayColor(2)}">화</th>
+                                <th class="py-1 ${getDayColor(3)}">수</th>
+                                <th class="py-1 ${getDayColor(4)}">목</th>
+                                <th class="py-1 ${getDayColor(5)}">금</th>
+                                <th class="py-1 ${getDayColor(6)}">토</th>
+                            </tr>
+                        </thead>
+                        <tbody>
             `;
 
             let day = 1;
@@ -320,19 +338,27 @@
                 html += '<tr>';
                 for (let j = 0; j < 7; j++) {
                     if (i === 0 && j < firstDayOfMonth || day > daysInMonth) {
-                        html += '<td class="p-1 border border-gray-100 bg-gray-50"></td>';
+                        html += '<td class="p-0.5 border border-gray-100 bg-gray-50"></td>';
                     } else {
                         const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                         const isToday = new Date(dateKey + 'T00:00:00').getTime() === todayDate.getTime();
                         
-                        let dayClasses = `p-1 border border-gray-100 text-sm font-medium h-20 align-top cursor-pointer transition duration-150 hover:bg-indigo-50`;
+                        // ********** 캘린더 셀 높이를 h-8로 강제 축소 **********
+                        let dayClasses = `p-0.5 border border-gray-100 text-sm font-medium h-8 align-top cursor-pointer transition duration-150 hover:bg-indigo-50`;
                         if (isToday) {
                             dayClasses += ' bg-amber-100 border-2 border-amber-500 rounded-lg shadow-inner';
                         }
-
+                        
+                        // 일정이 없으므로 점 표시 로직 제거
+                        const schedulesOnDay = schedulesInMonth[dateKey] || [];
+                        let scheduleDots = '';
+                        
                         html += `<td class="${dayClasses}" onclick="openDayDetailModal('${dateKey}')">`;
-                        html += `<span class="${getDayColor(j)} block">${day}</span>`;
-                        html += `<div class="mt-1 space-y-0.5 max-h-12 overflow-y-hidden px-1 text-xs text-red-500 font-semibold">데이터 비활성화</div>`;
+                        html += `<span class="${getDayColor(j)} block text-xs">${day}</span>`;
+                        // 일정이 있을 경우 작은 점으로 표시
+                        if (scheduleDots) {
+                            html += `<div class="mt-0.5 flex justify-center flex-wrap">${scheduleDots}</div>`;
+                        }
 
                         html += `</td>`;
                         day++;
@@ -342,7 +368,7 @@
                 if (day > daysInMonth) break;
             }
 
-            html += `</tbody></table>`;
+            html += `</tbody></table></div>`;
             calendarContainer.innerHTML = html;
         }
 
@@ -353,7 +379,7 @@
             renderUpcomingTrainingList(); 
         }
 
-        // 일별 상세 모달 열기 (Mock Data 제거)
+        // ********** 일별 상세 모달 열기 (데이터 없음) **********
         window.openDayDetailModal = function(dateKey) {
             const detailModal = document.getElementById('day-detail-modal');
             if (!detailModal) return;
@@ -364,33 +390,37 @@
 
             if (dateTitle) dateTitle.textContent = `${targetDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })} 일정`;
 
-            if (listContainer) {
-                listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 연동이 비활성화되어 등록된 일정이 없습니다.</p>`;
+            // 데이터가 없으므로 항상 '등록된 일정이 없습니다' 표시
+            listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">등록된 일정이 없습니다. (데이터 로직 제거됨)</p>`;
+            
+            // 일정 추가 모달에 선택된 날짜 설정은 유지하지만, 기능은 비활성화되어 있음
+            const scheduleDateInput = document.getElementById('schedule-date');
+            if (scheduleDateInput) {
+                scheduleDateInput.value = dateKey;
             }
+
 
             openModal('day-detail-modal');
         }
         
-        // 9. 나의 관심 스크랩 목록 렌더링 (Mock Data 제거)
+        // 9. 나의 관심 스크랩 목록 렌더링 (Mock 데이터 제거)
         window.renderInterestList = function() {
             const listContainer = document.getElementById('interest-list-container');
             if (!listContainer) return;
             
-            listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 연동이 비활성화되어 스크랩된 게시물이 없습니다.</p>`;
+            listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 목록을 표시할 수 없습니다.</p>`;
         }
 
-        // 10. 교육 공유 게시판 (Mock Data 제거)
+        // 10. 교육 공유 게시판 (Mock 데이터 제거)
         window.setupSharingListener = function() {
             const sharedList = document.getElementById('shared-list');
             if(!sharedList) return;
-            sharedList.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 연동이 비활성화되어 공유 게시물이 없습니다. (Mock)</p>`;
+            sharedList.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 게시물이 없습니다 ạ</p>`;
         }
         
         // DUMMY: 인증 및 데이터 로드 시작
         function startDataListeners() {
-            // renderPersonalInfo(); // HTML로 이동하여 제거
             window.fetchAndRenderAnnualPlan(); 
-            // window.setupScheduleListener(); // 기능 없음
             renderCalendar();
             renderUpcomingTrainingList(); 
         }
@@ -410,7 +440,8 @@
 
             document.querySelectorAll('.main-content-section').forEach(section => {
                 section.classList.remove('active');
-            });
+            }
+            );
 
             const activeSection = document.getElementById(contentId);
             if (activeSection) {
@@ -429,8 +460,7 @@
             }
             if (contentId === 'interest-list-section') { 
                 window.renderInterestList(); 
-                renderKeywordList(); 
-                document.getElementById('team-status-display').innerHTML = `<p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 연동이 비활성화되어 표시되지 않습니다.</p>`;
+                document.getElementById('team-status-display').innerHTML = `<p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 비활성화되어 표시되지 않습니다.</p>`;
             }
             if (contentId === 'sharing-board-section') {
                 window.setupSharingListener(); 
@@ -442,7 +472,7 @@
         
         // --- 초기화 및 시작 ---
         window.onload = () => {
-            document.getElementById('auth-status').textContent = 'Mock Data 비활성화됨';
+            // [요청 1 반영] 데이터 로직 제거됨 주석 삭제
             document.getElementById('loading-indicator').classList.add('hidden');
             startDataListeners();
             window.switchMainContent('personal-info-section'); 
@@ -454,8 +484,10 @@
         }
     </script>
 
+    <!-- Global Message Box -->
     <div id="message-box" class="fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-transform transform translate-x-full bg-blue-500"></div>
 
+    <!-- 금년도 교육계획 작성 모달 (DUMMY SUBMIT) -->
     <div id="annual-plan-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
             <form onsubmit="window.saveAnnualPlan(event)" class="p-6 bg-white rounded-xl space-y-4">
@@ -467,7 +499,7 @@
                 </div>
                 <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
                     <p class="font-semibold">⚠️ 기능 비활성화</p>
-                    <p>데이터 연동이 제거되어 이 양식은 작동하지 않습니다.</p>
+                    <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
                 </div>
                 <div>
                     <label for="plan-title" class="block text-sm font-medium text-gray-700 mb-1">계획 제목</label>
@@ -475,12 +507,12 @@
                 </div>
                 <div>
                     <label for="course-details" class="block text-sm font-medium text-gray-700 mb-1">세부 교육 과정 및 목표 (팀장 승인용)</label>
-                    <textarea id="course-details" name="course-details" placeholder="1. 필수 교육: 정보보안(4h) 2. 직무 교육: Kubernetes 마스터링 (20h) 3. 목표: 프로젝트 X에 K8S 도입" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required disabled></textarea>
+                    <textarea id="course-details" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required disabled></textarea>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" onclick="closeModal('annual-plan-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
                     <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
-                        ${getIconSVG('Check', 'w-4 h-4 mr-1')} 승인 요청 (Mock)
+                        ${getIconSVG('Check', 'w-4 h-4 mr-1')} 승인 요청 (비활성화)
                     </button>
                 </div>
             </form>
@@ -488,8 +520,10 @@
         </div>
     </div>
 
+    <!-- NEW MODAL 1: 개인 일정 추가 모달 (DUMMY SUBMIT) -->
     <div id="schedule-add-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <!-- ********** 수정: form 비활성화 ********** -->
             <form onsubmit="window.saveUserSchedule(event)" class="p-6 bg-white rounded-xl space-y-4">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h3 class="text-xl font-bold text-teal-700">개인 일정 추가</h3>
@@ -499,7 +533,7 @@
                 </div>
                 <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
                     <p class="font-semibold">⚠️ 기능 비활성화</p>
-                    <p>데이터 연동이 제거되어 이 양식은 작동하지 않습니다.</p>
+                    <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
                 </div>
                 <div>
                     <label for="schedule-title" class="block text-sm font-medium text-gray-700 mb-1">일정 제목</label>
@@ -509,15 +543,25 @@
                     <label for="schedule-date" class="block text-sm font-medium text-gray-700 mb-1">날짜</label>
                     <input id="schedule-date" type="date" name="schedule-date" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required disabled>
                 </div>
+                <!-- ********** NEW: 일정 유형 선택 필드 추가 ********** -->
+                <div>
+                    <label for="schedule-type" class="block text-sm font-medium text-gray-700 mb-1">일정 유형</label>
+                    <select id="schedule-type" name="schedule-type" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required disabled>
+                        <option value="meeting">회의/행사 (파랑)</option>
+                        <option value="training">교육/워크숍 (초록)</option>
+                        <option value="vacation">휴가/자리비움 (빨강)</option>
+                    </select>
+                </div>
                 <div class="flex justify-end space-x-3 pt-2">
                     <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> 저장 (Mock)
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> 저장 (비활성화)
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- NEW MODAL 2: 일별 상세 일정 모달 (DUMMY DELETE) -->
     <div id="day-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
             <div class="p-6 bg-white rounded-xl space-y-4">
@@ -527,13 +571,15 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
                     </button>
                 </div>
+                <!-- ********** 일정 목록 표시 (삭제 버튼 포함) ********** -->
                 <ul id="day-event-list" class="space-y-3">
-                    <p class="text-center text-gray-500 p-4">⚠️ 데이터 연동이 비활성화되어 일정을 표시할 수 없습니다.</p>
+                    <p class="text-center text-gray-500 p-4">등록된 일정이 없습니다. (데이터 로직 제거됨)</p>
                 </ul>
             </div>
         </div>
     </div>
     
+    <!-- NEW MODAL 3: 교육 상세 및 개인 메모 모달 (DUMMY SUBMIT) -->
     <div id="training-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
             <form onsubmit="window.saveTrainingComment(event)" class="p-6 bg-white rounded-xl space-y-4">
@@ -545,14 +591,17 @@
                     </button>
                 </div>
                 
+                <!-- 교육 상세 내용 + 첨부 파일 현황 -->
                 <div id="detail-content-body" class="mb-6 p-4 border border-gray-200 rounded-lg">
                     <p class="text-red-500 font-bold">데이터 연동 비활성화로 교육 상세 정보가 로드되지 않습니다.</p>
                 </div>
 
+                <!-- 개인 메모 / 코멘트 섹션 -->
                 <div class="pt-4 border-t border-gray-100">
                     <label for="detail-user-comment" class="block text-lg font-semibold text-gray-700 mb-2">나의 개인 메모 / 후기</label>
                     <textarea id="detail-user-comment" rows="4" placeholder="교육 이수 소감, 적용 계획, 개인적인 코멘트 등을 작성하세요. (저장 기능 비활성화)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" disabled></textarea>
                     
+                    <!-- NEW: 첨부 파일 입력 필드 -->
                     <div class="mt-4">
                         <label for="detail-attachment" class="block text-sm font-semibold text-gray-700 mb-1">첨부 파일 선택 (파일명만 저장됨)</label>
                         <input type="file" id="detail-attachment" name="detail-attachment" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled/>
@@ -560,7 +609,7 @@
 
                     <div class="flex justify-end pt-4">
                         <button type="submit" id="comment-save-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
-                            ${getIconSVG('Check', 'w-4 h-4 mr-1')} 메모 저장 (Mock)
+                            ${getIconSVG('Check', 'w-4 h-4 mr-1')} 메모 저장 (비활성화)
                         </button>
                     </div>
                 </div>
@@ -572,10 +621,12 @@
 
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
         
+        <!-- Column 1 (lg:col-span-1): 사이드바/네비게이션 (개인 정보 상세 포함) -->
         <aside class="lg:col-span-1 space-y-6">
             <header class="p-4 bg-white rounded-xl shadow-lg border-t-4 border-indigo-500">
-                <h1 class="text-2xl font-extrabold text-indigo-700">개인 플랫폼</h1>
-                <p id="auth-status" class="text-xs text-gray-600 mt-1">Mock Data 비활성화됨</p>
+                <!-- [요청 1 반영] 개인 플랫폼 -> 마이 페이지 -->
+                <h1 class="text-2xl font-extrabold text-indigo-700">마이 페이지</h1>
+                <!-- [요청 1 반영] 데이터 로직 제거됨 주석 삭제 -->
                 <div id="loading-indicator" class="mt-2 text-indigo-500 font-semibold flex items-center hidden">
                     <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -585,44 +636,52 @@
                 </div>
             </header>
 
+            <!-- 개인 프로필 -->
             <div class="bg-white p-4 rounded-xl shadow-lg border-t-4 border-teal-500">
                 <h3 class="text-lg font-bold text-teal-700 mb-3 border-b pb-2 flex items-center">
-                    ${getIconSVG('User', 'w-5 h-5 mr-2')} 개인 프로필
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    개인 프로필
                 </h3>
-                <div id="personal-info-display" class="p-4 border border-teal-200 bg-teal-50 rounded-lg space-y-1 text-sm">
-                    <div class="grid grid-cols-2 gap-y-4 gap-x-4 text-sm">
+                <!-- [요청 반영] 항목 간격(gap-y-3 -> gap-y-5) 및 패딩(p-4 -> p-5) 증가 -->
+                <div id="personal-info-display" class="p-5 border border-teal-200 bg-teal-50 rounded-lg space-y-1 text-sm">
+                    <div class="grid grid-cols-2 gap-y-5 gap-x-4 text-sm">
                         <div class="col-span-1 flex flex-col">
                             <strong class="text-xs font-semibold text-gray-500">이름:</strong>
-                            <span class="font-semibold text-gray-800">김민수 (Mock)</span>
+                            <span class="font-semibold text-gray-800">-</span>
                         </div>
                         <div class="col-span-1 flex flex-col">
                             <strong class="text-xs font-semibold text-gray-500">사번:</strong>
-                            <span class="text-gray-800">98765432</span>
+                            <span class="text-gray-800">-</span>
                         </div>
                         <div class="col-span-2 flex flex-col">
                             <strong class="text-xs font-semibold text-gray-500">부서:</strong>
-                            <span class="text-gray-800">기술 연구소 / 인공지능 개발팀</span>
+                            <span class="text-gray-800">-</span>
                         </div>
                         <div class="col-span-1 flex flex-col">
                             <strong class="text-xs font-semibold text-gray-500">직책:</strong>
-                            <span class="text-gray-800">선임 연구원</span>
+                            <span class="text-gray-800">-</span>
                         </div>
                         <div class="col-span-1 flex flex-col">
                             <strong class="text-xs font-semibold text-gray-500">이메일:</strong>
-                            <span class="text-gray-800 break-all">minsu.kim@company.com</span>
+                            <span class="text-gray-800 break-all">-</span>
                         </div>
-                        <p class="col-span-2 text-xs text-red-500 pt-2 border-t border-red-200">⚠️ 이 정보는 더미 데이터입니다.</p>
                     </div>
+                    <p class="col-span-2 text-xs text-red-500 pt-2 border-t border-red-200">⚠️ 구글 시트 연동이 필요합니다.</p>
                 </div>
             </div>
-            <nav id="sidebar-nav" class="bg-white p-2 rounded-xl shadow-lg space-y-1">
+            <!-- 개인 정보 상세 섹션 끝 -->
+
+            <!-- Navigation Buttons -->
+            <!-- [요청 반영] 높이 고정 유지 -->
+            <nav id="sidebar-nav" class="bg-white p-2 rounded-xl shadow-lg space-y-1 h-80">
                 <h3 class="text-sm font-semibold text-gray-500 px-3 pt-2 pb-1">메인 메뉴</h3>
                 <button 
                     data-content="personal-info-section" 
                     onclick="switchMainContent('personal-info-section')" 
                     class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150 active bg-indigo-100 text-indigo-700 font-bold"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 대시보드 (캘린더/계획)
+                    <!-- [요청 3 반영] 대시보드 (캘린더/계획) -> 금년도 교육 현황 -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 금년도 교육 현황
                 </button>
                 <button 
                     data-content="individual-history-section" 
@@ -655,55 +714,91 @@
             </nav>
         </aside>
 
+        <!-- Column 2 (lg:col-span-3): 메인 컨텐츠 영역 -->
         <main class="lg:col-span-3 space-y-8">
 
-            <div id="personal-info-section" class="main-content-section bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-500 active space-y-8 min-h-[70vh]">
-                <h2 class="text-2xl font-bold text-gray-700 mb-4">대시보드: 개인 계획 및 일정</h2>
+            <!-- 1. 대시보드 (개인 계획 및 일정) 섹션 -->
+            <div id="personal-info-section" class="main-content-section bg-white p-4 rounded-xl shadow-lg border-t-4 border-indigo-500 active space-y-2">
+                <h2 class="text-2xl font-bold text-gray-700 mb-2">대시보드: 개인 계획 및 일정</h2>
                 
-                <div class="flex flex-col md:flex-row md:space-x-8 space-y-6 md:space-y-0 pb-6 border-b border-gray-200">
+                <!-- 1. 상단 행 정렬 그룹: 개인 프로필 박스와 수평 정렬 -->
+                <!-- 캘린더/일정 블록을 상단으로 올리고, 왼쪽 '마이 페이지' 헤더 높이만큼 마진을 주어 '개인 프로필' 헤더와 정렬되도록 합니다. -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[300px]">
+                    <!-- Upcoming List (1/3) -->
+                    <div class="lg:col-span-1 bg-gray-50 p-2 rounded-xl border border-indigo-200 shadow-md h-full flex flex-col">
+                        <h4 class="text-lg font-bold text-indigo-700 mb-3 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> 
+                            가장 가까운 일정 (최대 5개)
+                        </h4>
+                        <!-- ********** 내부 목록 max-h-full 적용 ********** -->
+                        <div id="upcoming-list-container" class="space-y-3 db-scroll-area overflow-y-auto flex-grow">
+                            <p class="text-gray-500">데이터 로직이 제거되어 일정을 표시할 수 없습니다.</p>
+                        </div>
+                    </div>
+                    <!-- Calendar (2/3) -->
+                    <div class="lg:col-span-2 bg-white p-2 rounded-xl shadow-md border border-indigo-200 h-full flex flex-col">
+                        <div class="flex justify-between items-center mb-1">
+                            <h4 class="text-lg font-bold text-indigo-700">캘린더</h4>
+                            <button onclick="openModal('schedule-add-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
+                                + 개인 일정 추가 (비활성화)
+                            </button>
+                        </div>
+                        <div id="calendar-container" class="select-none flex-grow">
+                            <!-- Calendar will be generated here -->
+                            <p class="text-center text-gray-500 p-8">캘린더 로드 중...</p>
+                        </div>
+                        <!-- NEW: 캘린더 범례는 유지 -->
+                        <div class="flex space-x-4 justify-end text-xs text-gray-600 pt-2 border-t mt-auto">
+                            <span class="flex items-center"><span class="schedule-dot schedule-meeting mr-1"></span>회의/행사</span>
+                            <span class="flex items-center"><span class="schedule-dot schedule-training mr-1"></span>교육/워크숍</span>
+                            <span class="flex items-center"><span class="schedule-dot schedule-vacation mr-1"></span>휴가/자리비움</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 캘린더 및 일정 목록 END -->
+
+                <!-- 2. 하단 행 정렬 그룹: 메인 메뉴 박스 헤더와 수평 정렬 -->
+                <div class="flex flex-col md:flex-row md:space-x-8 space-y-2 md:space-y-0">
                     
+                    <!-- 서브 섹션 2: 연간 교육 계획 (2/3 너비) - 첫 번째로 배치 -->
+                    <div class="w-full md:w-2/3"> 
+                        <h3 class="text-xl font-semibold text-gray-700 mb-2 border-b pb-2">금년도 교육 계획</h3>
+                        <div id="annual-plan-display">
+                            <!-- ********** h-80 적용 (유지) ********** -->
+                            <div class="p-4 bg-white border border-indigo-300 rounded-xl shadow-inner space-y-2 h-80 flex flex-col justify-between">
+                                <p class="text-xs font-semibold text-gray-500">나의 금년도 교육 계획</p>
+                                <div class="flex justify-between items-start">
+                                    <p class="text-lg font-bold text-gray-500 truncate pr-4">데이터 로드 불가</p>
+                                    <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-500 text-white flex-shrink-0">비활성화</span>
+                                </div>
+                                <p class="text-sm text-gray-600 whitespace-pre-wrap max-h-16 overflow-hidden border-l-2 pl-2 border-gray-200">데이터 연동 로직이 제거되어 내용을 불러올 수 없습니다. 새로운 계획을 작성해도 저장되지 않습니다.</p>
+                                <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                    <span>작성일: -</span>
+                                    <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
+                                        ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 
+                                        계획 작성하기 (비활성화)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 서브 섹션 1: 교육 달성률 요약 (1/3 너비) - 두 번째로 배치 -->
                     <div class="w-full md:w-1/3"> 
-                        <h3 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">교육 달성률 요약</h3>
-                        <div id="achievement-summary-display" class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-2 border-b pb-2">교육 달성률 요약</h3>
+                        <!-- ********** h-60 적용 (축소 유지) ********** -->
+                        <div id="achievement-summary-display" class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg h-60">
                             <p class="text-gray-500">데이터 로드 중...</p>
                         </div>
                     </div>
 
-                    <div class="w-full md:w-2/3"> 
-                        <h3 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">금년도 교육 계획</h3>
-                        <div id="annual-plan-display">
-                            <p class="text-gray-500 p-4">교육 계획 로드 중...</p>
-                        </div>
-                    </div>
                 </div>
-                
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-700 mb-4">다가오는 교육 및 개인 일정</h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-1 bg-gray-50 p-4 rounded-xl border border-indigo-200 shadow-md">
-                            <h4 class="text-lg font-bold text-indigo-700 mb-3 flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> 
-                                가장 가까운 일정 (최대 5개)
-                            </h4>
-                            <div id="upcoming-list-container" class="space-y-3 db-scroll-area max-h-64 overflow-y-auto">
-                                <p class="text-gray-500">데이터 연동 비활성화됨.</p>
-                            </div>
-                        </div>
-                        <div class="lg:col-span-2 bg-white p-4 rounded-xl shadow-md border border-indigo-200">
-                            <div class="flex justify-between items-center mb-3">
-                                <h4 class="text-lg font-bold text-indigo-700">캘린더</h4>
-                                <button onclick="openModal('schedule-add-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition duration-150 shadow-md flex items-center">
-                                    + 개인 일정 추가 (Mock)
-                                </button>
-                            </div>
-                            <div id="calendar-container" class="select-none">
-                                <p class="text-center text-gray-500 p-8">캘린더 로드 중...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- 교육 달성률 요약 & 연간 계획 END -->
+
+
             </div>
 
+            <!-- 2. 교육 이수 이력 섹션 (기존 교육 현황 + 목록) -->
             <div id="individual-history-section" class="main-content-section">
                 <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-600 min-h-[400px]">
                     
@@ -711,6 +806,7 @@
                         <h2 class="text-2xl font-bold text-gray-700">교육 이수 이력</h2>
                     </div>
                     
+                    <!-- NEW: 필터링 UI 재배치 -->
                     <div class="flex space-x-4 mb-4 items-center">
                         <h3 class="text-lg font-semibold text-gray-600">상세 이력 목록</h3>
                         <select id="type-filter" onchange="applyTrainingFilters()" class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" disabled>
@@ -729,11 +825,12 @@
                     </div>
 
                     <ul id="individual-history-list" class="space-y-2 max-h-96 overflow-y-auto pr-2 border border-gray-200 rounded-lg p-2 bg-white db-scroll-area">
-                        <p class="text-red-500 p-2 font-semibold">⚠️ 데이터 연동이 비활성화되어 이수 내역을 표시할 수 없습니다.</p>
+                        <p class="text-red-500 p-2 font-semibold">⚠️ 데이터 로직이 제거되어 이수 내역을 표시할 수 없습니다.</p>
                     </ul>
                 </div>
             </div>
 
+            <!-- 3. 관심 교육 리스트 섹션 -->
             <div id="interest-list-section" class="main-content-section">
                 <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 min-h-[250px]">
                     <h2 class="text-2xl font-bold text-gray-700 mb-6">저장 목록</h2>
@@ -743,38 +840,40 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-blue-500 fill-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> 관심 교육 키워드 (팀/사업부)
                         </h3>
                         <div id="keyword-list-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                            <p class="text-center text-gray-500 col-span-full p-4">⚠️ 데이터 연동이 비활성화되어 키워드 목록을 표시할 수 없습니다.</p>
+                            <p class="text-center text-gray-500 col-span-full p-4">⚠️ 데이터 로직이 제거되어 키워드 목록을 표시할 수 없습니다.</p>
                         </div>
                     </div>
                     
                     <div class="p-4 border border-blue-200 rounded-lg space-y-4 bg-gray-50">
                         <div id="team-status-display" class="p-2 border-b border-blue-200">
                             <h3 class="text-xl font-bold text-blue-700 mb-2">팀 교육 현황 (목표 대비 진척도)</h3>
-                            <p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 연동이 비활성화되어 표시되지 않습니다.</p>
+                            <p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 비활성화되어 표시되지 않습니다.</p>
                             <p class="text-xs text-gray-500 mt-3">이 항목은 ERP/팀별 데이터 연동이 완료되면 팀원 전체의 평균 달성률을 보여줄 예정입니다.</p>
                         </div>
                         
                         <div class="pt-2">
                             <h3 class="text-xl font-bold text-indigo-700 mb-2">나의 스크랩 목록</h3>
-                            <ul id="interest-list-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 db-scroll-area border border-indigo-300 rounded-lg p-2 bg-white">
-                                <p class="text-center text-red-500 p-4">⚠️ 데이터 연동이 비활성화되어 관심 목록을 표시할 수 없습니다.</p>
+                            <ul id="interest-list-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 db-scroll-area">
+                                <p class="text-center text-red-500 p-4">⚠️ 데이터 로직이 제거되어 목록을 표시할 수 없습니다.</p>
                             </ul>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- 4. 교육 공유 게시판 섹션 -->
             <div id="sharing-board-section" class="main-content-section">
                 <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-teal-500">
                     <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
-                        교육 공유 게시판 (Mock 데이터)
+                        교육 공유 게시판 (비활성화)
                     </h2>
 
+                    <!-- Sharing Form (공유 양식) -->
                     <form id="sharing-form" class="p-4 bg-teal-50 border border-teal-200 rounded-lg shadow-inner mb-6 space-y-3">
-                        <h3 class="text-lg font-bold text-teal-800">새로운 교육 정보 공유하기 (Mock)</h3>
+                        <h3 class="text-lg font-bold text-teal-800">새로운 교육 정보 공유하기 (비활성화)</h3>
                         <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
                             <p class="font-semibold">⚠️ 기능 비활성화</p>
-                            <p>데이터 연동이 제거되어 이 양식은 작동하지 않습니다.</p>
+                            <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
                         </div>
                         <div>
                             <label for="title" class="block text-sm font-medium text-teal-700">제목 (교육/자료 명)</label>
@@ -784,23 +883,25 @@
                             <label for="content" class="block text-sm font-medium text-teal-700">내용 (간단한 설명/링크)</label>
                             <textarea id="content" rows="3" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500" disabled></textarea>
                         </div>
-                        <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition duration-150 ease-in-out" disabled>
-                            정보 공유하기 (Mock)
+                        <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 transition duration-150 ease-in-out" disabled>
+                            정보 공유하기 (비활성화)
                         </button>
                     </form>
 
+                    <!-- Shared List (공유 리스트) -->
                     <div id="shared-list" class="space-y-4 max-h-96 overflow-y-auto pr-2 db-scroll-area">
-                        <p class="text-center text-red-500 p-4">⚠️ 게시판 기능이 비활성화되었습니다. (데이터 연동 없음)</p>
+                        <p class="text-center text-red-500 p-4">⚠️ 게시판 기능이 비활성화되었습니다. (데이터 로직 제거됨)</p>
                     </div>
                 </div>
             </div>
             
+            <!-- 5. 문의/작성 이력 섹션 -->
             <div id="inquiry-section" class="main-content-section">
                 <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-amber-500 min-h-[250px]">
                     <h2 class="text-2xl font-bold text-gray-700 mb-4">문의 / 작성 이력</h2>
                     <h3 class="text-lg font-semibold text-gray-600 mb-3">개인 활동 내역</h3>
                     <ul id="inquiry-history-list" class="space-y-3 max-h-96 overflow-y-auto pr-2 db-scroll-area">
-                        <p class="text-center text-gray-500 p-4">⚠️ 데이터 연동이 비활성화되어 이력을 표시할 수 없습니다.</p>
+                        <p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 이력을 표시할 수 없습니다.</p>
                     </ul>
                 </div>
             </div>
