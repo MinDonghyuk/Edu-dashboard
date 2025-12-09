@@ -51,7 +51,21 @@
 
         // ▲▲▲▲▲▲ 설정 끝 ▲▲▲▲▲▲
 
-        function handleLogin(e) {
+        // 지수 백오프를 포함하는 fetch 함수
+        async function fetchWithRetry(url, options, maxRetries = 3) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error; // 마지막 시도에서 실패하면 던짐
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function handleLogin(e) {
             e.preventDefault();
             
             const name = document.getElementById('inputName').value.trim();
@@ -69,21 +83,32 @@
 
             // 2. Google Apps Script로 데이터 전송 (POST)
             
-            // [수정된 부분]: 폼 데이터 형식(URLSearchParams)을 사용하여 데이터 전송
             const formData = new URLSearchParams();
             formData.append('userName', name);
             formData.append('userUid', uid);
 
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                // Apps Script의 e.parameter와 호환되도록 Content-Type 설정
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                body: formData.toString() // 폼 데이터 문자열을 본문에 담아 전송
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetchWithRetry(SCRIPT_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: formData.toString()
+                });
+
+                // 응답이 성공적이지 않으면 (예: 4xx, 5xx 에러)
+                if (!response.ok) {
+                    // 응답 본문을 텍스트로 읽어 오류 메시지로 사용 (GAS 오류 페이지 등)
+                    const errorText = await response.text();
+                    console.error("Server responded with error status:", response.status, errorText);
+                    // HTML 태그를 제거하고 첫 200자만 표시하도록 메시지 처리
+                    const cleanText = errorText.replace(/<[^>]*>?/gm, ' ').trim();
+                    throw new Error(`서버 오류 (HTTP ${response.status}): Apps Script 응답이 JSON 형식이 아닙니다. 응답 내용: ${cleanText.substring(0, 200)}...`);
+                }
+
+                // 응답을 JSON으로 파싱 시도
+                const data = await response.json();
+                
                 console.log("서버 응답 데이터:", data);
 
                 // 3. 결과 처리
@@ -100,17 +125,22 @@
                     const failMsg = data.message || "로그인에 실패했습니다.";
                     throw new Error(failMsg);
                 }
-            })
-            .catch(error => {
+
+            } catch (error) {
                 console.error("Login Error:", error);
                 msgBox.className = "mt-4 text-center text-sm font-medium text-red-600 block bg-red-50 p-3 rounded-lg";
                 
-                const errorText = error.message.replace(/\n/g, "<br>");
+                // 오류 메시지에 "JSON 파싱 오류" 대신 상세 정보가 나오도록 처리
+                let errorText = error.message.replace(/\n/g, "<br>");
+                if (error.message.includes("JSON 파싱 오류")) {
+                    errorText = "<b>[JSON 파싱 오류]</b> Apps Script 서버 응답을 확인하세요. (배포 권한 오류일 수 있음)";
+                }
+
                 msgBox.innerHTML = `⚠️ <b>로그인 실패</b><br>${errorText}`;
                 
                 btn.disabled = false;
                 btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            });
+            }
         }
     </script>
 </body>
