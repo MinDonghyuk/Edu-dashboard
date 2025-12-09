@@ -45,23 +45,36 @@
         // Google Apps Script 배포 URL (exec로 끝나는지 확인)
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwU2V26MIQzI90nAs1T0z-1chcpd6448L6QEZci6Kpts6GVyyaFMkVledprKZkneqUj/exec";
         
-        // ********** 로그인 정보 가져오기 (localStorage 연동) **********
-        // Login.html 또는 Community 등 이전 페이지에서 저장한 값 활용
-        let LOGIN_USER_UID = localStorage.getItem('userUid');
-        let LOGIN_USER_NAME = localStorage.getItem('userName');
+        // ********** 로그인 정보 가져오기 (localStorage 및 URL 연동 강화) **********
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // 1. URL 파라미터에서 우선 탐색
+        let LOGIN_USER_UID = urlParams.get('userUid') || urlParams.get('uid');
+        let LOGIN_USER_NAME = urlParams.get('userName') || urlParams.get('name');
 
-        // URL 파라미터 백업 (localStorage에 없을 경우 대비)
-        if (!LOGIN_USER_UID) {
-            const urlParams = new URLSearchParams(window.location.search);
-            LOGIN_USER_UID = urlParams.get('userUid');
-            // URL에만 있고 LocalStorage에 없으면 저장해둠 (편의성)
-            if (LOGIN_USER_UID) localStorage.setItem('userUid', LOGIN_USER_UID);
+        // 2. URL에 정보가 부족하면 LocalStorage 탐색
+        if (!LOGIN_USER_UID || !LOGIN_USER_NAME) {
+            // 2-1. 'edu_user_session' (Community 페이지 방식) 확인 - 최우선
+            const sessionData = localStorage.getItem('edu_user_session');
+            if (sessionData) {
+                try {
+                    const parsed = JSON.parse(sessionData);
+                    if (!LOGIN_USER_UID) LOGIN_USER_UID = parsed.uid;
+                    if (!LOGIN_USER_NAME) LOGIN_USER_NAME = parsed.name;
+                    console.log("세션 복구됨 (edu_user_session):", LOGIN_USER_NAME);
+                } catch (e) {
+                    console.error("세션 파싱 오류:", e);
+                }
+            }
+
+            // 2-2. 그래도 없으면 기존 'userUid', 'userName' 키 확인 (Login 페이지 구버전 방식)
+            if (!LOGIN_USER_UID) LOGIN_USER_UID = localStorage.getItem('userUid');
+            if (!LOGIN_USER_NAME) LOGIN_USER_NAME = localStorage.getItem('userName');
         }
-        if (!LOGIN_USER_NAME) {
-            const urlParams = new URLSearchParams(window.location.search);
-            LOGIN_USER_NAME = urlParams.get('userName');
-            if (LOGIN_USER_NAME) localStorage.setItem('userName', LOGIN_USER_NAME);
-        }
+
+        // 3. 확보된 정보 재저장 (페이지 새로고침 시 유지용)
+        if (LOGIN_USER_UID) localStorage.setItem('userUid', LOGIN_USER_UID);
+        if (LOGIN_USER_NAME) localStorage.setItem('userName', LOGIN_USER_NAME);
 
         console.log("Current User:", LOGIN_USER_NAME, "(", LOGIN_USER_UID, ")");
 
