@@ -509,7 +509,7 @@
       listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
     }
     
-    // --- 연간 교육 계획 모달 렌더링 함수 (원복) ---
+    // --- 연간 계획 모달 렌더링 함수 (원복) ---
     window.renderAnnualPlan = function() {
       const listContainer = document.getElementById('annual-plan-list');
       if (!listContainer) return;
@@ -520,19 +520,13 @@
     const userInfoFields = ['employeeId', 'name', 'email', 'department', 'position'];
     
     function updateSidebarUserId(urlName, urlUid) {
+      // 이 함수는 더 이상 DOM을 직접 조작하지 않고, currentUserInfo만 업데이트합니다.
+      // 실제 렌더링은 createSidebarAndMovedCards에서 처리합니다.
       const displayName = urlName || '게스트';
       const displayUid = urlUid || '-';
 
       currentUserInfo.name = displayName;
       currentUserInfo.uid = displayUid;
-
-      // 기본 정보(사번, 이름) 먼저 세팅
-      const elId = document.getElementById('info-employeeId');
-      const elName = document.getElementById('info-name');
-      if(elId) elId.textContent = displayUid;
-      if(elName) elName.textContent = displayName;
-
-      updateProgressBars({ goal: 0, actual: 0, mandatoryExternal: 0 });
     }
 
     // --- 프로그레스 바 업데이트 함수 ---
@@ -692,10 +686,12 @@
       // 데이터가 없으므로 빈 리스트 표시
       const historyItems = '<li class="text-center text-gray-400 py-2">이력이 없습니다.</li>';
       
-      // 마이페이지 URL 생성 (현재 사용자 정보 포함)
-      const myPageUrl = `mypage.html?name=${encodeURIComponent(currentUserInfo.name)}&uid=${encodeURIComponent(currentUserInfo.uid)}`;
+      // ★ 중요: 마이페이지 URL 생성 (현재 사용자 정보 포함)
+      // MainPage.html로 연결하며 userUid와 userName 파라미터를 넘깁니다.
+      const myPageUrl = `MainPage.html?userUid=${encodeURIComponent(currentUserInfo.uid)}&userName=${encodeURIComponent(currentUserInfo.name)}`;
 
       if (sidebarContainer) {
+        // ★ 중요: currentUserInfo 변수를 템플릿 리터럴로 직접 주입하여 HTML 생성
         sidebarContainer.innerHTML = `
           <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-cyan-500" id="related-sites-card">
             <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${ICONS.Globe} 관련 사이트</h3>
@@ -715,11 +711,12 @@
             </div>
             <div class="space-y-4">
               <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사번</label><p id="info-employeeId" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이름</label><p id="info-name" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
-                <div class="col-span-2"><label class="block text-xs font-medium text-gray-500">이메일</label><p id="info-email" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">부서명</label><p id="info-department" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">직책</label><p id="info-position" class="text-sm text-gray-900 font-semibold truncate">-</p></div>
+                <!-- 여기에 변수값 직접 주입 -->
+                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사번</label><p id="info-employeeId" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.uid}</p></div>
+                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이름</label><p id="info-name" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.name}</p></div>
+                <div class="col-span-2"><label class="block text-xs font-medium text-gray-500">이메일</label><p id="info-email" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.email}</p></div>
+                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">부서명</label><p id="info-department" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.dept}</p></div>
+                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">직책</label><p id="info-position" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.pos}</p></div>
               </div>
               <div class="border-t pt-4 mt-4">
                 <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">${ICONS.Calendar} 다가오는 교육 일정</h4>
@@ -766,7 +763,7 @@
       let nameFromUrl = params.get('userName') || params.get('name');
       let uidFromUrl = params.get('userUid') || params.get('uid');
 
-      // ★ [수정됨] URL 파라미터가 없으면 로컬 스토리지 확인
+      // ★ [수정됨] URL 파라미터가 없으면 로컬 스토리지 확인 (edu_user_session 우선)
       if (!nameFromUrl || !uidFromUrl) {
         const savedSession = localStorage.getItem('edu_user_session');
         if (savedSession) {
@@ -774,30 +771,25 @@
             const parsedSession = JSON.parse(savedSession);
             nameFromUrl = parsedSession.name;
             uidFromUrl = parsedSession.uid;
-            console.log("세션 복구됨:", nameFromUrl);
+            console.log("세션 복구됨 (storage):", nameFromUrl);
           } catch (e) {
             console.error("세션 파싱 오류", e);
           }
-        } else {
-            // 만약 로그인이 필수라면 여기서 index.html로 리다이렉트 할 수 있습니다.
-            // window.location.href = 'index.html';
         }
       }
 
-      // 사이드바 UI 생성 (이 시점에는 데이터가 있거나 게스트 상태)
-      // updateSidebarUserId 안에서 전역 변수 currentUserInfo가 업데이트 됨
+      // 사이드바 UI 생성 로직 (순서 중요)
+      // 1. currentUserInfo 전역 변수 업데이트
       if (nameFromUrl) {
           updateSidebarUserId(nameFromUrl, uidFromUrl);
       } else {
           updateSidebarUserId(null, null); // 게스트 처리
       }
       
-      // ★ 사이드바 다시 그리기 (마이페이지 링크에 정보가 반영되도록)
-      // 위에서 updateSidebarUserId를 호출했지만, createSidebarAndMovedCards는 그 안에서 호출되지 않고
-      // currentUserInfo만 업데이트 하므로, UI 반영을 위해 명시적으로 호출합니다.
+      // 2. ★ 사이드바 그리기 (이때 currentUserInfo의 값을 사용하여 HTML 생성)
       createSidebarAndMovedCards();
 
-      // ★ 추가정보(이메일,부서,직책) 스프레드시트에서 가져오기 (GET)
+      // 3. ★ 추가정보(이메일,부서,직책) 스프레드시트에서 가져오기 (GET)
       if (uidFromUrl) {
         await fetchUserInfoFromSheet(uidFromUrl);
       }
