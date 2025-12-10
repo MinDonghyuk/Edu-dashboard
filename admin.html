@@ -34,7 +34,6 @@
         const { useState, useEffect } = React;
 
         // --- 아이콘 래퍼 컴포넌트 ---
-        // React Component가 아닌 문자열 이름으로 아이콘을 렌더링하기 위한 헬퍼입니다.
         const Icon = ({ name, size = 20, className = "" }) => {
             useEffect(() => {
                 if (window.lucide) {
@@ -45,7 +44,7 @@
             return <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-block' }}></i>;
         };
 
-        // --- Mock Data (아이콘을 문자열로 변경) ---
+        // --- Mock Data ---
         const STATS = [
             { title: '전체 구성원', value: '162명', change: '참여율 98%', icon: 'users', color: 'text-blue-600', bg: 'bg-blue-100' },
             { title: '평균 목표 달성률', value: '78.5%', change: '+12.4%', icon: 'target', color: 'text-emerald-600', bg: 'bg-emerald-100' },
@@ -80,12 +79,6 @@
             { id: 3, name: '박지성', email: 'jisung@example.com', role: '본부장', status: 'Inactive', date: '2023-10-24' },
             { id: 4, name: '최민아', email: 'mina@example.com', role: 'CEO/총괄', status: 'Active', date: '2023-10-23' },
             { id: 5, name: '정우성', email: 'woosung@example.com', role: '관리자', status: 'Active', date: '2023-10-22' },
-        ];
-
-        const COURSES = [
-            { id: 1, title: 'React 기초 마스터', instructor: '이영희', students: 120, status: 'Published', rating: 4.8 },
-            { id: 2, title: '파이썬 데이터 분석', instructor: '정우성', students: 85, status: 'Published', rating: 4.6 },
-            { id: 3, title: 'UI/UX 디자인 입문', instructor: '강동원', students: 0, status: 'Draft', rating: 0.0 },
         ];
 
         const COMMUNITY_POSTS = [
@@ -156,10 +149,23 @@
                 Draft: 'bg-yellow-100 text-yellow-800',
                 published: 'bg-blue-100 text-blue-800',
                 draft: 'bg-yellow-100 text-yellow-800',
+                // New Statuses
+                PENDING: 'bg-yellow-100 text-yellow-800',
+                ADMIN_APPROVED: 'bg-blue-100 text-blue-800',
+                REJECTED: 'bg-red-100 text-red-800',
+                FINAL_APPROVED: 'bg-green-100 text-green-800',
             };
+            
+            const labels = {
+                PENDING: '결재 대기',
+                ADMIN_APPROVED: '팀장 승인 중',
+                REJECTED: '반려됨',
+                FINAL_APPROVED: '최종 승인',
+            };
+
             return (
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-                    {status === 'published' ? '게시됨' : status === 'draft' ? '작성중' : status}
+                    {labels[status] || (status === 'published' ? '게시됨' : status === 'draft' ? '작성중' : status)}
                 </span>
             );
         };
@@ -175,6 +181,9 @@
 
         // --- Main App Component ---
         function App() {
+            // Google Apps Script Web App URL
+            const API_URL = "https://script.google.com/macros/s/AKfycbxOBPklQA0PacUlQRl9nTDHppSaHv0qFuxbmuUdNYnTs1USkUeYTO-iIyXVTRbAn4o5/exec";
+
             const [activeTab, setActiveTab] = useState('dashboard');
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
             const [users, setUsers] = useState(INITIAL_USERS);
@@ -183,6 +192,48 @@
             // Content Management State
             const [selectedContentId, setSelectedContentId] = useState('l1');
             const [contentStructure, setContentStructure] = useState(CONTENT_STRUCTURE);
+
+            // Education Plan Management State
+            const [plans, setPlans] = useState([]); // 초기값 빈 배열로 변경
+            const [selectedPlan, setSelectedPlan] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+
+            // 데이터 포맷팅 및 상태 매핑 헬퍼 함수
+            const mapStatus = (statusText) => {
+                if (statusText === '심사중') return 'ADMIN_APPROVED';
+                if (statusText === '반려') return 'REJECTED';
+                if (statusText === '승인') return 'FINAL_APPROVED'; // 혹시 최종 승인 상태가 있다면
+                return 'PENDING';
+            };
+
+            // 초기 데이터 로딩
+            useEffect(() => {
+                if (activeTab === 'courses') {
+                    setIsLoading(true);
+                    fetch(API_URL)
+                        .then(res => res.json())
+                        .then(response => {
+                            if (response.status === 'success') {
+                                // API 응답 데이터를 UI 구조에 맞게 매핑
+                                const mappedPlans = response.data.map(item => ({
+                                    id: item.id,
+                                    user: item.user,
+                                    empId: item.empId,
+                                    dept: '-', // 시트에 부서 정보가 없다면 기본값 처리
+                                    title: item.title,
+                                    content: item.goal, // '핵심목표'를 상세 내용으로 사용
+                                    date: item.date,
+                                    status: mapStatus(item.status),
+                                    cost: item.cost,
+                                    rejectReason: item.status === '반려' ? '반려됨' : '' // 상세 사유가 시트에 없다면 상태로 표시
+                                }));
+                                setPlans(mappedPlans);
+                            }
+                        })
+                        .catch(err => console.error("Data fetch error:", err))
+                        .finally(() => setIsLoading(false));
+                }
+            }, [activeTab]);
 
             const handleRoleChange = (userId, newRole) => {
                 setUsers(users.map(user => 
@@ -193,7 +244,7 @@
             const navItems = [
                 { id: 'dashboard', label: '교육 성과 대시보드', icon: 'layout-dashboard' },
                 { id: 'users', label: '사용자 관리', icon: 'users' },
-                { id: 'courses', label: '교육 계획 관리', icon: 'book-open' }, // 명칭 변경
+                { id: 'courses', label: '교육 계획 관리', icon: 'book-open' },
                 { id: 'contents', label: '콘텐츠 관리', icon: 'folder-open' },
                 { id: 'community', label: '커뮤니티 관리', icon: 'message-square' },
                 { id: 'settings', label: '설정', icon: 'settings' },
@@ -205,6 +256,45 @@
                 case 'doc': return <Icon name="file-text" size={16} className="text-blue-500" />;
                 case 'quiz': return <Icon name="help-circle" size={16} className="text-amber-500" />;
                 default: return <Icon name="file-text" size={16} className="text-gray-400" />;
+                }
+            };
+
+            // 교육 계획 승인 처리
+            const handleApprovePlan = (id) => {
+                if (confirm('이 교육 계획을 승인하여 팀장에게 전달하시겠습니까?')) {
+                    // 낙관적 업데이트 (화면 먼저 반영)
+                    setPlans(plans.map(plan => 
+                        plan.id === id ? { ...plan, status: 'ADMIN_APPROVED' } : plan
+                    ));
+                    setSelectedPlan(null);
+
+                    // API 전송
+                    fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ id: id, action: 'APPROVE' })
+                    }).catch(err => {
+                        alert('승인 처리 중 오류가 발생했습니다.');
+                        // 에러 발생 시 롤백 로직 등을 추가할 수 있습니다.
+                    });
+                }
+            };
+
+            // 교육 계획 반려 처리
+            const handleRejectPlan = (id) => {
+                const reason = prompt('반려 사유를 입력해주세요 (선택):');
+                if (reason !== null) { // 취소가 아닐 경우
+                    setPlans(plans.map(plan => 
+                        plan.id === id ? { ...plan, status: 'REJECTED', rejectReason: reason } : plan
+                    ));
+                    setSelectedPlan(null);
+
+                    // API 전송
+                    fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ id: id, action: 'REJECT' })
+                    }).catch(err => {
+                        alert('반려 처리 중 오류가 발생했습니다.');
+                    });
                 }
             };
 
@@ -380,40 +470,151 @@
 
                 case 'courses':
                     return (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center">
+                        <>
+                            {/* Header */}
+                            <div className="mb-6">
                                 <h2 className="text-xl font-bold text-gray-900">교육 계획 관리</h2>
-                                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                                + 새 교육 계획 개설
-                                </button>
+                                <p className="text-sm text-gray-500 mt-1">임직원이 제출한 교육 계획서를 검토하고 승인/반려합니다.</p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {COURSES.map((course) => (
-                                <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
-                                <div className="h-32 bg-gray-200 flex items-center justify-center">
-                                    <Icon name="book-open" className="text-gray-400 w-12 h-12" />
-                                </div>
-                                <div className="p-5">
-                                    <div className="flex justify-between items-start mb-2">
-                                    <Badge status={course.status} />
-                                    <div className="flex items-center text-amber-500 text-sm font-medium">
-                                        ★ {course.rating}
+
+                            {/* Plans List Table */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                {isLoading ? (
+                                    <div className="p-12 text-center text-gray-500">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                        <p>데이터를 불러오는 중입니다...</p>
                                     </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-gray-50 text-gray-700 text-xs uppercase font-semibold">
+                                                <tr>
+                                                    <th className="px-6 py-3">신청자 정보</th>
+                                                    <th className="px-6 py-3">교육 목표/제목</th>
+                                                    <th className="px-6 py-3">신청일</th>
+                                                    <th className="px-6 py-3">현재 상태</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {plans.map((plan) => (
+                                                    <tr 
+                                                        key={plan.id} 
+                                                        onClick={() => setSelectedPlan(plan)}
+                                                        className="hover:bg-blue-50 cursor-pointer transition-colors"
+                                                    >
+                                                        <td className="px-6 py-4">
+                                                            <div className="font-semibold text-gray-900">{plan.user}</div>
+                                                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                                                <span className="bg-gray-100 px-1.5 rounded">{plan.empId}</span>
+                                                                <span>{plan.dept}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="font-medium text-gray-800">{plan.title}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-gray-500">
+                                                            {plan.date}
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <Badge status={plan.status} />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {plans.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                                                            <Icon name="inbox" size={48} className="mx-auto mb-4 opacity-20" />
+                                                            <p>등록된 교육 계획이 없습니다.</p>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <h3 className="text-lg font-bold text-gray-900 mb-1">{course.title}</h3>
-                                    <p className="text-sm text-gray-500 mb-4">강사: {course.instructor}</p>
-                                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                                    <div className="flex items-center text-sm text-gray-500">
-                                        <Icon name="users" className="w-4 h-4 mr-1" />
-                                        {course.students}명 수강 중
-                                    </div>
-                                    <button className="text-blue-600 text-sm font-medium hover:underline">관리</button>
-                                    </div>
-                                </div>
-                                </div>
-                            ))}
+                                )}
                             </div>
-                        </div>
+
+                            {/* Detail Modal */}
+                            {selectedPlan && (
+                                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedPlan(null)}>
+                                    <div 
+                                        className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-[fade-in_0.2s_ease-out]"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-start">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Badge status={selectedPlan.status} />
+                                                    <span className="text-xs text-gray-500">{selectedPlan.date} 신청</span>
+                                                </div>
+                                                <h3 className="text-xl font-bold text-gray-900 leading-tight">{selectedPlan.title}</h3>
+                                            </div>
+                                            <button onClick={() => setSelectedPlan(null)} className="text-gray-400 hover:text-gray-600">
+                                                <Icon name="x" size={24} />
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="p-6 space-y-6">
+                                            {/* Applicant Info */}
+                                            <div className="grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg">
+                                                <div>
+                                                    <p className="text-xs text-gray-500 mb-1">신청자</p>
+                                                    <p className="font-semibold text-gray-900">{selectedPlan.user} <span className="text-sm font-normal text-gray-600">({selectedPlan.empId})</span></p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 mb-1">소속 부서</p>
+                                                    <p className="font-semibold text-gray-900">{selectedPlan.dept}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 mb-1">예상 비용</p>
+                                                    <p className="font-semibold text-blue-700">{selectedPlan.cost}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Content */}
+                                            <div>
+                                                <h4 className="text-sm font-bold text-gray-900 mb-2">상세 교육 내용 (핵심 목표)</h4>
+                                                <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 leading-relaxed border border-gray-100">
+                                                    {selectedPlan.content}
+                                                </div>
+                                            </div>
+
+                                            {/* Reject Reason (if any) */}
+                                            {selectedPlan.rejectReason && (
+                                                <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+                                                    <h4 className="text-sm font-bold text-red-800 mb-1">반려 사유</h4>
+                                                    <p className="text-sm text-red-700">{selectedPlan.rejectReason}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Actions Footer */}
+                                        <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3">
+                                            {selectedPlan.status === 'PENDING' ? (
+                                                <>
+                                                    <button 
+                                                        onClick={() => handleApprovePlan(selectedPlan.id)}
+                                                        className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+                                                    >
+                                                        <Icon name="check-circle" size={18} /> 승인 (팀장 이관)
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleRejectPlan(selectedPlan.id)}
+                                                        className="flex-1 bg-white text-red-600 border border-red-200 py-3 rounded-lg font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <Icon name="x-circle" size={18} /> 반려
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <div className="w-full text-center text-sm text-gray-500 py-2">
+                                                    이미 처리가 완료된 건입니다.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     );
 
                 case 'contents':
@@ -747,6 +948,7 @@
                             </h1>
                             <p className="text-gray-500 text-sm mt-1">
                                 {activeTab === 'dashboard' ? '구성원 교육 현황 및 성과 분석 리포트입니다.' : 
+                                activeTab === 'courses' ? '임직원이 제출한 교육 계획서를 통합 관리합니다.' :
                                 activeTab === 'contents' ? '강의별 커리큘럼 및 학습 자료를 등록/수정합니다.' :
                                 '시스템 데이터를 관리합니다.'}
                             </p>
