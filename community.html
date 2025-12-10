@@ -688,7 +688,7 @@
       
       // ★ 중요: 마이페이지 URL 생성 (현재 사용자 정보 포함)
       // MainPage.html로 연결하며 userUid와 userName 파라미터를 넘깁니다.
-      const myPageUrl = `MainPage.html?userUid=${encodeURIComponent(currentUserInfo.uid)}&userName=${encodeURIComponent(currentUserInfo.name)}`;
+      const myPageUrl = `mypage.html?userUid=${encodeURIComponent(currentUserInfo.uid)}&userName=${encodeURIComponent(currentUserInfo.name)}`;
 
       if (sidebarContainer) {
         // ★ 중요: currentUserInfo 변수를 템플릿 리터럴로 직접 주입하여 HTML 생성
@@ -876,3 +876,4 @@
   </script>
 </body>
 </html>
+
