@@ -157,13 +157,28 @@
             e.preventDefault();
             const form = document.getElementById('education-add-form');
             
+            // 날짜 포맷팅 및 검증
+            const startDate = document.getElementById('edu-period-start').value;
+            const endDate = document.getElementById('edu-period-end').value;
+            
+            if (!startDate || !endDate) {
+                window.alertMessage("수강 기간을 모두 선택해주세요.", 'error');
+                return;
+            }
+            if (startDate > endDate) {
+                window.alertMessage("종료일이 시작일보다 빠를 수 없습니다.", 'error');
+                return;
+            }
+
             const newItem = {
                 id: Date.now(),
-                name: document.getElementById('edu-name').value,
-                method: document.getElementById('edu-method').value,
-                period: document.getElementById('edu-period').value,
-                cost: parseInt(document.getElementById('edu-cost').value) || 0,
-                detail: document.getElementById('edu-detail').value
+                name: document.getElementById('edu-name').value, // 과정명
+                method: document.getElementById('edu-method').value, // 교육방식
+                institution: document.getElementById('edu-institution').value, // 교육기관
+                hours: document.getElementById('edu-hours').value, // 교육인정시간
+                period: `${startDate}~${endDate}`, // 수강기간 (yyyy-mm-dd~yyyy-mm-dd)
+                refund: document.getElementById('edu-refund').value, // 환급여부
+                cost: parseInt(document.getElementById('edu-cost').value) || 0 // 비용 (예산계산용 유지)
             };
 
             currentPlanEducationList.push(newItem);
@@ -191,15 +206,20 @@
             currentPlanEducationList.forEach(item => {
                 html += `
                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 flex justify-between items-start group">
-                        <div>
-                            <div class="flex items-center gap-2 mb-1">
+                        <div class="flex-grow pr-2">
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
                                 <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">${item.method}</span>
                                 <h4 class="text-sm font-bold text-gray-800">${item.name}</h4>
                             </div>
-                            <p class="text-xs text-gray-500">📅 ${item.period} | 💰 ${item.cost.toLocaleString()}원</p>
-                            <p class="text-xs text-gray-600 mt-1 pl-1 border-l-2 border-gray-300">${item.detail}</p>
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-600 mt-2">
+                                <p>🏫 기관: ${item.institution}</p>
+                                <p>⏱️ 시간: ${item.hours}h</p>
+                                <p class="col-span-2">📅 기간: ${item.period}</p>
+                                <p>💰 비용: ${item.cost.toLocaleString()}원</p>
+                                <p>🔄 환급: ${item.refund.toUpperCase()}</p>
+                            </div>
                         </div>
-                        <button onclick="removeEducationItem(${item.id})" class="text-gray-400 hover:text-red-500 p-1" title="삭제">
+                        <button onclick="removeEducationItem(${item.id})" class="text-gray-400 hover:text-red-500 p-1 flex-shrink-0" title="삭제">
                             ${getIconSVG('Trash', 'w-4 h-4')}
                         </button>
                     </div>
@@ -246,7 +266,7 @@
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const originalBtnText = submitBtn.innerHTML;
 
-            // 1. 입력값 가져오기 (제목 입력란 제거로 인한 수정)
+            // 1. 입력값 가져오기
             const title = "2025년 역량개발 계획서"; // 기본 제목 설정
             const goal = document.getElementById('plan-goal').value;
 
@@ -254,7 +274,10 @@
             let actionsText = "";
             let totalBudget = 0;
             currentPlanEducationList.forEach((item, index) => {
-                actionsText += `${index + 1}. [${item.method}] ${item.name} (${item.period}) - 비용: ${item.cost.toLocaleString()}원\n   └ 목표: ${item.detail}\n`;
+                actionsText += `${index + 1}. [${item.method}] ${item.name}\n`;
+                actionsText += `   - 기관: ${item.institution} / 시간: ${item.hours}h\n`;
+                actionsText += `   - 기간: ${item.period}\n`;
+                actionsText += `   - 비용: ${item.cost.toLocaleString()}원 (환급: ${item.refund})\n`;
                 totalBudget += item.cost;
             });
 
@@ -590,7 +613,7 @@
             sharedList.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 게시물이 없습니다.</p>`;
         }
 
-        // ********** NEW: GAS 프로필 데이터 연동 함수 (수정됨) **********
+        // ********** NEW: GAS 프로필 데이터 연동 함수 **********
         async function fetchUserProfile() {
             const statusMsg = document.getElementById('profile-status-msg');
 
@@ -824,24 +847,41 @@
                             <label class="block text-xs font-semibold text-gray-600 mb-1">교육 방식</label>
                             <select id="edu-method" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                                 <option value="온라인">온라인</option>
-                                <option value="집체교육">집체교육</option>
-                                <option value="외부위탁">외부위탁</option>
-                                <option value="세미나">세미나</option>
+                                <option value="오프라인">오프라인</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">예상 시기</label>
-                            <input type="text" id="edu-period" placeholder="예: 3월" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm" required>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">교육 기관</label>
+                            <input type="text" id="edu-institution" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                         <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">인정 시간 (h)</label>
+                            <input type="number" id="edu-hours" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm text-right">
+                        </div>
+                        <div>
+                             <label class="block text-xs font-semibold text-gray-600 mb-1">환급 여부</label>
+                            <select id="edu-refund" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                <option value="O">O</option>
+                                <option value="X">X</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">수강 기간</label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="edu-period-start" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm" required>
+                            <span class="text-gray-500">~</span>
+                            <input type="date" id="edu-period-end" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm" required>
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">예상 비용 (원)</label>
                         <input type="number" id="edu-cost" placeholder="0" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm text-right">
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">세부 내용 (학습 목표 등)</label>
-                        <textarea id="edu-detail" rows="2" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm"></textarea>
-                    </div>
+                    <!-- 세부 내용 필드는 유지하지 않음 (사용자 요청 항목 위주로 구성) -->
+                    <input type="hidden" id="edu-detail" value=""> 
                 </div>
 
                 <div class="flex justify-end pt-2">
@@ -934,7 +974,7 @@
 
                     <div class="flex justify-end pt-4">
                         <button type="submit" id="comment-save-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> 메모 저장 (비활성화)
+                            ${getIconSVG('Check', 'w-4 h-4 mr-1')} 메모 저장 (비활성화)
                         </button>
                     </div>
                 </div>
@@ -1103,7 +1143,7 @@
                                     </div>
                                     <div class="flex justify-end pt-2 border-t border-gray-200">
                                         <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg> 
+                                            ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 
                                             계획 수립하기
                                         </button>
                                     </div>
