@@ -66,7 +66,7 @@
 
         // --- Mock Options (수정 모드용 임시 데이터) ---
         const MOCK_OPTIONS = {
-            divisions: ['DX본부', '경영지원본부', '영업본부', 'R&D센터', '전략기획실', '플랫폼사업부'],
+            divisions: ['경영지원본부', '인공신장사업본부', 'FPCB사업본부', 'FS사업본부'],
             depts: ['개발1팀', '개발2팀', '인사팀', '총무팀', '영업1팀', '기획팀'],
             positions: ['사원', '대리', '과장', '차장', '부장', '이사'], // 직위
             titles: ['팀원', '파트장', '팀장', '본부장', '실장'], // 직책
@@ -1161,7 +1161,7 @@
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                                isActive 
+                                    isActive 
                                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
                                     : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                                 }`}
