@@ -40,7 +40,8 @@
         // --- 전역 상수 및 초기화된 데이터 ---
         const TRAINING_GOAL_HOURS = 40;
         let currentCalendarDate = new Date();
-        let currentPlanEducationList = []; // [New] 현재 작성 중인 교육 계획 리스트
+        let currentPlanEducationList = []; // 현재 작성 중인 교육 계획 리스트
+        let savedPlanData = null; // [New] 서버에서 불러온 내 계획 데이터 (수정 시 복원용)
 
         // ********** GAS 연동 설정 (두 개의 주소 분리) **********
         
@@ -335,13 +336,16 @@
                             </div>
                             <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
                                 <span>제출일: ${today}</span>
-                                <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition duration-150 flex items-center">
+                                <button onclick="openEditAnnualPlanModal()" class="px-3 py-1 text-sm font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition duration-150 flex items-center">
                                     수정
                                 </button>
                             </div>
                         </div>
                     `;
                 }
+                
+                // 저장된 데이터를 즉시 조회하여 백업 (수정 기능용)
+                fetchMyAnnualPlan();
 
                 window.alertMessage("✅ 2025년도 연간 역량개발 계획이 구글 시트에 저장되었습니다.", 'success');
                 window.closeModal('annual-plan-modal');
@@ -370,6 +374,8 @@
                 // 데이터가 있으면 화면 업데이트
                 if (jsonResponse.result === 'success' && jsonResponse.data) {
                     const data = jsonResponse.data;
+                    savedPlanData = data; // [New] 수정 시 복원을 위해 데이터 저장
+                    
                     const planContainer = document.getElementById('annual-plan-display');
                     
                     if (planContainer) {
@@ -418,7 +424,7 @@
                                 </div>
                                 <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
                                     <span>불러옴: ${today}</span>
-                                    <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition duration-150 flex items-center">
+                                    <button onclick="openEditAnnualPlanModal()" class="px-3 py-1 text-sm font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition duration-150 flex items-center">
                                         수정 (덮어쓰기)
                                     </button>
                                 </div>
@@ -429,6 +435,35 @@
             } catch (error) {
                 console.error("계획서 조회 실패:", error);
             }
+        }
+        
+        // ********** [New] 수정 모달 열기 함수 (데이터 복원 포함) **********
+        window.openEditAnnualPlanModal = function() {
+            if (!savedPlanData) {
+                window.alertMessage("수정할 데이터를 불러오지 못했습니다.", "error");
+                return;
+            }
+
+            // 1. 기존 데이터 복원
+            document.getElementById('plan-title').value = savedPlanData.title || "2025년 역량개발 계획서";
+            document.getElementById('plan-goal').value = savedPlanData.goal || "";
+            
+            // 2. 리스트 복원
+            if (savedPlanData.educationList && Array.isArray(savedPlanData.educationList)) {
+                // DB에서 가져온 데이터에는 id가 없을 수 있으므로 재부여
+                currentPlanEducationList = savedPlanData.educationList.map((item, index) => ({
+                    ...item,
+                    id: Date.now() + index, // 유니크한 ID 생성
+                    cost: parseInt(item.cost) || 0 // 숫자 형변환
+                }));
+            } else {
+                currentPlanEducationList = [];
+            }
+            
+            renderEducationList();
+            
+            // 3. 모달 열기
+            openModal('annual-plan-modal');
         }
 
         window.saveUserSchedule = function(e) {
