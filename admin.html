@@ -25,6 +25,16 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Select 박스 스타일 */
+        .custom-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -52,6 +62,15 @@
             }, [name, size, className]);
 
             return <span ref={ref} style={{ display: 'inline-flex', verticalAlign: 'text-bottom' }}></span>;
+        };
+
+        // --- Mock Options (수정 모드용 임시 데이터) ---
+        const MOCK_OPTIONS = {
+            divisions: ['DX본부', '경영지원본부', '영업본부', 'R&D센터', '전략기획실', '플랫폼사업부'],
+            depts: ['개발1팀', '개발2팀', '인사팀', '총무팀', '영업1팀', '기획팀'],
+            positions: ['사원', '대리', '과장', '차장', '부장', '이사'], // 직위
+            titles: ['팀원', '파트장', '팀장', '본부장', '실장'], // 직책
+            jobs: ['SW개발', '기획', '영업', '인사', '디자인', '마케팅'] // 직무
         };
 
         // --- Mock Data (대시보드 및 기타 탭용) ---
@@ -171,16 +190,22 @@
 
         // --- Main App Component ---
         function App() {
-            // Google Apps Script Web App URL
+            // https://www.youtube.com/watch?v=KsZ6tROaVOQ 교육 계획 관리용 (기존 URL)
             const API_URL = "https://script.google.com/macros/s/AKfycbxOBPklQA0PacUlQRl9nTDHppSaHv0qFuxbmuUdNYnTs1USkUeYTO-iIyXVTRbAn4o5/exec";
+            
+            // https://www.youtube.com/watch?v=-s7TCuCpB5c 사용자 관리용 (새로운 URL)
+            const USER_API_URL = "https://script.google.com/macros/s/AKfycbyG1HsiE5advu-rIyOhJkbbyhXhn-OpH_wzRbi0kUxcMe5jGJUcZNtfl3f29KR40ktW/exec";
 
             const [activeTab, setActiveTab] = useState('dashboard');
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
             
-            // [수정] 사용자 관리 State (GAS 연동용)
+            // 사용자 관리 State
             const [users, setUsers] = useState([]); 
             const [isUsersLoading, setIsUsersLoading] = useState(false);
             const [usersError, setUsersError] = useState(null);
+            
+            // 수정 모드 State
+            const [isEditMode, setIsEditMode] = useState(false);
 
             // Content Management State
             const [selectedContentId, setSelectedContentId] = useState('l1');
@@ -200,7 +225,7 @@
                 return 'PENDING';
             };
 
-            // 1. 교육 계획 데이터 로딩 (Courses Tab)
+            // 1. 교육 계획 데이터 로딩 (Courses Tab - API_URL 사용)
             useEffect(() => {
                 if (activeTab === 'courses') {
                     setIsLoading(true);
@@ -243,21 +268,25 @@
                 }
             }, [activeTab]);
 
-            // 2. [추가] 사용자 정보 데이터 로딩 (Users Tab)
+            // 2. 사용자 정보 데이터 로딩 (Users Tab - USER_API_URL 사용)
             useEffect(() => {
                 if (activeTab === 'users') {
                     setIsUsersLoading(true);
                     setUsersError(null);
+                    setIsEditMode(false); 
 
-                    // type=users 파라미터 추가하여 요청
-                    const fetchUrl = `${API_URL}?type=users&t=${new Date().getTime()}`;
+                    // type=users 파라미터 추가하여 요청 (USER_API_URL 사용)
+                    const fetchUrl = `${USER_API_URL}?type=users&t=${new Date().getTime()}`;
 
                     fetch(fetchUrl)
                         .then(res => res.json())
                         .then(response => {
                             if (response.status === 'success') {
-                                // GAS에서 넘어온 데이터를 React State에 저장
-                                setUsers(response.data);
+                                const mappedUsers = response.data.map(u => ({
+                                    ...u,
+                                    division: u.division || '' 
+                                }));
+                                setUsers(mappedUsers);
                             } else {
                                 throw new Error(response.message);
                             }
@@ -315,7 +344,7 @@
                 }
             };
 
-            // 교육 계획 승인 처리
+            // 교육 계획 승인 처리 (API_URL 사용)
             const handleApprovePlan = (id) => {
                 if (confirm('이 계획을 승인하시겠습니까?')) {
                     setPlans(prev => prev.map(plan => 
@@ -330,7 +359,7 @@
                 }
             };
 
-            // 교육 계획 반려 처리
+            // 교육 계획 반려 처리 (API_URL 사용)
             const handleRejectPlan = (id) => {
                 if (confirm('반려하시겠습니까?')) {
                     setPlans(prev => prev.map(plan => 
@@ -342,6 +371,44 @@
                         headers: { "Content-Type": "text/plain;charset=utf-8" },
                         body: JSON.stringify({ id: id, action: 'REJECT' })
                     }).catch(console.error);
+                }
+            };
+
+            // 사용자 정보 업데이트 핸들러 (UI상에서만 반영)
+            const handleUserUpdate = (index, field, value) => {
+                const newUsers = [...users];
+                newUsers[index][field] = value;
+                setUsers(newUsers);
+            };
+
+            // 수정 모드 저장/종료 핸들러 (USER_API_URL 사용)
+            const handleSaveUsers = () => {
+                if (isEditMode) {
+                    if (confirm('변경사항을 저장하시겠습니까?')) {
+                        // 저장 중 표시 (선택사항)
+                        const originalText = "저장 완료";
+                        // 실제 GAS로 데이터 전송
+                        fetch(USER_API_URL, {
+                            method: 'POST',
+                            headers: { "Content-Type": "text/plain;charset=utf-8" },
+                            body: JSON.stringify({ action: 'UPDATE_USERS', data: users })
+                        })
+                        .then(res => res.json())
+                        .then(response => {
+                            if(response.status === 'success') {
+                                alert('저장되었습니다.');
+                                setIsEditMode(false);
+                            } else {
+                                alert('저장 실패: ' + response.message);
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('네트워크 오류가 발생했습니다.');
+                        });
+                    }
+                } else {
+                    setIsEditMode(true);
                 }
             };
 
@@ -450,7 +517,7 @@
                     );
                 
                 case 'users':
-                    // [수정] 사용자 관리 탭 - 리스트(테이블) 형태로 변경
+                    // [수정] 사용자 관리 탭 - 스크롤 개선, 사업본부 추가, 수정 기능
                     return (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col h-[calc(100vh-140px)]">
                             <div className="flex justify-between items-center mb-6 flex-shrink-0">
@@ -458,60 +525,83 @@
                                     <h2 className="text-xl font-bold text-gray-900">전체 사용자 목록 (인적사항)</h2>
                                     <p className="text-sm text-gray-500 mt-1">Google Sheet '인적사항' 시트와 연동된 데이터입니다.</p>
                                 </div>
-                                <button 
-                                    onClick={() => {
-                                        setIsUsersLoading(true);
-                                        // 강제 리프레시 (State 재설정)
-                                        const fetchUrl = `${API_URL}?type=users&t=${new Date().getTime()}`;
-                                        fetch(fetchUrl)
-                                            .then(res => res.json())
-                                            .then(response => {
-                                                if (response.status === 'success') setUsers(response.data);
-                                            })
-                                            .finally(() => setIsUsersLoading(false));
-                                    }}
-                                    className="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-50 transition-colors" title="새로고침">
-                                    <Icon name="refresh-cw" size={20} />
-                                </button>
+                                <div className="flex gap-2">
+                                    {/* 수정/저장 버튼 */}
+                                    <button 
+                                        onClick={handleSaveUsers}
+                                        className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium border ${
+                                            isEditMode 
+                                            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md' 
+                                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Icon name={isEditMode ? "save" : "edit-2"} size={18} />
+                                        {isEditMode ? "저장 완료" : "수정 모드"}
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={() => {
+                                            setIsUsersLoading(true);
+                                            // 새로고침 시 USER_API_URL 사용
+                                            const fetchUrl = `${USER_API_URL}?type=users&t=${new Date().getTime()}`;
+                                            fetch(fetchUrl)
+                                                .then(res => res.json())
+                                                .then(response => {
+                                                    if (response.status === 'success') {
+                                                        const mappedUsers = response.data.map(u => ({...u, division: u.division || ''}));
+                                                        setUsers(mappedUsers);
+                                                    }
+                                                })
+                                                .finally(() => setIsUsersLoading(false));
+                                        }}
+                                        className="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200" title="새로고침">
+                                        <Icon name="refresh-cw" size={20} />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="flex-1 overflow-auto border border-gray-200 rounded-lg relative">
+                            {/* 테이블 컨테이너: 상하좌우 스크롤 모두 지원 */}
+                            <div className="flex-1 overflow-auto border border-gray-200 rounded-lg relative min-h-[400px]">
                                 {isUsersLoading ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                                    <div className="flex flex-col items-center justify-center h-full text-gray-500 absolute inset-0">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
                                         <p>사용자 정보를 불러오는 중입니다...</p>
                                     </div>
                                 ) : usersError ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-red-500">
+                                    <div className="flex flex-col items-center justify-center h-full text-red-500 absolute inset-0">
                                         <Icon name="alert-circle" size={48} className="mb-4 opacity-50" />
                                         <p>{usersError}</p>
                                     </div>
                                 ) : users.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                    <div className="flex flex-col items-center justify-center h-full text-gray-400 absolute inset-0">
                                         <Icon name="users" size={48} className="mb-4 opacity-20" />
                                         <p>등록된 사용자가 없습니다.</p>
                                     </div>
                                 ) : (
-                                    // 사용자 테이블 리스트 렌더링
                                     <table className="w-full text-sm text-left whitespace-nowrap">
                                         <thead className="bg-gray-50 text-gray-700 font-semibold sticky top-0 z-10 border-b border-gray-200 shadow-sm">
                                             <tr>
-                                                <th className="px-6 py-3 min-w-[100px]">이름</th>
-                                                <th className="px-6 py-3 min-w-[100px]">사번</th>
-                                                <th className="px-6 py-3 min-w-[150px]">부서명</th>
-                                                <th className="px-6 py-3 min-w-[100px]">직위</th>
-                                                <th className="px-6 py-3 min-w-[100px]">직책</th>
-                                                <th className="px-6 py-3 min-w-[100px]">직무</th>
-                                                <th className="px-6 py-3 min-w-[200px]">이메일</th>
-                                                <th className="px-6 py-3 min-w-[100px]">부서코드</th>
-                                                <th className="px-6 py-3 min-w-[120px]">내부부서코드</th>
-                                                <th className="px-6 py-3 min-w-[120px]">UID</th>
+                                                <th className="px-6 py-3 min-w-[100px] bg-gray-50">이름</th>
+                                                <th className="px-6 py-3 min-w-[100px] bg-gray-50">사번</th>
+                                                
+                                                {/* 사업본부 열: 수정 시 강조 */}
+                                                <th className="px-6 py-3 min-w-[140px] bg-blue-50/80 text-blue-800">사업본부</th>
+                                                
+                                                <th className="px-6 py-3 min-w-[150px] bg-gray-50">부서명</th>
+                                                <th className="px-6 py-3 min-w-[100px] bg-gray-50">직위</th>
+                                                <th className="px-6 py-3 min-w-[100px] bg-gray-50">직책</th>
+                                                <th className="px-6 py-3 min-w-[100px] bg-gray-50">직무</th>
+                                                <th className="px-6 py-3 min-w-[200px] bg-gray-50">이메일</th>
+                                                <th className="px-6 py-3 min-w-[100px] bg-gray-50">부서코드</th>
+                                                <th className="px-6 py-3 min-w-[120px] bg-gray-50">내부부서코드</th>
+                                                <th className="px-6 py-3 min-w-[120px] bg-gray-50">UID</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100 bg-white">
                                             {users.map((user, idx) => (
-                                                <tr key={user.userUid || idx} className="hover:bg-blue-50 transition-colors">
-                                                    <td className="px-6 py-3 font-bold text-gray-900">
+                                                <tr key={user.userUid || idx} className="hover:bg-blue-50 transition-colors group">
+                                                    {/* 고정값: 이름 */}
+                                                    <td className="px-6 py-3 font-bold text-gray-900 bg-gray-50/30">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
                                                                 {user.이름 ? user.이름[0] : '?'}
@@ -519,15 +609,125 @@
                                                             {user.이름}
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-3 text-gray-600 font-mono">{user.사번}</td>
-                                                    <td className="px-6 py-3 text-gray-800">{user.부서명 || '-'}</td>
-                                                    <td className="px-6 py-3 text-gray-600">{user.직위명 || '-'}</td>
-                                                    <td className="px-6 py-3 text-gray-600">{user.직책명 || '-'}</td>
-                                                    <td className="px-6 py-3 text-gray-600">{user.직무명 || '-'}</td>
-                                                    <td className="px-6 py-3 text-blue-600 hover:underline cursor-pointer">{user['E-Mail'] || '-'}</td>
-                                                    <td className="px-6 py-3 text-gray-500 text-xs font-mono">{user.부서코드 || '-'}</td>
-                                                    <td className="px-6 py-3 text-gray-500 text-xs font-mono">{user.내부부서코드 || '-'}</td>
-                                                    <td className="px-6 py-3 text-gray-400 text-xs font-mono">{user.userUid}</td>
+                                                    
+                                                    {/* 고정값: 사번 */}
+                                                    <td className="px-6 py-3 text-gray-600 font-mono bg-gray-50/30">{user.사번}</td>
+
+                                                    {/* [수정] 사업본부 (비어있으면 선택 유도) */}
+                                                    <td className="px-6 py-3 bg-blue-50/10">
+                                                        {isEditMode ? (
+                                                            <select 
+                                                                className={`w-full p-1.5 border rounded custom-select outline-none focus:ring-2 focus:ring-blue-500 text-sm ${!user.division ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}`}
+                                                                value={user.division || ''}
+                                                                onChange={(e) => handleUserUpdate(idx, 'division', e.target.value)}
+                                                            >
+                                                                <option value="" className="text-gray-400">선택하세요</option>
+                                                                {MOCK_OPTIONS.divisions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                        ) : (
+                                                            <span className={`font-medium ${user.division ? 'text-blue-700' : 'text-gray-300 italic'}`}>
+                                                                {user.division || '(미지정)'}
+                                                            </span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 부서명 */}
+                                                    <td className="px-6 py-3">
+                                                        {isEditMode ? (
+                                                            <select 
+                                                                className="w-full p-1.5 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 custom-select"
+                                                                value={user.부서명 || ''}
+                                                                onChange={(e) => handleUserUpdate(idx, '부서명', e.target.value)}
+                                                            >
+                                                                <option value="">선택</option>
+                                                                {MOCK_OPTIONS.depts.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                        ) : (
+                                                            <span className="text-gray-800">{user.부서명 || '-'}</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 직위 */}
+                                                    <td className="px-6 py-3">
+                                                        {isEditMode ? (
+                                                            <select 
+                                                                className="w-full p-1.5 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 custom-select"
+                                                                value={user.직위명 || ''}
+                                                                onChange={(e) => handleUserUpdate(idx, '직위명', e.target.value)}
+                                                            >
+                                                                <option value="">선택</option>
+                                                                {MOCK_OPTIONS.positions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                        ) : (
+                                                            <span className="text-gray-600">{user.직위명 || '-'}</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 직책 */}
+                                                    <td className="px-6 py-3">
+                                                        {isEditMode ? (
+                                                            <select 
+                                                                className="w-full p-1.5 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 custom-select"
+                                                                value={user.직책명 || ''}
+                                                                onChange={(e) => handleUserUpdate(idx, '직책명', e.target.value)}
+                                                            >
+                                                                <option value="">선택</option>
+                                                                {MOCK_OPTIONS.titles.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                        ) : (
+                                                            <span className="text-gray-600">{user.직책명 || '-'}</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 직무 */}
+                                                    <td className="px-6 py-3">
+                                                        {isEditMode ? (
+                                                            <select 
+                                                                className="w-full p-1.5 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 custom-select"
+                                                                value={user.직무명 || ''}
+                                                                onChange={(e) => handleUserUpdate(idx, '직무명', e.target.value)}
+                                                            >
+                                                                <option value="">선택</option>
+                                                                {MOCK_OPTIONS.jobs.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                        ) : (
+                                                            <span className="text-gray-600">{user.직무명 || '-'}</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 고정값: 이메일 */}
+                                                    <td className="px-6 py-3 text-blue-600 bg-gray-50/30">{user['E-Mail'] || '-'}</td>
+
+                                                    {/* 부서코드 */}
+                                                    <td className="px-6 py-3 text-xs font-mono">
+                                                        {isEditMode ? (
+                                                            <input 
+                                                                type="text" 
+                                                                className="w-20 p-1 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500"
+                                                                value={user.부서코드 || ''}
+                                                                onChange={(e) => handleUserUpdate(idx, '부서코드', e.target.value)}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-gray-500">{user.부서코드 || '-'}</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 내부부서코드 */}
+                                                    <td className="px-6 py-3 text-xs font-mono">
+                                                        {isEditMode ? (
+                                                            <input 
+                                                                type="text" 
+                                                                className="w-20 p-1 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500"
+                                                                value={user.내부부서코드 || ''}
+                                                                onChange={(e) => handleUserUpdate(idx, '내부부서코드', e.target.value)}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-gray-500">{user.내부부서코드 || '-'}</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 고정값: UID */}
+                                                    <td className="px-6 py-3 text-gray-400 text-xs font-mono bg-gray-50/30">{user.userUid}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
