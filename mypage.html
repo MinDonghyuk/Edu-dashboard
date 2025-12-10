@@ -175,7 +175,7 @@
                 id: Date.now(),
                 name: document.getElementById('edu-name').value, // 과정명
                 method: document.getElementById('edu-method').value, // 교육방식
-                institution: document.getElementById('edu-institution').value, // 교육기관
+                institution: document.getElementById('edu-institution').value, // 교육기관 (select 값)
                 hours: document.getElementById('edu-hours').value, // 교육인정시간
                 period: `${startDate}~${endDate}`, // 수강기간 (yyyy-mm-dd~yyyy-mm-dd)
                 refund: document.getElementById('edu-refund').value, // 환급여부
@@ -276,9 +276,9 @@
             let totalBudget = 0;
             currentPlanEducationList.forEach((item, index) => {
                 actionsText += `${index + 1}. [${item.method}] ${item.name}\n`;
-                actionsText += `   - 기관: ${item.institution} / 시간: ${item.hours}h\n`;
-                actionsText += `   - 기간: ${item.period}\n`;
-                actionsText += `   - 비용: ${item.cost.toLocaleString()}원 (환급: ${item.refund})\n`;
+                actionsText += `    - 기관: ${item.institution} / 시간: ${item.hours}h\n`;
+                actionsText += `    - 기간: ${item.period}\n`;
+                actionsText += `    - 비용: ${item.cost.toLocaleString()}원 (환급: ${item.refund})\n`;
                 totalBudget += item.cost;
             });
 
@@ -437,7 +437,7 @@
             }
         }
         
-        // ********** [New] 수정 모달 열기 함수 (데이터 복원 포함) **********
+        // ********** [수정 완료] 수정 모달 열기 함수 (데이터 복원 및 오류 수정) **********
         window.openEditAnnualPlanModal = function() {
             if (!savedPlanData) {
                 window.alertMessage("수정할 데이터를 불러오지 못했습니다.", "error");
@@ -445,7 +445,9 @@
             }
 
             // 1. 기존 데이터 복원
-            document.getElementById('plan-title').value = savedPlanData.title || "2025년 역량개발 계획서";
+            // 주의: plan-title input이 HTML에 없으므로 값을 넣지 않음 (고정값 사용)
+            // document.getElementById('plan-title').value = savedPlanData.title || "2025년 역량개발 계획서"; // 이 줄 제거됨 (오류 원인)
+            
             document.getElementById('plan-goal').value = savedPlanData.goal || "";
             
             // 2. 리스트 복원
@@ -763,7 +765,7 @@
 
                     // Case A: 응답이 배열인 경우 (community.html 방식) -> 필터링 필요
                     if (Array.isArray(jsonResponse.data)) {
-                         userData = jsonResponse.data.find(user => String(user.userUid) === String(LOGIN_USER_UID));
+                          userData = jsonResponse.data.find(user => String(user.userUid) === String(LOGIN_USER_UID));
                     } 
                     // Case B: 응답이 단일 객체인 경우 (기존 방식)
                     else {
@@ -961,9 +963,19 @@
                                 <option value="오프라인">오프라인</option>
                             </select>
                         </div>
+                        <!-- 수정된 교육 기관 드롭다운 -->
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">교육 기관</label>
-                            <input type="text" id="edu-institution" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                            <select id="edu-institution" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                <option value="">선택하세요</option>
+                                <option value="패스트캠퍼스">패스트캠퍼스</option>
+                                <option value="유데미(Udemy)">유데미(Udemy)</option>
+                                <option value="인프런">인프런</option>
+                                <option value="코세라(Coursera)">코세라(Coursera)</option>
+                                <option value="사내교육(HR)">사내교육(HR)</option>
+                                <option value="외부초빙">외부초빙</option>
+                                <option value="기타">기타</option>
+                            </select>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
