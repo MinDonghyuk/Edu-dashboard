@@ -516,7 +516,7 @@
             sharedList.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 게시물이 없습니다.</p>`;
         }
 
-        // ********** NEW: GAS 프로필 데이터 연동 함수 **********
+        // ********** NEW: GAS 프로필 데이터 연동 함수 (수정됨) **********
         async function fetchUserProfile() {
             const statusMsg = document.getElementById('profile-status-msg');
 
@@ -538,37 +538,57 @@
             }
 
             try {
-                // 3. GAS에 사번(userUid)을 파라미터로 전달하여 나머지 정보 요청 -> GAS_PROFILE_API_URL 사용
-                const response = await fetch(`${GAS_PROFILE_API_URL}?userUid=${LOGIN_USER_UID}`);
+                // 3. GAS 요청 (community.html 방식과 통일: 전체 로드 후 클라이언트 필터링)
+                // 쿼리 파라미터는 보내지만, 응답이 배열일 경우를 대비합니다.
+                const response = await fetch(GAS_PROFILE_API_URL); // 파라미터 없이 호출 시도 (혹은 있어도 무방)
 
                 if (!response.ok) {
                     throw new Error('네트워크 응답에 문제가 있습니다.');
                 }
 
                 const jsonResponse = await response.json();
+                console.log("Profile Data Response:", jsonResponse); // 디버깅용
 
-                // GAS에서 보내준 데이터 구조가 { result: "success", data: { ... } } 라고 가정
-                if (jsonResponse.result === 'success' && jsonResponse.data) {
-                    const userData = jsonResponse.data;
+                // 성공 여부 확인 (status 또는 result 키 모두 허용)
+                const isSuccess = (jsonResponse.status === 'success' || jsonResponse.result === 'success');
+                
+                if (isSuccess && jsonResponse.data) {
+                    let userData = null;
 
-                    // 받아온 데이터를 HTML ID에 매칭하여 넣기
-                    // userName은 GAS 데이터가 있으면 덮어쓰고, 없으면 기존 localStorage 값 유지
-                    if(document.getElementById('profile-name')) document.getElementById('profile-name').textContent = userData.userName || LOGIN_USER_NAME || '-';
-                    if(document.getElementById('profile-uid')) document.getElementById('profile-uid').textContent = userData.userUid || LOGIN_USER_UID || '-';
-                    if(document.getElementById('profile-dept')) document.getElementById('profile-dept').textContent = userData.deptName || '-';
-                    if(document.getElementById('profile-grade')) document.getElementById('profile-grade').textContent = userData.gradeName || '-';
-                    if(document.getElementById('profile-email')) document.getElementById('profile-email').textContent = userData.sysmail || '-';
+                    // Case A: 응답이 배열인 경우 (community.html 방식) -> 필터링 필요
+                    if (Array.isArray(jsonResponse.data)) {
+                         userData = jsonResponse.data.find(user => String(user.userUid) === String(LOGIN_USER_UID));
+                    } 
+                    // Case B: 응답이 단일 객체인 경우 (기존 방식)
+                    else {
+                        userData = jsonResponse.data;
+                    }
 
-                    // 상태 메시지 업데이트
-                    if(statusMsg) {
-                        statusMsg.className = "col-span-2 text-xs text-green-600 pt-2 border-t border-green-200";
-                        statusMsg.textContent = "✅ 최신 정보를 업데이트했습니다.";
+                    if (userData) {
+                        // 받아온 데이터를 HTML ID에 매칭하여 넣기
+                        if(document.getElementById('profile-name')) document.getElementById('profile-name').textContent = userData.userName || LOGIN_USER_NAME || '-';
+                        if(document.getElementById('profile-uid')) document.getElementById('profile-uid').textContent = userData.userUid || LOGIN_USER_UID || '-';
+                        if(document.getElementById('profile-dept')) document.getElementById('profile-dept').textContent = userData.deptName || '-';
+                        if(document.getElementById('profile-grade')) document.getElementById('profile-grade').textContent = userData.gradeName || '-';
+                        if(document.getElementById('profile-email')) document.getElementById('profile-email').textContent = userData.sysmail || '-';
+
+                        // 상태 메시지 업데이트
+                        if(statusMsg) {
+                            statusMsg.className = "col-span-2 text-xs text-green-600 pt-2 border-t border-green-200";
+                            statusMsg.textContent = "✅ 최신 정보를 업데이트했습니다.";
+                        }
+                    } else {
+                        // 배열에서 못 찾은 경우
+                        if(statusMsg) {
+                            statusMsg.className = "col-span-2 text-xs text-red-500 pt-2 border-t border-red-200";
+                            statusMsg.textContent = "⚠️ 해당 사번의 정보를 찾을 수 없습니다.";
+                        }
                     }
                 } else {
-                    // 사번을 찾지 못한 경우
+                    // 응답 실패
                     if(statusMsg) {
                         statusMsg.className = "col-span-2 text-xs text-red-500 pt-2 border-t border-red-200";
-                        statusMsg.textContent = "⚠️ 해당 사번의 정보를 찾을 수 없습니다.";
+                        statusMsg.textContent = "⚠️ 데이터 불러오기 실패 (" + (jsonResponse.message || "원인 불명") + ")";
                     }
                 }
 
@@ -990,113 +1010,3 @@
                 </div>
 
             </div>
-
-            <!-- 2. 교육 이수 이력 섹션 -->
-            <div id="individual-history-section" class="main-content-section">
-                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-600 min-h-[400px]">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-bold text-gray-700">교육 이수 이력</h2>
-                    </div>
-                    
-                    <div class="flex space-x-4 mb-4 items-center">
-                        <h3 class="text-lg font-semibold text-gray-600">상세 이력 목록</h3>
-                        <select id="type-filter" onchange="applyTrainingFilters()" class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" disabled>
-                            <option value="All">형태 전체</option>
-                            <option value="온라인">온라인</option>
-                            <option value="사외강의">사외강의</option>
-                            <option value="사내강의">사내강의</option>
-                            <option value="워크숍">워크숍</option>
-                        </select>
-                        <select id="refund-filter" onchange="applyTrainingFilters()" class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" disabled>
-                            <option value="All">환급 전체</option>
-                            <option value="O">환급 완료 (O)</option>
-                            <option value="X">환급 불가 (X)</option>
-                            <option value="N/A">해당 없음 (N/A)</option>
-                        </select>
-                    </div>
-
-                    <ul id="individual-history-list" class="space-y-2 max-h-96 overflow-y-auto pr-2 border border-gray-200 rounded-lg p-2 bg-white db-scroll-area">
-                        <p class="text-red-500 p-2 font-semibold">⚠️ 데이터 로직이 제거되어 이수 내역을 표시할 수 없습니다.</p>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- 3. 관심 교육 리스트 섹션 -->
-            <div id="interest-list-section" class="main-content-section">
-                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 min-h-[250px]">
-                    <h2 class="text-2xl font-bold text-gray-700 mb-6">저장 목록</h2>
-
-                    <div class="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h3 class="text-xl font-bold text-blue-700 mb-3 flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-blue-500 fill-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> 관심 교육 키워드 (팀/사업부)
-                        </h3>
-                        <div id="keyword-list-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                            <p class="text-center text-gray-500 col-span-full p-4">⚠️ 데이터 로직이 제거되어 키워드 목록을 표시할 수 없습니다.</p>
-                        </div>
-                    </div>
-                    
-                    <div class="p-4 border border-blue-200 rounded-lg space-y-4 bg-gray-50">
-                        <div id="team-status-display" class="p-2 border-b border-blue-200">
-                            <h3 class="text-xl font-bold text-blue-700 mb-2">팀 교육 현황 (목표 대비 진척도)</h3>
-                            <p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 비활성화되어 표시되지 않습니다.</p>
-                            <p class="text-xs text-gray-500 mt-3">이 항목은 ERP/팀별 데이터 연동이 완료되면 팀원 전체의 평균 달성률을 보여줄 예정입니다.</p>
-                        </div>
-                        
-                        <div class="pt-2">
-                            <h3 class="text-xl font-bold text-indigo-700 mb-2">나의 스크랩 목록</h3>
-                            <ul id="interest-list-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 db-scroll-area">
-                                <p class="text-center text-red-500 p-4">⚠️ 데이터 로직이 제거되어 목록을 표시할 수 없습니다.</p>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 4. 교육 공유 게시판 섹션 -->
-            <div id="sharing-board-section" class="main-content-section">
-                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-teal-500">
-                    <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
-                        교육 공유 게시판 (비활성화)
-                    </h2>
-
-                    <!-- Sharing Form -->
-                    <form id="sharing-form" class="p-4 bg-teal-50 border border-teal-200 rounded-lg shadow-inner mb-6 space-y-3">
-                        <h3 class="text-lg font-bold text-teal-800">새로운 교육 정보 공유하기 (비활성화)</h3>
-                        <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
-                            <p class="font-semibold">⚠️ 기능 비활성화</p>
-                            <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
-                        </div>
-                        <div>
-                            <label for="title" class="block text-sm font-medium text-teal-700">제목 (교육/자료 명)</label>
-                            <input type="text" id="title" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500" disabled>
-                        </div>
-                        <div>
-                            <label for="content" class="block text-sm font-medium text-teal-700">내용 (간단한 설명/링크)</label>
-                            <textarea id="content" rows="3" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500" disabled></textarea>
-                        </div>
-                        <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 transition duration-150 ease-in-out" disabled>
-                            정보 공유하기 (비활성화)
-                        </button>
-                    </form>
-
-                    <!-- Shared List -->
-                    <div id="shared-list" class="space-y-4 max-h-96 overflow-y-auto pr-2 db-scroll-area">
-                        <p class="text-center text-red-500 p-4">⚠️ 게시판 기능이 비활성화되었습니다. (데이터 로직 제거됨)</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 5. 문의/작성 이력 섹션 -->
-            <div id="inquiry-section" class="main-content-section">
-                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-amber-500 min-h-[250px]">
-                    <h2 class="text-2xl font-bold text-gray-700 mb-4">문의 / 작성 이력</h2>
-                    <h3 class="text-lg font-semibold text-gray-600 mb-3">개인 활동 내역</h3>
-                    <ul id="inquiry-history-list" class="space-y-3 max-h-96 overflow-y-auto pr-2 db-scroll-area">
-                        <p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 이력을 표시할 수 없습니다.</p>
-                    </ul>
-                </div>
-            </div>
-        </main>
-    </div>
-</body>
-</html>
