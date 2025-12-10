@@ -41,10 +41,14 @@
         const TRAINING_GOAL_HOURS = 40;
         let currentCalendarDate = new Date();
 
-        // ********** GAS 연동 설정 **********
-        // Google Apps Script 배포 URL (exec로 끝나는지 확인)
-        // '사용자정보' 시트 데이터를 가져오는 스크립트의 웹 앱 URL이어야 합니다.
-        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzFfTsWR4aE-uUVltWp0wgSk6_whgawDlni1hALxLGMuB-FsMDnKnDcVqtDk_j6WA66/exec";
+        // ********** GAS 연동 설정 (두 개의 주소 분리) **********
+        
+        // 1. 계획서 저장용 (DB 저장, POST)
+        const GAS_SAVE_API_URL = "https://script.google.com/macros/s/AKfycbwU2V26MIQzI90nAs1T0z-1chcpd6448L6QEZci6Kpts6GVyyaFMkVledprKZkneqUj/exec";
+
+        // 2. 프로필 정보 조회용 (사용자 정보, GET)
+        const GAS_PROFILE_API_URL = "https://script.google.com/macros/s/AKfycbzFfTsWR4aE-uUVltWp0wgSk6_whgawDlni1hALxLGMuB-FsMDnKnDcVqtDk_j6WA66/exec";
+
 
         // ********** 로그인 정보 가져오기 (세션 우선) **********
         // 1. URL 파라미터에서 탐색
@@ -160,7 +164,7 @@
             window.renderInterestList();
         };
 
-        // ********** [수정] 계획 저장 기능 (GAS 연동) **********
+        // ********** [수정] 계획 저장 기능 (GAS 연동: GAS_SAVE_API_URL 사용) **********
         window.saveAnnualPlan = async function(e) {
             e.preventDefault();
 
@@ -198,16 +202,11 @@
                     actions: actions
                 };
 
-                // 3. fetch로 데이터 전송 (POST)
-                // no-cors 모드는 응답 내용을 읽을 수 없지만, 저장은 됩니다.
-                // 여기서는 일반적인 POST 요청을 보냅니다. (GAS 설정에 따라 no-cors 필요할 수 있음)
-                const response = await fetch(GAS_API_URL, {
+                // 3. fetch로 데이터 전송 (POST) -> GAS_SAVE_API_URL 사용
+                const response = await fetch(GAS_SAVE_API_URL, {
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
-
-                // GAS Web App은 CORS 문제로 인해 보통 내용을 반환받기 힘듭니다.
-                // 에러가 안 나면 성공으로 간주하거나, no-cors를 사용합니다.
 
                 // 4. UI 업데이트 (성공 가정)
                 const planContainer = document.getElementById('annual-plan-display');
@@ -539,8 +538,8 @@
             }
 
             try {
-                // 3. GAS에 사번(userUid)을 파라미터로 전달하여 나머지 정보 요청
-                const response = await fetch(`${GAS_API_URL}?userUid=${LOGIN_USER_UID}`);
+                // 3. GAS에 사번(userUid)을 파라미터로 전달하여 나머지 정보 요청 -> GAS_PROFILE_API_URL 사용
+                const response = await fetch(`${GAS_PROFILE_API_URL}?userUid=${LOGIN_USER_UID}`);
 
                 if (!response.ok) {
                     throw new Error('네트워크 응답에 문제가 있습니다.');
