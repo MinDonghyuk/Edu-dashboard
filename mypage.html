@@ -270,7 +270,7 @@
             const title = "2025년 역량개발 계획서"; // 기본 제목 설정
             const goal = document.getElementById('plan-goal').value;
 
-            // 2. 리스트 데이터를 텍스트로 변환 및 예산 합산
+            // 2. 리스트 데이터를 텍스트로 변환 및 예산 합산 (UI 표시용)
             let actionsText = "";
             let totalBudget = 0;
             currentPlanEducationList.forEach((item, index) => {
@@ -287,16 +287,14 @@
 
             try {
                 // 3. GAS로 보낼 데이터 준비 (JSON)
+                // 중요: GAS 코드에서 `educationList`가 있으면 반복문으로 행을 추가하도록 구현해야 합니다.
                 const payload = {
                     userUid: LOGIN_USER_UID,
                     userName: LOGIN_USER_NAME || 'Unknown',
                     title: title,
-                    category: '연간계획', // 삭제된 필드 기본값
-                    method: '종합',       // 삭제된 필드 기본값
-                    period: '2025년',     // 삭제된 필드 기본값
-                    budget: totalBudget,  // 자동 계산된 예산
                     goal: goal,
-                    actions: actionsText
+                    budget: totalBudget, 
+                    educationList: currentPlanEducationList // [중요] 배열 데이터 전송
                 };
 
                 // 4. fetch로 데이터 전송 (POST) -> GAS_SAVE_API_URL 사용
@@ -872,7 +870,7 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1">수강 기간</label>
                         <div class="flex items-center gap-2">
                             <input type="date" id="edu-period-start" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm" required>
-                            <span class="text-gray-500">~</span>
+                            <span class="text-gray-500 font-bold">~</span>
                             <input type="date" id="edu-period-end" class="w-full p-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm" required>
                         </div>
                     </div>
