@@ -1,878 +1,930 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>사내 정보 공유 허브</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com/3.4.1"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .tab-content.active { display: block; }
-    .tab-content:not(.active) { display: none; }
-    /* 스크롤바 커스터마이징 */
-    .db-scroll-area::-webkit-scrollbar { width: 6px; }
-    .db-scroll-area::-webkit-scrollbar-thumb { background-color: #a5b4fc; border-radius: 3px; }
-    .db-scroll-area::-webkit-scrollbar-track { background-color: #e5e7eb; border-radius: 3px; }
-    .db-scroll-area { scrollbar-width: thin; scrollbar-color: #a5b4fc #e5e7eb; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사내 정보 공유 허브 (경량화 + GAS 연동)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .main-content-section:not(.active) { display: none; }
+        .main-content-section.active { display: block; }
+        
+        /* 스크롤바 스타일링 유지 */
+        .db-scroll-area::-webkit-scrollbar { width: 6px; }
+        .db-scroll-area::-webkit-scrollbar-thumb { background-color: #a5b4fc; border-radius: 3px; }
+        .db-scroll-area::-webkit-scrollbar-track { background-color: #e5e7eb; border-radius: 3px; }
+        .db-scroll-area { scrollbar-width: thin; scrollbar-color: #a5b4fc #e5e7eb; }
 
-    /* 프로그레스 바 애니메이션 */
-    .progress-bar > div { transition: width 0.5s ease-in-out; }
-  </style>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            indigo: { '300': '#a5b4fc', '600': '#4f46e5', '700': '#4338ca', '500': '#6366f1' },
-            teal: { '500': '#14b8a6', '600': '#0d9488', '700': '#0f766e' },
-            amber: { '500': '#f59e0b', '600': '#d97706', '700': '#b45309' },
-            red: { '500': '#ef4444', '600': '#dc2626', '700': '#b91c1c' },
-            cyan: { '500': '#06b6d4', '600': '#0891b2' },
-            lime: { '500': '#84cc16', '600': '#65a30d' },
-            orange: { '500': '#f97316', '600': '#ea580c', '700': '#c2410c' }
-          }
-        }
-      }
-    }
+        #individual-history-list::-webkit-scrollbar { width: 8px; }
+        #individual-history-list::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        #individual-history-list::-webkit-scrollbar-track { background-color: #f1f5f9; }
+        #individual-history-list { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
 
-    // --- 메시지 표시 함수 ---
-    window.displayMessage = function(message, type = 'error') {
-      const container = document.getElementById('message-container');
-      if (!container) return;
-      
-      // 타입에 따른 아이콘 및 색상 설정
-      let iconSvg, color;
-      if (type === 'error') {
-        iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>';
-        color = 'bg-red-600';
-      } else if (type === 'success') {
-        iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-        color = 'bg-green-600';
-      } else { // info (로딩 등)
-        iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>';
-        color = 'bg-indigo-600';
-      }
+        .progress-bar > div { transition: width 0.5s ease-in-out; }
+        
+        /* 캘린더 일정 표시 스타일 */
+        .schedule-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 2px;
+        }
+        .schedule-vacation { background-color: #f87171; }
+        .schedule-meeting { background-color: #3b82f6; }
+        .schedule-training { background-color: #10b981; }
+    </style>
+    <script>
+        // --- 전역 상수 및 초기화된 데이터 ---
+        const TRAINING_GOAL_HOURS = 40;
+        let currentCalendarDate = new Date();
+        
+        // ********** GAS 연동 설정 **********
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzFfTsWR4aE-uUVltWp0wgSk6_whgawDlni1hALxLGMuB-FsMDnKnDcVqtDk_j6WA66/exec";
+        
+        // --- 로그인 정보 가져오기 (수정됨) ---
+        // 1. localStorage에서 먼저 찾기 (login.html에서 저장한 값)
+        // 2. 없으면 URL 파라미터에서 찾기 (?userUid=...)
+        // 3. 그래도 없으면 null (로그인 안 된 상태)
+        let LOGIN_USER_UID = localStorage.getItem('userUid');
+        let LOGIN_USER_NAME = localStorage.getItem('userName'); // 이름도 저장되어 있다면 활용 가능
 
-      const messageElement = document.createElement('div');
-      // 자동 삭제 시간을 길게 설정하여 에러 확인 가능하게 함
-      messageElement.className = `p-4 rounded-lg shadow-xl text-white font-semibold flex items-center space-x-3 ${color} mb-2 opacity-0 transition-opacity duration-300 transform translate-y-2 pointer-events-auto`;
-      messageElement.innerHTML = `${iconSvg} <span class="text-sm">${message}</span>`;
-      container.appendChild(messageElement);
-      
-      setTimeout(() => {
-        messageElement.classList.remove('opacity-0', 'translate-y-2');
-        messageElement.classList.add('opacity-100', 'translate-y-0');
-      }, 10);
-      
-      // info 타입이 아니면 5초 뒤 자동 삭제
-      if (type !== 'info') {
-        setTimeout(() => {
-          messageElement.classList.remove('opacity-100', 'translate-y-0');
-          messageElement.classList.add('opacity-0', 'translate-y-2');
-          setTimeout(() => messageElement.remove(), 300);
-        }, 8000); // 8초로 연장
-      } else {
-        // info 메시지는 3초 뒤 사라지게 처리
-        setTimeout(() => {
-          messageElement.classList.remove('opacity-100', 'translate-y-0');
-          messageElement.classList.add('opacity-0', 'translate-y-2');
-          setTimeout(() => messageElement.remove(), 300);
-        }, 3000);
-      }
-    };
+        if (!LOGIN_USER_UID) {
+            const urlParams = new URLSearchParams(window.location.search);
+            LOGIN_USER_UID = urlParams.get('userUid');
+        }
 
-    // 모달 열기/닫기 함수
-    window.openModal = function(modalId) {
-      const modal = document.getElementById(modalId);
-      if (!modal) return;
-      modal.classList.remove('hidden');
-      setTimeout(() => {
-        modal.classList.add('opacity-100');
-        modal.querySelector('.bg-white').classList.add('scale-100');
-        modal.querySelector('.bg-white').classList.remove('scale-95');
-        if (modalId === 'full-history-modal' && window.renderFullTrainingHistory) window.renderFullTrainingHistory();
-        if (modalId === 'annual-plan-modal' && window.renderAnnualPlan) window.renderAnnualPlan();
-      }, 10);
-    }
+        // 디버깅용 로그 (나중에 삭제 가능)
+        console.log("현재 로그인된 User UID:", LOGIN_USER_UID);
 
-    window.closeModal = function(modalId) {
-      const modal = document.getElementById(modalId);
-      if (!modal) return;
-      modal.classList.remove('opacity-100');
-      modal.querySelector('.bg-white').classList.remove('scale-100');
-      modal.querySelector('.bg-white').classList.add('scale-95');
-      setTimeout(() => { modal.classList.add('hidden'); }, 300);
-    }
-  </script>
-</head>
-<body class="bg-gray-100 p-4 md:p-8">
-  <!-- 메시지 표시 영역 -->
-  <div id="message-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] w-full max-w-md px-4 pointer-events-none"></div>
+        // ********** Mock Data 및 관련 변수 모두 제거/초기화 **********
+        let localUserSchedules = [];
+        const mockInquiryHistory = [];
+        const mockTrainingHistory = [];
+        const mockUpcomingTraining = [];
+        let simulatedSharedPosts = [];
+        const mockInterestKeywords = [];
+        let localScrapedIds = [];
+        
+        const currentMonth = currentCalendarDate.getMonth();
+        const currentYear = currentCalendarDate.getFullYear();
+        const currentDay = currentCalendarDate.getDate();
 
-  <!-- 전체 레이아웃 그리드: 4열 구조 -->
-  <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+        // --- 아이콘 SVG 생성 함수 (전역) ---
+        function getIconSVG(name, classes) {
+            const icons = {
+                'User': '<path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+                'ListChecks': '<path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path>',
+                'Target': '<circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>',
+                'ClipboardList': '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path>',
+                'Calendar': '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>',
+                'Check': '<polyline points="20 6 9 17 4 12"></polyline>',
+                'X': '<path d="M18 6L6 18"></path><path d="M6 6l12 12"></path>',
+                'Heart': '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path>',
+                'Star': '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+                'Pencil': '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>'
+            };
+            const svgContent = icons[name] || '';
+            return `<svg xmlns="http://www.w3.org/2000/svg" class="${classes}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgContent}</svg>`;
+        }
+        
+        // --- 유틸리티 함수 ---
+        const formatCurrency = (number) => new Intl.NumberFormat('ko-KR', {
+            style: 'currency',
+            currency: 'KRW',
+            minimumFractionDigits: 0
+        }).format(number);
 
-    <!-- Column 1 (lg:col-span-1): 사이드바 -->
-    <aside class="lg:col-span-1 space-y-6" id="sidebar-content">
-      <!-- 사이드바 내용은 JS에서 동적으로 생성 -->
-    </aside>
+        // --- 메시지 표시 함수 ---
+        window.alertMessage = function(message, type = 'info') {
+            const box = document.getElementById('message-box');
+            let bgColor = { 'info': 'bg-blue-500', 'success': 'bg-green-500', 'error': 'bg-red-500' }[type] || 'bg-blue-500';
+            
+            box.textContent = message;
+            box.className = `fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-transform duration-300 transform translate-x-0 ${bgColor}`;
 
-    <!-- Column 2 (lg:col-span-3): 메인 컨텐츠 영역 -->
-    <div class="lg:col-span-3">
-      <!-- 헤더 및 타이틀 -->
-      <header class="mb-8 bg-white p-6 rounded-xl shadow-lg">
-        <h1 class="text-3xl font-extrabold text-indigo-700 tracking-tight flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mr-3 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-          </svg>
-          사내 정보 공유 허브
-        </h1>
-        <p class="text-gray-500 mt-1">우리 회사의 공지, 학습 자료, 소통 공간을 한 곳에서 확인하세요.</p>
-      </header>
+            setTimeout(() => { box.classList.add('translate-x-full'); }, 3000);
+            setTimeout(() => { box.classList.remove('translate-x-full'); }, 3500);
+        }
 
-      <!-- 네비게이션 버튼 -->
-      <nav class="flex space-x-4 mb-8 p-1 bg-white rounded-xl shadow-md" id="tab-nav">
-        <!-- 버튼들은 JS에서 동적으로 생성됩니다. -->
-      </nav>
+        // --- Modal Utility Functions ---
+        window.openModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex', 'opacity-100');
+            }
+        };
 
-      <!-- 컨텐츠 영역 -->
-      <main class="min-h-[600px]" id="tab-content-container">
-        <!-- 각 탭의 내용이 여기에 표시됩니다. -->
-      </main>
-    </div>
-  </div>
+        window.closeModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('opacity-100', 'flex');
+                modal.classList.add('hidden');
+            }
+        };
 
-  <!-- 푸터 -->
-  <footer class="mt-8 text-center text-gray-500 text-sm">
-    &copy; <span id="current-year"></span> 내부 커뮤니티. All rights reserved.
-  </footer>
+        // --- DUMMY/MOCKUP FUNCTIONS (모두 비활성화) ---
+        window.toggleInterest = function(postId, event) {
+            event.stopPropagation();
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
+            window.setupSharingListener(); 
+            window.renderInterestList(); 
+        };
 
-  <!-- ================= MODALS START ================= -->
+        window.saveAnnualPlan = function(e) {
+            e.preventDefault();
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
+            window.closeModal('annual-plan-modal');
+        };
 
-  <!-- 1. 새 자료 등록 모달 -->
-  <div id="training-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <form id="training-post-form" class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 class="text-2xl font-bold text-teal-700">새 교육 자료 등록</h3>
-          <button type="button" onclick="closeModal('training-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">제목</label><input type="text" name="title" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">내용</label><textarea name="summary" class="w-full p-3 border border-gray-300 rounded-lg" required></textarea></div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">태그</label>
-          <select name="tag" class="w-full p-3 border border-gray-300 rounded-lg bg-white">
-            <option value="교양">교양</option><option value="직무">직무</option><option value="필수">필수</option><option value="기술">기술</option>
-          </select>
-        </div>
-        <div class="flex justify-end space-x-3 pt-4">
-          <button type="button" onclick="closeModal('training-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
-          <button type="submit" class="px-6 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-            등록
-          </button>
-        </div>
-      </form>
-      <script>document.getElementById('training-post-modal').addEventListener('click', (e) => { if(e.target.id === 'training-post-modal') closeModal('training-post-modal'); });</script>
-    </div>
-  </div>
+        window.saveUserSchedule = function(e) {
+            e.preventDefault();
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
+            window.closeModal('schedule-add-modal');
+        };
 
-  <!-- 2. 커뮤니티 등록 모달 -->
-  <div id="community-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <form id="community-post-form" class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 class="text-2xl font-bold text-amber-700">신청서 작성</h3>
-          <button type="button" onclick="closeModal('community-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100" aria-label="닫기">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">조직명</label><input type="text" name="title" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">활동 분류</label><select name="tag" class="w-full p-3 border border-gray-300 rounded-lg bg-white"><option value="학술">학술</option><option value="친목">친목</option></select></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">내용</label><textarea name="content" class="w-full p-3 border border-gray-300 rounded-lg" required></textarea></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">인원</label><input type="number" name="member_count" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
-        <div class="flex justify-end space-x-3 pt-4">
-          <button type="button" onclick="closeModal('community-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
-          <button type="submit" class="px-6 py-2 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            제출
-          </button>
-        </div>
-      </form>
-      <script>document.getElementById('community-post-modal').addEventListener('click', (e) => { if(e.target.id === 'community-post-modal') closeModal('community-post-modal'); });</script>
-    </div>
-  </div>
-  
-  <!-- 3. 당근 등록 모달 -->
-  <div id="danggn-post-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <form id="danggn-post-form" class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 class="text-2xl font-bold text-orange-700">새 글 작성</h3>
-          <button type="button" onclick="closeModal('danggn-post-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100" aria-label="닫기">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">제목</label><input type="text" name="title" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">내용</label><textarea name="content" class="w-full p-3 border border-gray-300 rounded-lg" required></textarea></div>
-        <div class="flex justify-end space-x-3 pt-4">
-          <button type="button" onclick="closeModal('danggn-post-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
-          <button type="submit" class="px-6 py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-            등록
-          </button>
-        </div>
-      </form>
-      <script>document.getElementById('danggn-post-modal').addEventListener('click', (e) => { if(e.target.id === 'danggn-post-modal') closeModal('danggn-post-modal'); });</script>
-    </div>
-  </div>
+        window.deleteUserSchedule = function(scheduleId, event) {
+            event.stopPropagation();
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
+            window.closeModal('day-detail-modal');
+        }
 
-  <!-- 4. 전체 이력 모달 -->
-  <div id="full-history-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <div class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 class="text-2xl font-bold text-amber-700 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg>
-            전체 이력
-          </h3>
-          <button type="button" onclick="closeModal('full-history-modal')" class="p-2 text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <ul id="full-history-list" class="space-y-2"><li class="text-center text-gray-500">데이터가 없습니다.</li></ul>
-      </div>
-      <script>document.getElementById('full-history-modal').addEventListener('click', (e) => { if(e.target.id === 'full-history-modal') closeModal('full-history-modal'); });</script>
-    </div>
-  </div>
-  
-  <!-- 5. 연간 계획 모달 -->
-  <div id="annual-plan-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <div class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 class="text-2xl font-bold text-lime-700">교육 계획</h3>
-          <button type="button" onclick="closeModal('annual-plan-modal')" class="p-2 text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <ul id="annual-plan-list" class="space-y-2"><li class="text-center py-10 text-gray-500">데이터가 없습니다.</li></ul>
-      </div>
-      <script>document.getElementById('annual-plan-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-modal') closeModal('annual-plan-modal'); });</script>
-    </div>
-  </div>
+        window.saveTrainingComment = function(e) {
+            e.preventDefault();
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
+            window.closeModal('training-detail-modal');
+        }
 
-  <!-- 6. 금년도 교육 계획 작성 모달 (복구됨) -->
-  <div id="annual-plan-create-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <form id="annual-plan-create-form" class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 class="text-2xl font-bold text-lime-700">금년도 교육 계획 작성</h3>
-          <button type="button" onclick="closeModal('annual-plan-create-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">과정명</label><input type="text" name="course" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">분류</label><select name="type" class="w-full p-3 border border-gray-300 rounded-lg bg-white"><option value="필수">필수</option><option value="직무">직무</option></select></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">기간</label><input type="text" name="period" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
-        
-        <div class="flex justify-end space-x-3 pt-4">
-          <button type="button" onclick="closeModal('annual-plan-create-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">취소</button>
-          <button type="submit" class="px-6 py-2 bg-lime-600 text-white rounded-lg font-bold hover:bg-lime-700 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            저장
-          </button>
-        </div>
-      </form>
-      <script>document.getElementById('annual-plan-create-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-create-modal') closeModal('annual-plan-create-modal'); });</script>
-    </div>
-  </div>
+        window.sharePost = function(e) {
+            e.preventDefault();
+            window.alertMessage("🚧 기능 비활성화: Mock 데이터 및 로직이 제거되었습니다.", 'info');
+        }
 
-  <!-- 7. 교육 보고서 상세 모달 (복구됨) -->
-  <div id="training-report-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <div class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 id="report-modal-title" class="text-2xl font-bold text-teal-700 truncate max-w-[80%]">교육 보고서 상세</h3>
-          <button type="button" onclick="closeModal('training-report-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <div class="space-y-4 text-gray-700">
-          <div class="flex space-x-4 border-b pb-3">
-            <div class="w-1/2">
-              <label class="block text-xs font-medium text-gray-500 mb-1">신청자/팀</label>
-              <p id="report-modal-applicant" class="text-sm font-semibold">-</p>
-            </div>
-            <div class="w-1/2">
-              <label class="block text-xs font-medium text-gray-500 mb-1">승인 상태</label>
-              <p id="report-modal-status" class="text-sm font-semibold text-green-600">-</p>
-            </div>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">보고서 내용</label>
-            <div id="report-modal-details" class="p-3 bg-gray-50 rounded-lg border text-sm whitespace-pre-wrap max-h-48 overflow-y-auto db-scroll-area">-</div>
-          </div>
-          <div id="report-modal-rejection" class="p-3 bg-red-100 border border-red-300 rounded-lg hidden">
-            <label class="block text-xs font-medium text-red-700 mb-1">반려 사유</label>
-            <p id="report-modal-rejection-reason" class="text-sm text-red-800 font-medium">-</p>
-          </div>
-        </div>
-        <div class="flex justify-end pt-4">
-          <button type="button" onclick="closeModal('training-report-modal')" class="px-6 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md">닫기</button>
-        </div>
-      </div>
-      <script>document.getElementById('training-report-modal').addEventListener('click', (e) => { if(e.target.id === 'training-report-modal') closeModal('training-report-modal'); });</script>
-    </div>
-  </div>
-  
-  <!-- 8. 공지사항 상세 모달 (복구됨) -->
-  <div id="notice-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
-      <div class="p-6 bg-white rounded-xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 id="notice-modal-title" class="text-2xl font-bold text-indigo-700 truncate max-w-[80%]">공지사항 제목</h3>
-          <button type="button" onclick="closeModal('notice-detail-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <div class="space-y-4 text-gray-700">
-          <div class="flex justify-between items-center text-sm text-gray-500 border-b pb-3">
-            <p class="font-medium">게시일: <span id="notice-modal-date">-</span></p>
-            <p class="font-medium">작성자: <span id="notice-modal-author">인사팀</span></p>
-          </div>
-          <div><div id="notice-modal-content" class="p-4 bg-gray-50 rounded-lg border text-base whitespace-pre-wrap max-h-96 overflow-y-auto db-scroll-area">-</div></div>
-        </div>
-        <div class="flex justify-end pt-4">
-          <button type="button" onclick="closeModal('notice-detail-modal')" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md">닫기</button>
-        </div>
-      </div>
-      <script>document.getElementById('notice-detail-modal').addEventListener('click', (e) => { if(e.target.id === 'notice-detail-modal') closeModal('notice-detail-modal'); });</script>
-    </div>
-  </div>
-  
-  <!-- ================= MODALS END ================= -->
+        // --- 렌더링 로직 (데이터 제거 및 초기화) ---
+        function renderAchievementSummary() {
+            let totalHours = 0; 
+            let totalCost = 0; 
+            let totalNetCost = 0; 
+            
+            const achievementRate = (totalHours / TRAINING_GOAL_HOURS) * 100;
+            const safeRate = Math.max(0, Math.min(100, achievementRate));
+            const rateText = `${totalHours.toFixed(1)}시간 / ${TRAINING_GOAL_HOURS}시간 (${safeRate.toFixed(1)}%)`;
+            const totalCostText = formatCurrency(totalCost);
+            const totalNetCostText = formatCurrency(totalNetCost);
 
-  <!-- Scripts -->
-  <script type="module">
-    // --- ★ 중요: Google Apps Script 배포 URL 설정 ★ ---
-    // 최신 배포된 exec URL (오타 수정됨)
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzFfTsWR4aE-uUVltWp0wgSk6_whgawDlni1hALxLGMuB-FsMDnKnDcVqtDk_j6WA66/exec";
+            const html = `
+                <div class="grid grid-cols-1 gap-4 mb-4">
+                    <div class="col-span-1">
+                        <p class="text-md font-bold text-indigo-700 mb-2">총 달성율: ${rateText}</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: ${safeRate}%;"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="col-span-1">
+                            <strong class="block text-xs font-semibold text-gray-500">총 교육 비용:</strong>
+                            <span class="font-bold text-teal-600">${totalCostText}</span>
+                        </div>
+                        <div class="col-span-1">
+                            <strong class="block text-xs font-semibold text-gray-500">순수 부담 비용:</strong>
+                            <span class="font-bold text-red-600">${totalNetCostText}</span>
+                        </div>
+                    </div>
+                    <div class="bg-red-100 p-2 text-sm text-red-700 rounded-md">⚠️ 이 섹션의 데이터는 비활성화되었습니다.</div>
+                </div>
+            `;
+            return `<div class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg h-full">${html}</div>`;
+        }
 
-    // --- 아이콘 SVG 상수 정의 ---
-    const ICONS = {
-      Bell: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path></svg>',
-      BookOpen: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
-      BookOpenTeal: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path></svg>',
-      Users: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path></svg>',
-      UsersSmall: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path></svg>',
-      ShoppingBag: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>',
-      Plus: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>',
-      Clipboard: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>',
-      ClipboardList: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
-      TrendingUp: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 13 22 17 19 19 16 16 11 21"></polyline><path d="M12 11V5a1 1 0 00-1-1H5"></path></svg>',
-      Globe: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-cyan-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>',
-      ListChecks: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg>',
-      Calendar: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
-      Target: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1 text-lime-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
-      LogOut: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>'
-    };
+        window.fetchAndRenderAnnualPlan = function() {
+            const planContainer = document.getElementById('annual-plan-display');
+            if (!planContainer) return;
 
-    // --- Global Variables ---
-    let currentUserInfo = { name: '게스트', uid: '-', email: '...', dept: '...', pos: '...' };
+            const writeButton = `
+                <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
+                    ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 
+                    계획 작성하기 (비활성화)
+                </button>
+            `;
+            
+            planContainer.innerHTML = `
+                <div class="p-4 bg-white border border-indigo-300 rounded-xl shadow-inner space-y-2 h-full flex flex-col justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-gray-500">나의 금년도 교육 계획</p>
+                        <div class="flex justify-between items-start">
+                            <p class="text-lg font-bold text-gray-500 truncate pr-4">데이터 로드 불가</p>
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-500 text-white flex-shrink-0">비활성화</span>
+                        </div>
+                        <p class="text-sm text-gray-600 whitespace-pre-wrap max-h-16 overflow-hidden border-l-2 pl-2 border-gray-200">데이터 연동 로직이 제거되어 내용을 불러올 수 없습니다. 새로운 계획을 작성해도 저장되지 않습니다.</p>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
+                        <span>작성일: -</span>
+                        ${writeButton}
+                    </div>
+                </div>
+            `;
+        }
 
-    // --- ★ [수정됨] Google Apps Script에서 데이터 가져오기 (GET) ---
-    // Apps Script의 doGet은 모든 사용자 정보를 배열로 반환하며, 클라이언트에서 UID를 찾습니다.
-    async function fetchUserInfoFromSheet(uid) {
-      if (!uid) {
-        console.warn("UID가 제공되지 않았습니다.");
-        return;
-      }
+        window.applyTrainingFilters = function() {
+            const typeFilter = document.getElementById('type-filter')?.value || 'All';
+            const refundFilter = document.getElementById('refund-filter')?.value || 'All';
+            window.fetchTrainingData(typeFilter, refundFilter);
+        }
 
-      const elEmail = document.getElementById('info-email');
-      const elDept = document.getElementById('info-department');
-      const elPos = document.getElementById('info-position');
-      
-      // 로딩 표시
-      if(elEmail) elEmail.textContent = '조회 중...';
-      if(elDept) elDept.textContent = '...';
-      if(elPos) elPos.textContent = '...';
+        window.fetchTrainingData = function(typeFilter = 'All', refundFilter = 'All') {
+            const individualHistoryList = document.getElementById('individual-history-list');
+            if(individualHistoryList) individualHistoryList.innerHTML = `<p class="text-gray-500 p-4 font-semibold">⚠️ 데이터 로직이 제거되어 이수 내역을 표시할 수 없습니다.</p>`;
+        }
 
-      try {
-        // GET 요청 URL: 모든 사용자 정보를 가져오기 위해 쿼리 파라미터는 사용하지 않습니다.
-        const targetUrl = APPS_SCRIPT_URL;
-        console.log("Requesting ALL user info from:", targetUrl);
+        function renderInquiryHistory() {
+            const container = document.getElementById('inquiry-history-list');
+            if (!container) return;
+            container.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 이력을 표시할 수 없습니다.</p>`;
+        }
 
-        const response = await fetch(targetUrl, {
-          redirect: 'follow'
-        });
-        
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        
-        // 텍스트로 먼저 받아서 JSON인지 HTML인지 확인합니다.
-        const responseText = await response.text();
-        
-        // HTML 응답(에러 페이지)이 왔는지 확인
-        if (responseText.trim().startsWith('<') || responseText.includes('<!DOCTYPE html>')) {
-          console.error("서버가 HTML을 반환했습니다:", responseText);
-          window.displayMessage("서버 설정 오류: 구글 앱스크립트 배포 권한을 '모든 사용자(Anyone)'로 변경해주세요.", 'error');
-          if(elEmail) elEmail.textContent = '권한 오류';
-          return;
-        }
+        function renderKeywordList() {
+            const container = document.getElementById('keyword-list-container');
+            if (!container) return;
+            container.innerHTML = `<p class="text-center text-gray-500 col-span-full p-4">⚠️ 데이터 로직이 제거되어 키워드 목록을 표시할 수 없습니다.</p>`;
+        }
+        
+        window.openTrainingDetailModal = function(itemId) {
+            const modal = document.getElementById('training-detail-modal');
+            const item = { course: '데이터 로드 불가', host: 'N/A', type: 'N/A', period: 'N/A', hours: 0, cost: 0, refund: 'N/A' };
+            
+            document.getElementById('detail-course-name').textContent = item.course;
+            document.getElementById('detail-item-id').value = itemId;
 
-        // JSON 파싱 시도
-        let jsonResponse;
-        try {
-          jsonResponse = JSON.parse(responseText);
-        } catch (e) {
-          console.error("JSON 파싱 에러:", e);
-          window.displayMessage("데이터 형식 오류: 서버 응답을 처리할 수 없습니다.", 'error');
-          if(elEmail) elEmail.textContent = '형식 오류';
-          return;
-        }
+            document.getElementById('detail-content-body').innerHTML = `
+                <div class="space-y-2 text-sm text-gray-700">
+                    <div class="flex justify-between border-b pb-1"><span class="font-semibold text-gray-500">주관/형태:</span><span>${item.host} (${item.type})</span></div>
+                    <div class="flex justify-between border-b pb-1"><span class="font-semibold text-gray-500">이수 기간:</span><span>${item.period}</span></div>
+                    <div class="flex justify-between border-b pb-1"><span class="font-semibold text-gray-500">인정 시간:</span><span class="font-bold text-indigo-600">${item.hours.toFixed(1)}h</span></div>
+                    <div class="flex justify-between border-b pb-1"><span class="font-semibold text-gray-500">총 비용 / 환급 여부:</span><span class="font-bold text-gray-500">${formatCurrency(item.cost)} (${item.refund})</span></div>
+                </div>
+                <div class="mt-4 p-3 bg-red-100 rounded-lg">
+                    <p class="text-red-500 font-bold mb-1">⚠️ 데이터 저장/로드 기능은 제거되었습니다.</p>
+                </div>
+            `;
+            document.getElementById('detail-user-comment').value = '';
+            document.getElementById('detail-attachment').value = '';
+            document.getElementById('detail-user-comment').disabled = true;
+            document.getElementById('detail-attachment').disabled = true;
+            document.getElementById('comment-save-btn').disabled = true;
 
-        console.log("Server Response:", jsonResponse);
+            openModal('training-detail-modal');
+        }
 
-        // Apps Script의 응답 구조: { status: 'success', data: [...] }
-        if (jsonResponse.status === 'success' && Array.isArray(jsonResponse.data)) {
-          
-          // 1. UID에 해당하는 사용자 정보 찾기 (클라이언트 측 필터링)
-          // userUid 필드와 URL에서 가져온 uid를 비교하여 일치하는 객체를 찾습니다.
-          const userData = jsonResponse.data.find(user => String(user.userUid) === String(uid));
+        function renderUpcomingTrainingList() {
+            const upcomingListContainer = document.getElementById('upcoming-list-container');
+            if (!upcomingListContainer) return;
+            upcomingListContainer.innerHTML = `<p class="text-gray-500 p-2 font-semibold">⚠️ 데이터 로직이 제거되어 일정을 표시할 수 없습니다.</p>`;
+        }
 
-          if (userData) {
-            // 시트 헤더 이름(sysmail, deptName, gradeName)과 매핑
-            const userEmail = userData.sysmail || '-';
-            const userDept = userData.deptName || '-';
-            const userPos = userData.gradeName || '-';
+        function renderCalendar() {
+            const calendarContainer = document.getElementById('calendar-container');
+            if (!calendarContainer) return;
 
-            // DOM 업데이트
-            if(elEmail) elEmail.textContent = userEmail;
-            if(elDept) elDept.textContent = userDept;
-            if(elPos) elPos.textContent = userPos;
-            
-            // 전역 변수 업데이트
-            currentUserInfo.email = userEmail;
-            currentUserInfo.dept = userDept;
-            currentUserInfo.pos = userPos;
-            
-            window.displayMessage(`${currentUserInfo.name}님, 환영합니다!`, 'success');
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const schedulesInMonth = {};
+            
+            function getDayColor(dayIndex) {
+                if (dayIndex === 0) return 'text-red-500'; 
+                if (dayIndex === 6) return 'text-blue-500'; 
+                return 'text-gray-700';
+            }
+            
+            let html = `
+                <div class="flex justify-between items-center mb-2">
+                    <button onclick="changeMonth(-1)" class="p-2 rounded-full hover:bg-gray-100 text-gray-700" aria-label="이전 달">${getIconSVG('X', 'w-5 h-5 transform rotate-45')}</button>
+                    <h5 class="text-xl font-bold text-indigo-700">${year}년 ${month + 1}월</h5>
+                    <button onclick="changeMonth(1)" class="p-2 rounded-full hover:bg-gray-100 text-gray-700" aria-label="다음 달">${getIconSVG('X', 'w-5 h-5 transform -rotate-45')}</button>
+                </div>
+                <div class="flex-grow flex flex-col justify-between">
+                    <table class="w-full text-center border-collapse rounded-lg overflow-hidden flex-grow">
+                        <thead>
+                            <tr class="text-xs font-semibold text-gray-500 bg-gray-100">
+                                <th class="py-1 ${getDayColor(0)}">일</th>
+                                <th class="py-1 ${getDayColor(1)}">월</th>
+                                <th class="py-1 ${getDayColor(2)}">화</th>
+                                <th class="py-1 ${getDayColor(3)}">수</th>
+                                <th class="py-1 ${getDayColor(4)}">목</th>
+                                <th class="py-1 ${getDayColor(5)}">금</th>
+                                <th class="py-1 ${getDayColor(6)}">토</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
 
-          } else {
-            console.warn(`UID ${uid}에 해당하는 사용자 정보를 시트에서 찾을 수 없습니다.`);
-            window.displayMessage(`사용자 정보 조회 실패: UID ${uid}가 시트에 없습니다.`, 'error');
-            if(elEmail) elEmail.textContent = '정보 없음';
-          }
-        } else {
-          console.warn("데이터 조회 실패:", jsonResponse.message);
-          if(elEmail) elEmail.textContent = '정보 없음';
-        }
-      } catch (error) {
-        console.error("Fetch Error:", error); 
-        window.displayMessage("네트워크 오류가 발생했습니다.", 'error');
-        if(elEmail) elEmail.textContent = '연동 실패';
-      }
-    }
-    
-    // --- 로그아웃 함수 (수정됨: 로컬 스토리지 삭제) ---
-    window.logout = async () => {
-      // 로컬 스토리지에서 세션 삭제
-      localStorage.removeItem('edu_user_session');
-      
-      window.displayMessage("로그아웃되었습니다.", 'success');
-      setTimeout(() => {
-        window.location.href = 'index.html'; // 로그인 페이지로 이동
-      }, 1000);
-    };
-    
-    // --- 모의 데이터 렌더링 (원복) ---
-    window.renderMockTrainingSummary = function() {
-      const listContainer = document.getElementById('training-list-container');
-      const top3Container = document.getElementById('top3-cards-container');
-      const noDataMessage = document.getElementById('no-data-message-training');
-      const dbSection = document.getElementById('db-section');
+            let day = 1;
+            let todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
 
-      if(top3Container) top3Container.innerHTML = '<p class="text-gray-500 col-span-3 text-center py-4">등록된 데이터가 없습니다.</p>';
-      if(listContainer) listContainer.innerHTML = '';
-      if(dbSection) dbSection.classList.add('hidden');
-      if(noDataMessage) noDataMessage.classList.remove('hidden');
-    }
+            for (let i = 0; i < 6; i++) {
+                html += '<tr>';
+                for (let j = 0; j < 7; j++) {
+                    if (i === 0 && j < firstDayOfMonth || day > daysInMonth) {
+                        html += '<td class="p-0.5 border border-gray-100 bg-gray-50"></td>';
+                    } else {
+                        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const isToday = new Date(dateKey + 'T00:00:00').getTime() === todayDate.getTime();
+                        
+                        let dayClasses = `p-0.5 border border-gray-100 text-sm font-medium h-8 align-top cursor-pointer transition duration-150 hover:bg-indigo-50`;
+                        if (isToday) {
+                            dayClasses += ' bg-amber-100 border-2 border-amber-500 rounded-lg shadow-inner';
+                        }
+                        
+                        const schedulesOnDay = schedulesInMonth[dateKey] || [];
+                        let scheduleDots = '';
+                        
+                        html += `<td class="${dayClasses}" onclick="openDayDetailModal('${dateKey}')">`;
+                        html += `<span class="${getDayColor(j)} block text-xs">${day}</span>`;
+                        if (scheduleDots) {
+                            html += `<div class="mt-0.5 flex justify-center flex-wrap">${scheduleDots}</div>`;
+                        }
+                        html += `</td>`;
+                        day++;
+                    }
+                }
+                html += '</tr>';
+                if (day > daysInMonth) break;
+            }
 
-    // --- 전체 교육 이력 모달 렌더링 함수 (원복) ---
-    window.renderFullTrainingHistory = function() {
-      const listContainer = document.getElementById('full-history-list');
-      if (!listContainer) return;
-      listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
-    }
-    
-    // --- 연간 계획 모달 렌더링 함수 (원복) ---
-    window.renderAnnualPlan = function() {
-      const listContainer = document.getElementById('annual-plan-list');
-      if (!listContainer) return;
-      listContainer.innerHTML = '<li class="text-center py-10 text-gray-500">데이터가 없습니다.</li>';
-    }
+            html += `</tbody></table></div>`;
+            calendarContainer.innerHTML = html;
+        }
 
-    // --- 사이드바 사용자 ID 업데이트 함수 ---
-    const userInfoFields = ['employeeId', 'name', 'email', 'department', 'position'];
-    
-    function updateSidebarUserId(urlName, urlUid) {
-      // 이 함수는 더 이상 DOM을 직접 조작하지 않고, currentUserInfo만 업데이트합니다.
-      // 실제 렌더링은 createSidebarAndMovedCards에서 처리합니다.
-      const displayName = urlName || '게스트';
-      const displayUid = urlUid || '-';
+        window.changeMonth = function(offset) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
+            renderCalendar();
+            renderUpcomingTrainingList(); 
+        }
 
-      currentUserInfo.name = displayName;
-      currentUserInfo.uid = displayUid;
-    }
+        window.openDayDetailModal = function(dateKey) {
+            const detailModal = document.getElementById('day-detail-modal');
+            if (!detailModal) return;
 
-    // --- 프로그레스 바 업데이트 함수 ---
-    function updateProgressBars(data) {
-      const goalTime = data.goal || 0;
-      const actualTime = data.actual || 0;
-      const mandatoryExternalTime = data.mandatoryExternal || 0;
-      const mandatoryGoal = 12;
+            const dateTitle = document.getElementById('day-detail-date');
+            const listContainer = document.getElementById('day-event-list');
+            const targetDate = new Date(dateKey + 'T00:00:00');
 
-      const goalPercent = goalTime > 0 ? (actualTime / goalTime) * 100 : 0;
-      const mandatoryPercent = (mandatoryExternalTime / mandatoryGoal) * 100;
+            if (dateTitle) dateTitle.textContent = `${targetDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })} 일정`;
+            listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">등록된 일정이 없습니다. (데이터 로직 제거됨)</p>`;
+            
+            const scheduleDateInput = document.getElementById('schedule-date');
+            if (scheduleDateInput) {
+                scheduleDateInput.value = dateKey;
+            }
+            openModal('day-detail-modal');
+        }
+        
+        window.renderInterestList = function() {
+            const listContainer = document.getElementById('interest-list-container');
+            if (!listContainer) return;
+            listContainer.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 목록을 표시할 수 없습니다.</p>`;
+        }
 
-      const goalBarFill = document.getElementById('progress-goal-fill');
-      const goalBarText = document.getElementById('progress-goal-text');
-      const mandatoryBarFill = document.getElementById('progress-mandatory-fill');
-      const mandatoryBarText = document.getElementById('progress-mandatory-text');
+        window.setupSharingListener = function() {
+            const sharedList = document.getElementById('shared-list');
+            if(!sharedList) return;
+            sharedList.innerHTML = `<p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 게시물이 없습니다.</p>`;
+        }
+        
+        // ********** NEW: GAS 프로필 데이터 연동 함수 **********
+        async function fetchUserProfile() {
+            const statusMsg = document.getElementById('profile-status-msg');
+            
+            // 로그인 정보가 없는 경우 처리
+            if (!LOGIN_USER_UID) {
+                if(statusMsg) {
+                    statusMsg.className = "col-span-2 text-xs text-red-500 pt-2 border-t border-red-200";
+                    statusMsg.textContent = "⚠️ 로그인 정보가 없습니다. 다시 로그인해주세요.";
+                }
+                return; // 함수 종료
+            }
 
-      if (goalBarFill) goalBarFill.style.width = `${Math.min(goalPercent, 100)}%`;
-      if (goalBarText) goalBarText.textContent = `${actualTime}h / ${goalTime}h (${goalPercent.toFixed(0)}%)`;
-      if (mandatoryBarFill) mandatoryBarFill.style.width = `${Math.min(mandatoryPercent, 100)}%`;
-      if (mandatoryBarText) mandatoryBarText.textContent = `${mandatoryExternalTime}h / ${mandatoryGoal}h (${mandatoryPercent.toFixed(0)}%)`;
-    }
+            try {
+                // GAS에 사번(userUid)을 파라미터로 전달하여 요청
+                const response = await fetch(`${GAS_API_URL}?userUid=${LOGIN_USER_UID}`);
+                
+                if (!response.ok) {
+                    throw new Error('네트워크 응답에 문제가 있습니다.');
+                }
 
-    // --- 공통 데이터 전송 함수 (POST) ---
-    async function sendDataToSheet(actionType, formData) {
-      const payload = {
-        action: actionType,
-        user: {
-          uid: currentUserInfo.uid,
-          name: currentUserInfo.name,
-          dept: currentUserInfo.dept,
-          pos: currentUserInfo.pos
-        },
-        form: formData
-      };
+                const jsonResponse = await response.json();
 
-      try {
-        // no-cors 대신 일반 요청 시도 (GAS 웹앱이 json 리턴하므로)
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        
-        // POST 요청도 HTML 응답 체크
-        const responseText = await response.text();
-        if (responseText.trim().startsWith('<') || responseText.includes('<!DOCTYPE html>')) {
-          throw new Error("서버 권한 설정 오류: '모든 사용자' 권한이 필요합니다.");
-        }
-        
-        const result = JSON.parse(responseText);
-        
-        if (result.result === 'success') {
-          return true;
-        } else {
-          throw new Error(result.message || '서버 오류');
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        throw error;  
-      }
-    }
+                // GAS에서 보내준 데이터 구조가 { result: "success", data: { ... } } 라고 가정
+                if (jsonResponse.result === 'success' && jsonResponse.data) {
+                    const userData = jsonResponse.data;
 
-    // 1. 교육자료 저장
-    window.saveTrainingPost = async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = {
-        title: form.title.value,
-        summary: form.summary.value,
-        tag: form.tag.value
-      };
-      window.displayMessage("저장 중입니다...", "info");
-      try {
-        await sendDataToSheet('write_training', formData);
-        window.displayMessage("교육 자료가 성공적으로 등록되었습니다!", 'success');
-        form.reset();
-        closeModal('training-post-modal');
-      } catch (err) {
-        window.displayMessage("저장 실패: " + err.message, 'error');
-      }
-    };
+                    // 받아온 데이터를 HTML ID에 매칭하여 넣기
+                    if(document.getElementById('profile-name')) document.getElementById('profile-name').textContent = userData.userName || '-';
+                    if(document.getElementById('profile-uid')) document.getElementById('profile-uid').textContent = userData.userUid || '-';
+                    if(document.getElementById('profile-dept')) document.getElementById('profile-dept').textContent = userData.deptName || '-';
+                    if(document.getElementById('profile-grade')) document.getElementById('profile-grade').textContent = userData.gradeName || '-';
+                    if(document.getElementById('profile-email')) document.getElementById('profile-email').textContent = userData.sysmail || '-';
 
-    // 2. 동아리 신청 저장
-    window.saveCommunityPost = async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = {
-        title: form.title.value,
-        tag: form.tag.value,
-        content: form.content.value,
-        member_count: form.member_count.value
-      };
-      window.displayMessage("신청서를 제출하고 있습니다...", "info");
-      try {
-        await sendDataToSheet('write_community', formData);
-        window.displayMessage("신청서가 성공적으로 제출되었습니다!", 'success');
-        form.reset();
-        closeModal('community-post-modal');
-      } catch (err) {
-        window.displayMessage("제출 실패: " + err.message, 'error');
-      }
-    };
+                    // 상태 메시지 업데이트
+                    if(statusMsg) {
+                        statusMsg.className = "col-span-2 text-xs text-green-600 pt-2 border-t border-green-200";
+                        statusMsg.textContent = "✅ 최신 정보를 업데이트했습니다.";
+                    }
+                } else {
+                    // 사번을 찾지 못한 경우
+                    if(statusMsg) {
+                        statusMsg.className = "col-span-2 text-xs text-red-500 pt-2 border-t border-red-200";
+                        statusMsg.textContent = "⚠️ 해당 사번의 정보를 찾을 수 없습니다.";
+                    }
+                }
 
-    // 3. 당근 글 저장
-    window.saveDanggnPost = async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = {
-        title: form.title.value,
-        content: form.content.value
-      };
-      window.displayMessage("글을 게시하는 중입니다...", "info");
-      try {
-        await sendDataToSheet('write_danggn', formData);
-        window.displayMessage("게시글이 등록되었습니다!", 'success');
-        form.reset();
-        closeModal('danggn-post-modal');
-      } catch (err) {
-        window.displayMessage("등록 실패: " + err.message, 'error');
-      }
-    };
-    
-    // 4. 연간 계획 저장 (아직 백엔드 미구현 상태인 경우) - 복구됨
-    window.saveAnnualPlan = (e) => {
-      e.preventDefault();
-      window.displayMessage("아직 DB가 연결되지 않은 기능입니다.", 'error');
-      closeModal('annual-plan-create-modal');
-    };
+            } catch (error) {
+                console.error("데이터 로드 실패:", error);
+                if(statusMsg) {
+                    statusMsg.className = "col-span-2 text-xs text-red-500 pt-2 border-t border-red-200";
+                    statusMsg.textContent = "⚠️ 데이터 로드 중 오류가 발생했습니다. (CORS 또는 URL 확인 필요)";
+                }
+            }
+        }
 
-    // --- UI 및 이벤트 핸들러 ---
-    function setActiveTab(tabName) {
-      document.querySelectorAll('#tab-nav button').forEach(btn => {
-        const isActive = btn.dataset.tab === tabName;
-        btn.classList.toggle('bg-indigo-600', isActive && tabName === '공지사항');
-        btn.classList.toggle('bg-teal-600', isActive && tabName === '교육자료 공유');
-        btn.classList.toggle('bg-amber-600', isActive && tabName === '동아리/학습조직 신청');
-        btn.classList.toggle('bg-orange-600', isActive && tabName === '당근');
-        btn.classList.toggle('text-white', isActive);
-        btn.classList.toggle('shadow-lg', isActive);
-        btn.classList.toggle('text-gray-600', !isActive);
-        btn.classList.toggle('hover:bg-gray-50', !isActive);
-      });
-      document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.toggle('active', content.id === tabName.replace(/\s|\//g, '-').toLowerCase());
-      });
-      
-      if (tabName === '교육자료 공유') {
-        renderMockTrainingSummary();
-      }
-    }
-    window.setActiveTab = setActiveTab;
+        function startDataListeners() {
+            window.fetchAndRenderAnnualPlan(); 
+            renderCalendar();
+            renderUpcomingTrainingList(); 
+            // ********** 프로필 데이터 호출 **********
+            fetchUserProfile();
+        }
 
-    // --- 사이드바 생성 함수 (수정됨: 마이페이지 링크에 파라미터 추가) ---
-    function createSidebarAndMovedCards() {
-      const sidebarContainer = document.getElementById('sidebar-content');
-      
-      // 데이터가 없으므로 빈 리스트 표시
-      const historyItems = '<li class="text-center text-gray-400 py-2">이력이 없습니다.</li>';
-      
-      // ★ 중요: 마이페이지 URL 생성 (현재 사용자 정보 포함)
-      // MainPage.html로 연결하며 userUid와 userName 파라미터를 넘깁니다.
-      const myPageUrl = `MainPage.html?userUid=${encodeURIComponent(currentUserInfo.uid)}&userName=${encodeURIComponent(currentUserInfo.name)}`;
+        // --- 탭 전환 함수 ---
+        window.switchMainContent = function(contentId) {
+            document.querySelectorAll('#sidebar-nav button').forEach(btn => {
+                btn.classList.remove('bg-indigo-100', 'text-indigo-700', 'font-bold');
+                btn.classList.add('text-gray-700', 'hover:bg-gray-50');
+            });
 
-      if (sidebarContainer) {
-        // ★ 중요: currentUserInfo 변수를 템플릿 리터럴로 직접 주입하여 HTML 생성
-        sidebarContainer.innerHTML = `
-          <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-cyan-500" id="related-sites-card">
-            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${ICONS.Globe} 관련 사이트</h3>
-            <ul class="space-y-3">
-              <li><a href="https://www.hunet.co.kr/" target="_blank" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 휴넷 (기업 교육)</a></li>
-              <li><a href="https://synopex.step.or.kr/main.do" target="_blank" class="text-cyan-600 hover:text-cyan-700 text-sm font-medium flex items-center transition duration-150"><span class="w-2 h-2 rounded-full bg-cyan-400 mr-2 flex-shrink-0"></span> 스탭 (STEP)</a></li>
-            </ul>
-          </div>
-          <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-indigo-500 min-h-[350px]" id="user-profile-card">
-            <div class="flex justify-between items-start mb-4">
-              <div class="flex items-center space-x-2">
-                <h3 class="text-xl font-bold text-gray-800">개인정보</h3>
-                <!-- 동적으로 생성된 URL 사용 -->
-                <a href="${myPageUrl}" class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 shadow-md">마이페이지</a>
-              </div>
-              <button id="logout-button" onclick="logout()" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-md" title="로그아웃">${ICONS.LogOut}</button>
-            </div>
-            <div class="space-y-4">
-              <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                <!-- 여기에 변수값 직접 주입 -->
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">사번</label><p id="info-employeeId" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.uid}</p></div>
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">이름</label><p id="info-name" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.name}</p></div>
-                <div class="col-span-2"><label class="block text-xs font-medium text-gray-500">이메일</label><p id="info-email" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.email}</p></div>
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">부서명</label><p id="info-department" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.dept}</p></div>
-                <div class="col-span-1"><label class="block text-xs font-medium text-gray-500">직책</label><p id="info-position" class="text-sm text-gray-900 font-semibold truncate">${currentUserInfo.pos}</p></div>
-              </div>
-              <div class="border-t pt-4 mt-4">
-                <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">${ICONS.Calendar} 다가오는 교육 일정</h4>
-                <ul class="space-y-1 text-xs text-gray-600"><li class="text-center text-gray-400 py-1">일정이 없습니다.</li></ul>
-              </div>
-              <div class="border-t pt-4 mt-4">
-                <div class="flex justify-between items-center mb-3">
-                  <h4 class="text-sm font-semibold text-gray-700 flex items-center">${ICONS.Target} 교육 목표 달성 현황</h4>
-                  <button onclick="openModal('annual-plan-modal')" class="text-xs font-medium text-lime-600 hover:text-lime-700 transition duration-150 px-2 py-1 rounded-md bg-lime-50 hover:bg-lime-100">계획 조회 &rarr;</button>
-                </div>
-                <div class="space-y-3">
-                  <div>
-                    <div class="flex justify-between text-xs font-medium text-gray-600 mb-1"><span>전체 목표 달성률</span><span id="progress-goal-text">0h / 0h (0%)</span></div>
-                    <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden"><div id="progress-goal-fill" class="bg-indigo-500 h-2 rounded-full" style="width: 0%"></div></div>
-                  </div>
-                  <div>
-                    <div class="flex justify-between text-xs font-medium text-gray-600 mb-1"><span>의무 (사외) 교육</span><span id="progress-mandatory-text">0h / 12h (0%)</span></div>
-                    <div class="w-full bg-gray-200 rounded-full h-2 progress-bar overflow-hidden"><div id="progress-mandatory-fill" class="bg-lime-500 h-2 rounded-full" style="width: 0%"></div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-amber-500" id="personal-training-history-card">
-            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">${ICONS.ListChecks} 개인 교육 이력</h3>
-            <div class="max-h-[150px] overflow-y-auto db-scroll-area pr-2">
-              <ul class="space-y-2 text-sm text-gray-600">
-                ${historyItems}
-                <li><a href="#" onclick="event.preventDefault(); openModal('full-history-modal')" class="text-amber-600 hover:text-amber-700 text-xs font-medium mt-2 inline-block">전체 이력 보기 &rarr;</a></li>
-              </ul>
-            </div>
-          </div>
-        `;
-      }
-    }
+            const activeBtn = document.querySelector(`#sidebar-nav button[data-content="${contentId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-700', 'hover:bg-gray-50');
+                activeBtn.classList.add('bg-indigo-100', 'text-indigo-700', 'font-bold');
+            }
 
-    // --- 초기화 로직 ---
-    window.onload = async () => {
-      const currentYearEl = document.getElementById('current-year');
-      if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
-      
-      // URL 파라미터 확인 (index.html에서 전달된 값)
-      const params = new URLSearchParams(window.location.search);
-      let nameFromUrl = params.get('userName') || params.get('name');
-      let uidFromUrl = params.get('userUid') || params.get('uid');
+            document.querySelectorAll('.main-content-section').forEach(section => {
+                section.classList.remove('active');
+            });
 
-      // ★ [수정됨] URL 파라미터가 없으면 로컬 스토리지 확인 (edu_user_session 우선)
-      if (!nameFromUrl || !uidFromUrl) {
-        const savedSession = localStorage.getItem('edu_user_session');
-        if (savedSession) {
-          try {
-            const parsedSession = JSON.parse(savedSession);
-            nameFromUrl = parsedSession.name;
-            uidFromUrl = parsedSession.uid;
-            console.log("세션 복구됨 (storage):", nameFromUrl);
-          } catch (e) {
-            console.error("세션 파싱 오류", e);
-          }
-        }
-      }
+            const activeSection = document.getElementById(contentId);
+            if (activeSection) {
+                activeSection.classList.add('active');
+            }
+            
+            if (contentId === 'personal-info-section') {
+                document.getElementById('achievement-summary-display').innerHTML = renderAchievementSummary();
+                window.fetchAndRenderAnnualPlan();
+                renderCalendar();
+                renderUpcomingTrainingList();
+            }
+            if (contentId === 'individual-history-section') {
+                window.applyTrainingFilters(); 
+            }
+            if (contentId === 'interest-list-section') { 
+                window.renderInterestList(); 
+                document.getElementById('team-status-display').innerHTML = `<p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 비활성화되어 표시되지 않습니다.</p>`;
+            }
+            if (contentId === 'sharing-board-section') {
+                window.setupSharingListener(); 
+            }
+            if (contentId === 'inquiry-section') {
+                renderInquiryHistory();
+            }
+        }
+        
+        // --- 초기화 및 시작 ---
+        window.onload = () => {
+            document.getElementById('loading-indicator').classList.add('hidden');
+            startDataListeners();
+            window.switchMainContent('personal-info-section'); 
+            
+            const sharingForm = document.getElementById('sharing-form');
+            if(sharingForm) {
+                sharingForm.addEventListener('submit', window.sharePost);
+            }
+        }
+    </script>
 
-      // 사이드바 UI 생성 로직 (순서 중요)
-      // 1. currentUserInfo 전역 변수 업데이트
-      if (nameFromUrl) {
-          updateSidebarUserId(nameFromUrl, uidFromUrl);
-      } else {
-          updateSidebarUserId(null, null); // 게스트 처리
-      }
-      
-      // 2. ★ 사이드바 그리기 (이때 currentUserInfo의 값을 사용하여 HTML 생성)
-      createSidebarAndMovedCards();
+    <!-- Global Message Box -->
+    <div id="message-box" class="fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-transform transform translate-x-full bg-blue-500"></div>
 
-      // 3. ★ 추가정보(이메일,부서,직책) 스프레드시트에서 가져오기 (GET)
-      if (uidFromUrl) {
-        await fetchUserInfoFromSheet(uidFromUrl);
-      }
+    <!-- 금년도 교육계획 작성 모달 -->
+    <div id="annual-plan-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <form onsubmit="window.saveAnnualPlan(event)" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-indigo-700">금년도 교육계획 작성</h3>
+                    <button type="button" onclick="closeModal('annual-plan-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
+                    <p class="font-semibold">⚠️ 기능 비활성화</p>
+                    <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
+                </div>
+                <div>
+                    <label for="plan-title" class="block text-sm font-medium text-gray-700 mb-1">계획 제목</label>
+                    <input id="plan-title" type="text" name="plan-title" placeholder="예: 2026년 클라우드 엔지니어링 역량 강화" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required disabled>
+                </div>
+                <div>
+                    <label for="course-details" class="block text-sm font-medium text-gray-700 mb-1">세부 교육 과정 및 목표 (팀장 승인용)</label>
+                    <textarea id="course-details" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required disabled></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeModal('annual-plan-modal')" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 font-semibold">취소</button>
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
+                        ${getIconSVG('Check', 'w-4 h-4 mr-1')} 승인 요청 (비활성화)
+                    </button>
+                </div>
+            </form>
+            <script>document.getElementById('annual-plan-modal').addEventListener('click', (e) => { if(e.target.id === 'annual-plan-modal') closeModal('annual-plan-modal'); });</script>
+        </div>
+    </div>
 
-      // 탭 생성
-      const tabs = [
-        { name: '공지사항', icon: 'Bell', color: 'indigo' },
-        { name: '교육자료 공유', icon: 'BookOpen', color: 'teal' },
-        { name: '동아리/학습조직 신청', icon: 'Users', color: 'amber' },
-        { name: '당근', icon: 'ShoppingBag', color: 'orange' },
-      ];
-      const nav = document.getElementById('tab-nav');
-      const contentContainer = document.getElementById('tab-content-container');
+    <!-- 개인 일정 추가 모달 -->
+    <div id="schedule-add-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <form onsubmit="window.saveUserSchedule(event)" class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-xl font-bold text-teal-700">개인 일정 추가</h3>
+                    <button type="button" onclick="closeModal('schedule-add-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
+                    <p class="font-semibold">⚠️ 기능 비활성화</p>
+                    <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
+                </div>
+                <div>
+                    <label for="schedule-title" class="block text-sm font-medium text-gray-700 mb-1">일정 제목</label>
+                    <input id="schedule-title" type="text" name="schedule-title" placeholder="예: 팀 회식" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required disabled>
+                </div>
+                <div>
+                    <label for="schedule-date" class="block text-sm font-medium text-gray-700 mb-1">날짜</label>
+                    <input id="schedule-date" type="date" name="schedule-date" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required disabled>
+                </div>
+                <div>
+                    <label for="schedule-type" class="block text-sm font-medium text-gray-700 mb-1">일정 유형</label>
+                    <select id="schedule-type" name="schedule-type" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" required disabled>
+                        <option value="meeting">회의/행사 (파랑)</option>
+                        <option value="training">교육/워크숍 (초록)</option>
+                        <option value="vacation">휴가/자리비움 (빨강)</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> 저장 (비활성화)
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-      if (nav && contentContainer) {
-        nav.innerHTML = ''; contentContainer.innerHTML = '';
-        tabs.forEach(tab => {
-          const tabNameId = tab.name.replace(/\s|\//g, '-').toLowerCase();
-          const btn = document.createElement('button');
-          btn.className = 'flex-1 flex items-center justify-center py-3 px-2 rounded-lg text-sm md:text-base font-semibold transition-all duration-300 ease-in-out text-gray-600 hover:bg-gray-50';
-          btn.dataset.tab = tab.name;
-          let tabIcon = '';
-          if(tab.icon === 'Bell') tabIcon = ICONS.Bell;
-          else if(tab.icon === 'BookOpen') tabIcon = ICONS.BookOpenTeal;
-          else if(tab.icon === 'Users') tabIcon = ICONS.UsersSmall;
-          else if(tab.icon === 'ShoppingBag') tabIcon = ICONS.ShoppingBag;
-          
-          btn.innerHTML = `${tabIcon} ${tab.name}`;
-          btn.onclick = () => setActiveTab(tab.name);
-          nav.appendChild(btn);
+    <!-- 일별 상세 일정 모달 -->
+    <div id="day-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <div class="p-6 bg-white rounded-xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 id="day-detail-date" class="text-xl font-bold text-indigo-700">상세 일정</h3>
+                    <button type="button" onclick="closeModal('day-detail-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <ul id="day-event-list" class="space-y-3">
+                    <p class="text-center text-gray-500 p-4">등록된 일정이 없습니다. (데이터 로직 제거됨)</p>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 교육 상세 및 개인 메모 모달 -->
+    <div id="training-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+            <form onsubmit="window.saveTrainingComment(event)" class="p-6 bg-white rounded-xl space-y-4">
+                <input type="hidden" id="detail-item-id" value="">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-indigo-700" id="detail-course-name">교육 상세 정보</h3>
+                    <button type="button" onclick="closeModal('training-detail-modal')" class="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition duration-150" aria-label="닫기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <div id="detail-content-body" class="mb-6 p-4 border border-gray-200 rounded-lg">
+                    <p class="text-red-500 font-bold">데이터 연동 비활성화로 교육 상세 정보가 로드되지 않습니다.</p>
+                </div>
 
-          const div = document.createElement('div');
-          div.id = tabNameId;
-          div.className = 'tab-content p-6 bg-white rounded-xl shadow-lg h-full overflow-y-auto';
+                <div class="pt-4 border-t border-gray-100">
+                    <label for="detail-user-comment" class="block text-lg font-semibold text-gray-700 mb-2">나의 개인 메모 / 후기</label>
+                    <textarea id="detail-user-comment" rows="4" placeholder="교육 이수 소감, 적용 계획, 개인적인 코멘트 등을 작성하세요. (저장 기능 비활성화)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" disabled></textarea>
+                    
+                    <div class="mt-4">
+                        <label for="detail-attachment" class="block text-sm font-semibold text-gray-700 mb-1">첨부 파일 선택 (파일명만 저장됨)</label>
+                        <input type="file" id="detail-attachment" name="detail-attachment" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled/>
+                    </div>
 
-          let contentHTML = '';
-          if (tab.name === '공지사항') {
-            contentHTML = `
-              <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">${ICONS.Bell} 공지사항</h2>
-              <div class="space-y-4">
-                <p class="text-center text-gray-500 py-10 border border-dashed rounded-lg">등록된 공지사항이 없습니다.</p>
-              </div>`;
-          } else if (tab.name === '교육자료 공유') {
-            contentHTML = `
-              <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">${ICONS.BookOpen} 교육 지원 및 자료 공유</h2>
-              <div class="mb-10 p-6 border border-teal-300 rounded-xl bg-teal-50">
-                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-teal-700 flex items-center">${ICONS.Clipboard} 완료된 교육 보고서</h3></div>
-                <ul class="space-y-1 text-sm text-gray-700" id="proposal-report-list"><li class="text-gray-500 p-2 text-center">완료된 교육 보고서가 없습니다.</li></ul>
-              </div>
-              <div class="mt-10">
-                <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center justify-between"><span class="flex items-center">${ICONS.BookOpen} 교육자료 공유</span><button onclick="openModal('training-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-teal-500 text-white hover:bg-teal-600 shadow-md flex items-center">${ICONS.Plus} 자료 등록</button></h3>
-                <div class="mb-10"><h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${ICONS.TrendingUp} 조회수 Top 3</h4><div id="top3-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"><p class="text-gray-500 col-span-3 text-center">데이터가 없습니다.</p></div></div>
-                <div id="db-section" class="mt-8 hidden"><h4 class="text-lg font-bold text-gray-700 mb-4 flex items-center">${ICONS.BookOpen} 자료 DB (최신순)</h4><div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area"><div id="training-list-container" class="space-y-0"></div></div></div>
-                <p id="no-data-message-training" class="hidden text-center py-10 text-gray-500 border border-dashed rounded-lg">등록된 교육 자료가 없습니다.</p>
-              </div>`;
-          } else if (tab.name === '동아리/학습조직 신청') {
-            contentHTML = `
-              <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between"><span class="flex items-center">${ICONS.Users} 동아리/학습조직 신청</span><button onclick="openModal('community-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-amber-500 text-white hover:bg-amber-600 shadow-md flex items-center">${ICONS.Plus} 신청서 작성</button></h2>
-              <div class="mb-10 p-6 border border-amber-300 rounded-xl bg-amber-50"><h3 class="text-xl font-bold text-amber-700 mb-4 flex items-center">${ICONS.ClipboardList} 신청 및 승인 현황 (개인)</h3><ul class="space-y-2 text-sm text-gray-700"><li class="text-center text-gray-500">신청 내역이 없습니다.</li></ul><a href="#" class="mt-3 inline-block text-xs font-medium text-amber-600 hover:text-amber-700">전체 신청 현황 보기 &rarr;</a></div>
-              <div id="community-list-section" class="mt-10"><h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center">${ICONS.Users} 현재 활동 조직 목록</h3><div class="border border-gray-200 rounded-xl shadow-sm overflow-y-auto max-h-[400px] db-scroll-area"><p class="text-center text-gray-500 py-4">등록된 조직이 없습니다.</p></div></div>`;
-          } else if (tab.name === '당근') {
-            contentHTML = `
-              <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between"><span class="flex items-center">${ICONS.ShoppingBag} 당근</span><button onclick="openModal('danggn-post-modal')" class="px-4 py-2 text-sm font-semibold rounded-full bg-orange-500 text-white hover:bg-orange-600 shadow-md flex items-center">${ICONS.Plus} 새 글 작성</button></h2>
-              <p class="text-gray-600">사내 중고거래 게시판입니다.</p><div class="mt-8 p-6 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-300 text-gray-500"><p class="text-lg font-semibold mb-2">기능 준비 중 안내</p><p>더 나은 사내 교환/나눔 시스템을 위해 당근 탭을 준비 중입니다. 잠시만 기다려 주세요!🥕</p></div>`;
-          }
-          div.innerHTML = contentHTML;
-          contentContainer.appendChild(div);
-        });
-        
-        // 5. 폼 이벤트 리스너 연결 (복구됨)
-        const trainingForm = document.getElementById('training-post-form');
-        if(trainingForm) trainingForm.addEventListener('submit', window.saveTrainingPost);
-        const communityForm = document.getElementById('community-post-form');
-        if(communityForm) communityForm.addEventListener('submit', window.saveCommunityPost);
-        const annualPlanCreateForm = document.getElementById('annual-plan-create-form');
-        if(annualPlanCreateForm) annualPlanCreateForm.addEventListener('submit', window.saveAnnualPlan);
-        const danggnForm = document.getElementById('danggn-post-form');
-        if(danggnForm) danggnForm.addEventListener('submit', window.saveDanggnPost);
+                    <div class="flex justify-end pt-4">
+                        <button type="submit" id="comment-save-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
+                            ${getIconSVG('Check', 'w-4 h-4 mr-1')} 메모 저장 (비활성화)
+                        </button>
+                    </div>
+                </div>
+                
+            </form>
+        </div>
+    </div>
 
-        // 탭 초기화
-        setActiveTab(tabs[1].name);
-      }
-    };
-  </script>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        <!-- Column 1 (lg:col-span-1): 사이드바/네비게이션 -->
+        <aside class="lg:col-span-1 space-y-6">
+            <header class="p-4 bg-white rounded-xl shadow-lg border-t-4 border-indigo-500">
+                <h1 class="text-2xl font-extrabold text-indigo-700">마이 페이지</h1>
+                <div id="loading-indicator" class="mt-2 text-indigo-500 font-semibold flex items-center hidden">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    데이터 로드 중...
+                </div>
+            </header>
+
+            <!-- 개인 프로필 -->
+            <div class="bg-white p-4 rounded-xl shadow-lg border-t-4 border-teal-500">
+                <h3 class="text-lg font-bold text-teal-700 mb-3 border-b pb-2 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    개인 프로필
+                </h3>
+                <!-- ********** 수정: ID 부여된 프로필 섹션 ********** -->
+                <div id="personal-info-display" class="p-5 border border-teal-200 bg-teal-50 rounded-lg space-y-1 text-sm">
+                    <div class="grid grid-cols-2 gap-y-5 gap-x-4 text-sm">
+                        <div class="col-span-1 flex flex-col">
+                            <strong class="text-xs font-semibold text-gray-500">이름:</strong>
+                            <span id="profile-name" class="font-semibold text-gray-800">-</span>
+                        </div>
+                        <div class="col-span-1 flex flex-col">
+                            <strong class="text-xs font-semibold text-gray-500">사번:</strong>
+                            <span id="profile-uid" class="text-gray-800">-</span>
+                        </div>
+                        <div class="col-span-2 flex flex-col">
+                            <strong class="text-xs font-semibold text-gray-500">부서:</strong>
+                            <span id="profile-dept" class="text-gray-800">-</span>
+                        </div>
+                        <div class="col-span-1 flex flex-col">
+                            <strong class="text-xs font-semibold text-gray-500">직책:</strong>
+                            <span id="profile-grade" class="text-gray-800">-</span>
+                        </div>
+                        <div class="col-span-1 flex flex-col">
+                            <strong class="text-xs font-semibold text-gray-500">이메일:</strong>
+                            <span id="profile-email" class="text-gray-800 break-all">-</span>
+                        </div>
+                    </div>
+                    <p id="profile-status-msg" class="col-span-2 text-xs text-indigo-500 pt-2 border-t border-indigo-200 animate-pulse">
+                        🔄 구글 시트에서 데이터를 불러오는 중...
+                    </p>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <nav id="sidebar-nav" class="bg-white p-2 rounded-xl shadow-lg space-y-1 h-80">
+                <h3 class="text-sm font-semibold text-gray-500 px-3 pt-2 pb-1">메인 메뉴</h3>
+                <button 
+                    data-content="personal-info-section" 
+                    onclick="switchMainContent('personal-info-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150 active bg-indigo-100 text-indigo-700 font-bold"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 금년도 교육 현황
+                </button>
+                <button 
+                    data-content="individual-history-section" 
+                    onclick="switchMainContent('individual-history-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h11"></path><path d="M8 12h11"></path><path d="M8 18h11"></path><path d="M4 6.5l-1.5 1.5l-2.5 -3"></path><path d="M4 12.5l-1.5 1.5l-2.5 -3"></path><path d="M4 18.5l-1.5 1.5l-2.5 -3"></path></svg> 교육 이수 이력
+                </button>
+                <button 
+                    data-content="interest-list-section" 
+                    onclick="switchMainContent('interest-list-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> 저장 목록
+                </button>
+                <button 
+                    data-content="sharing-board-section" 
+                    onclick="switchMainContent('sharing-board-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M11 4a9 9 0 0 1 9 9"></path><path d="M21 21l-7.38-7.38"></path></svg> 교육 공유 게시판
+                </button>
+                <button 
+                    data-content="inquiry-section" 
+                    onclick="switchMainContent('inquiry-section')" 
+                    class="w-full text-left flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-150"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg> 문의/작성 이력
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Column 2 (lg:col-span-3): 메인 컨텐츠 영역 -->
+        <main class="lg:col-span-3 space-y-8">
+
+            <!-- 0. [고정 섹션] 대시보드: 일정 및 캘린더 (메뉴 전환과 무관하게 항상 표시) -->
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-500 h-[420px] flex flex-col">
+                <h2 class="text-2xl font-bold text-gray-700 mb-4">대시보드: 일정 및 캘린더</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow overflow-hidden">
+                    <!-- Upcoming List (1/3) -->
+                    <div class="lg:col-span-1 bg-gray-50 p-3 rounded-xl border border-indigo-200 shadow-md h-full flex flex-col">
+                        <h4 class="text-lg font-bold text-indigo-700 mb-3 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> 
+                            다가오는 일정
+                        </h4>
+                        <div id="upcoming-list-container" class="space-y-3 db-scroll-area overflow-y-auto flex-grow pr-1">
+                            <p class="text-gray-500 text-sm">데이터 로직이 제거되어 일정을 표시할 수 없습니다.</p>
+                        </div>
+                    </div>
+                    <!-- Calendar (2/3) -->
+                    <div class="lg:col-span-2 bg-white p-2 rounded-xl h-full flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-lg font-bold text-indigo-700">월간 캘린더</h4>
+                            <button onclick="openModal('schedule-add-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition duration-150 shadow-md flex items-center" disabled>
+                                + 일정 추가
+                            </button>
+                        </div>
+                        <div id="calendar-container" class="select-none flex-grow overflow-hidden">
+                            <p class="text-center text-gray-500 p-8">캘린더 로드 중...</p>
+                        </div>
+                        <div class="flex space-x-4 justify-end text-xs text-gray-600 pt-2 border-t mt-auto">
+                            <span class="flex items-center"><span class="schedule-dot schedule-meeting mr-1"></span>회의</span>
+                            <span class="flex items-center"><span class="schedule-dot schedule-training mr-1"></span>교육</span>
+                            <span class="flex items-center"><span class="schedule-dot schedule-vacation mr-1"></span>휴가</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. [가변 섹션] 금년도 교육 계획 및 달성률 (메뉴 '금년도 교육 현황' 선택 시 표시) -->
+            <div id="personal-info-section" class="main-content-section active space-y-8">
+                
+                <!-- [하단 카드] 교육 계획 및 달성률 -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-500">
+                    <div class="flex flex-col md:flex-row md:space-x-8 space-y-6 md:space-y-0 h-full">
+                        
+                        <!-- 교육 계획 (2/3) -->
+                        <div class="w-full md:w-2/3 flex flex-col"> 
+                            <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2 flex items-center justify-between">
+                                <span>금년도 교육 계획</span>
+                                <span class="text-xs font-normal text-gray-500">2025년도 목표</span>
+                            </h3>
+                            <div id="annual-plan-display" class="flex-grow">
+                                <div class="p-4 bg-gray-50 border border-indigo-200 rounded-xl space-y-2 h-full flex flex-col justify-between">
+                                    <div>
+                                        <div class="flex justify-between items-start mb-2">
+                                            <p class="text-lg font-bold text-gray-600">데이터 로드 불가</p>
+                                            <span class="text-xs font-semibold px-2 py-1 rounded bg-gray-400 text-white">Inactive</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600">데이터 연동 로직이 제거되어 내용을 불러올 수 없습니다.</p>
+                                    </div>
+                                    <div class="flex justify-end pt-2 border-t border-gray-200">
+                                        <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition duration-150 shadow-md flex items-center" disabled>
+                                            ${getIconSVG('Pencil', 'w-4 h-4 mr-1')} 계획 작성
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 달성률 요약 (1/3) -->
+                        <div class="w-full md:w-1/3 flex flex-col"> 
+                            <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">교육 달성률 요약</h3>
+                            <div id="achievement-summary-display" class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg flex-grow flex items-center justify-center">
+                                <p class="text-gray-500">데이터 로드 중...</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 2. 교육 이수 이력 섹션 -->
+            <div id="individual-history-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-600 min-h-[400px]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-700">교육 이수 이력</h2>
+                    </div>
+                    
+                    <div class="flex space-x-4 mb-4 items-center">
+                        <h3 class="text-lg font-semibold text-gray-600">상세 이력 목록</h3>
+                        <select id="type-filter" onchange="applyTrainingFilters()" class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                            <option value="All">형태 전체</option>
+                            <option value="온라인">온라인</option>
+                            <option value="사외강의">사외강의</option>
+                            <option value="사내강의">사내강의</option>
+                            <option value="워크숍">워크숍</option>
+                        </select>
+                        <select id="refund-filter" onchange="applyTrainingFilters()" class="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                            <option value="All">환급 전체</option>
+                            <option value="O">환급 완료 (O)</option>
+                            <option value="X">환급 불가 (X)</option>
+                            <option value="N/A">해당 없음 (N/A)</option>
+                        </select>
+                    </div>
+
+                    <ul id="individual-history-list" class="space-y-2 max-h-96 overflow-y-auto pr-2 border border-gray-200 rounded-lg p-2 bg-white db-scroll-area">
+                        <p class="text-red-500 p-2 font-semibold">⚠️ 데이터 로직이 제거되어 이수 내역을 표시할 수 없습니다.</p>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 3. 관심 교육 리스트 섹션 -->
+            <div id="interest-list-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 min-h-[250px]">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-6">저장 목록</h2>
+
+                    <div class="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 class="text-xl font-bold text-blue-700 mb-3 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 text-blue-500 fill-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> 관심 교육 키워드 (팀/사업부)
+                        </h3>
+                        <div id="keyword-list-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <p class="text-center text-gray-500 col-span-full p-4">⚠️ 데이터 로직이 제거되어 키워드 목록을 표시할 수 없습니다.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 border border-blue-200 rounded-lg space-y-4 bg-gray-50">
+                        <div id="team-status-display" class="p-2 border-b border-blue-200">
+                            <h3 class="text-xl font-bold text-blue-700 mb-2">팀 교육 현황 (목표 대비 진척도)</h3>
+                            <p class="text-gray-700 p-2 font-semibold">팀 교육 현황 데이터는 현재 비활성화되어 표시되지 않습니다.</p>
+                            <p class="text-xs text-gray-500 mt-3">이 항목은 ERP/팀별 데이터 연동이 완료되면 팀원 전체의 평균 달성률을 보여줄 예정입니다.</p>
+                        </div>
+                        
+                        <div class="pt-2">
+                            <h3 class="text-xl font-bold text-indigo-700 mb-2">나의 스크랩 목록</h3>
+                            <ul id="interest-list-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 db-scroll-area">
+                                <p class="text-center text-red-500 p-4">⚠️ 데이터 로직이 제거되어 목록을 표시할 수 없습니다.</p>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 4. 교육 공유 게시판 섹션 -->
+            <div id="sharing-board-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-teal-500">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
+                        교육 공유 게시판 (비활성화)
+                    </h2>
+
+                    <!-- Sharing Form -->
+                    <form id="sharing-form" class="p-4 bg-teal-50 border border-teal-200 rounded-lg shadow-inner mb-6 space-y-3">
+                        <h3 class="text-lg font-bold text-teal-800">새로운 교육 정보 공유하기 (비활성화)</h3>
+                        <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-3 text-sm" role="alert">
+                            <p class="font-semibold">⚠️ 기능 비활성화</p>
+                            <p>이 양식은 데이터 로직이 제거되어 작동하지 않습니다.</p>
+                        </div>
+                        <div>
+                            <label for="title" class="block text-sm font-medium text-teal-700">제목 (교육/자료 명)</label>
+                            <input type="text" id="title" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500" disabled>
+                        </div>
+                        <div>
+                            <label for="content" class="block text-sm font-medium text-teal-700">내용 (간단한 설명/링크)</label>
+                            <textarea id="content" rows="3" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500" disabled></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 transition duration-150 ease-in-out" disabled>
+                            정보 공유하기 (비활성화)
+                        </button>
+                    </form>
+
+                    <!-- Shared List -->
+                    <div id="shared-list" class="space-y-4 max-h-96 overflow-y-auto pr-2 db-scroll-area">
+                        <p class="text-center text-red-500 p-4">⚠️ 게시판 기능이 비활성화되었습니다. (데이터 로직 제거됨)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 5. 문의/작성 이력 섹션 -->
+            <div id="inquiry-section" class="main-content-section">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-amber-500 min-h-[250px]">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">문의 / 작성 이력</h2>
+                    <h3 class="text-lg font-semibold text-gray-600 mb-3">개인 활동 내역</h3>
+                    <ul id="inquiry-history-list" class="space-y-3 max-h-96 overflow-y-auto pr-2 db-scroll-area">
+                        <p class="text-center text-gray-500 p-4">⚠️ 데이터 로직이 제거되어 이력을 표시할 수 없습니다.</p>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
 </body>
 </html>
