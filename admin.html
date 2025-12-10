@@ -1,743 +1,767 @@
-import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  BookOpen, 
-  MessageSquare, 
-  Settings, 
-  Bell, 
-  Search, 
-  Menu, 
-  MoreVertical, 
-  TrendingUp, 
-  Target,
-  Award,
-  ChevronDown,
-  FolderOpen, // 콘텐츠 관리용 아이콘
-  FileText,
-  PlayCircle,
-  HelpCircle,
-  PlusCircle,
-  Save,
-  Trash2,
-  ChevronRight
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교육 성과 대시보드 - EduAdmin</title>
+    
+    <!-- 1. Tailwind CSS 불러오기 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. React & ReactDOM 불러오기 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. Babel (JSX 변환용) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-// --- Mock Data ---
-const STATS = [
-  { title: '전체 구성원', value: '162명', change: '참여율 98%', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
-  { title: '평균 목표 달성률', value: '78.5%', change: '+12.4%', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-  { title: '교육 만족도', value: '4.8/5.0', change: '효과성 높음', icon: Award, color: 'text-amber-600', bg: 'bg-amber-100' },
-  { title: '학습 진행 중', value: '145명', change: '17명 미참여', icon: BookOpen, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-];
+    <!-- 4. Lucide Icons (아이콘 스크립트) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-const GOAL_ACHIEVEMENT_DATA = [
-  { category: 'AI/데이터 역량', target: 100, current: 85, color: 'bg-blue-500' },
-  { category: '리더십/소통', target: 100, current: 62, color: 'bg-green-500' },
-  { category: '직무 전문성', target: 100, current: 94, color: 'bg-purple-500' },
-  { category: '외국어/글로벌', target: 100, current: 45, color: 'bg-orange-500' },
-];
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div id="root"></div>
 
-const CURRENT_LEARNING_STATUS = [
-  { title: '사내 데이터 분석 기초', count: 54, percentage: 33, category: 'AI/DT' },
-  { title: '2024 팀장 리더십 과정', count: 12, percentage: 7, category: '리더십' },
-  { title: '비즈니스 영어 회화', count: 35, percentage: 21, category: '어학' },
-  { title: '마케팅 트렌드 워크숍', count: 28, percentage: 17, category: '직무' },
-  { title: '기타/개별학습', count: 33, percentage: 20, category: '기타' },
-];
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-const EFFECTIVENESS_METRICS = [
-  { label: '업무 적용도', score: 85, description: '교육 내용을 실무에 적용하고 있음' },
-  { label: '역량 향상도', score: 72, description: '교육 전 대비 스킬이 향상됨' },
-  { label: '조직 몰입도', score: 90, description: '교육 후 조직에 대한 긍정적 인식 증가' },
-];
+        // --- 아이콘 래퍼 컴포넌트 ---
+        // React Component가 아닌 문자열 이름으로 아이콘을 렌더링하기 위한 헬퍼입니다.
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            });
 
-// 초기 사용자 데이터
-const INITIAL_USERS = [
-  { id: 1, name: '김철수', email: 'chulsoo@example.com', role: '프로', status: 'Active', date: '2023-10-25' },
-  { id: 2, name: '이영희', email: 'younghee@example.com', role: '팀장', status: 'Active', date: '2023-10-24' },
-  { id: 3, name: '박지성', email: 'jisung@example.com', role: '본부장', status: 'Inactive', date: '2023-10-24' },
-  { id: 4, name: '최민아', email: 'mina@example.com', role: 'CEO/총괄', status: 'Active', date: '2023-10-23' },
-  { id: 5, name: '정우성', email: 'woosung@example.com', role: '관리자', status: 'Active', date: '2023-10-22' },
-];
+            return <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-block' }}></i>;
+        };
 
-const COURSES = [
-  { id: 1, title: 'React 기초 마스터', instructor: '이영희', students: 120, status: 'Published', rating: 4.8 },
-  { id: 2, title: '파이썬 데이터 분석', instructor: '정우성', students: 85, status: 'Published', rating: 4.6 },
-  { id: 3, title: 'UI/UX 디자인 입문', instructor: '강동원', students: 0, status: 'Draft', rating: 0.0 },
-];
+        // --- Mock Data (아이콘을 문자열로 변경) ---
+        const STATS = [
+            { title: '전체 구성원', value: '162명', change: '참여율 98%', icon: 'users', color: 'text-blue-600', bg: 'bg-blue-100' },
+            { title: '평균 목표 달성률', value: '78.5%', change: '+12.4%', icon: 'target', color: 'text-emerald-600', bg: 'bg-emerald-100' },
+            { title: '교육 만족도', value: '4.8/5.0', change: '효과성 높음', icon: 'award', color: 'text-amber-600', bg: 'bg-amber-100' },
+            { title: '학습 진행 중', value: '145명', change: '17명 미참여', icon: 'book-open', color: 'text-indigo-600', bg: 'bg-indigo-100' },
+        ];
 
-const COMMUNITY_POSTS = [
-  { id: 1, title: '강의 질문있습니다!', author: '김철수', category: 'Q&A', reports: 0, date: '10분 전' },
-  { id: 2, title: '스터디 모집합니다 (서울)', author: '박지성', category: '스터디', reports: 0, date: '1시간 전' },
-  { id: 3, title: '이 사이트 별로네요;;', author: '익명123', category: '자유', reports: 5, date: '3시간 전' }, 
-];
+        const GOAL_ACHIEVEMENT_DATA = [
+            { category: 'AI/데이터 역량', target: 100, current: 85, color: 'bg-blue-500' },
+            { category: '리더십/소통', target: 100, current: 62, color: 'bg-green-500' },
+            { category: '직무 전문성', target: 100, current: 94, color: 'bg-purple-500' },
+            { category: '외국어/글로벌', target: 100, current: 45, color: 'bg-orange-500' },
+        ];
 
-// --- LMS Content Structure Mock Data ---
-const CONTENT_STRUCTURE = [
-  { 
-    id: 'c1', 
-    title: 'Chapter 1. React 시작하기', 
-    expanded: true,
-    items: [
-      { id: 'l1', title: '1-1. React란 무엇인가?', type: 'video', duration: '10:00', status: 'published' },
-      { id: 'l2', title: '1-2. 개발 환경 설정', type: 'doc', duration: '5 min', status: 'published' },
-      { id: 'l3', title: 'Chapter 1 퀴즈', type: 'quiz', duration: '-', status: 'draft' },
-    ]
-  },
-  { 
-    id: 'c2', 
-    title: 'Chapter 2. JSX와 컴포넌트', 
-    expanded: false,
-    items: [
-      { id: 'l4', title: '2-1. JSX 문법 기초', type: 'video', duration: '15:30', status: 'published' },
-      { id: 'l5', title: '2-2. 첫 번째 컴포넌트 만들기', type: 'video', duration: '12:00', status: 'draft' },
-    ]
-  },
-];
+        const CURRENT_LEARNING_STATUS = [
+            { title: '사내 데이터 분석 기초', count: 54, percentage: 33, category: 'AI/DT' },
+            { title: '2024 팀장 리더십 과정', count: 12, percentage: 7, category: '리더십' },
+            { title: '비즈니스 영어 회화', count: 35, percentage: 21, category: '어학' },
+            { title: '마케팅 트렌드 워크숍', count: 28, percentage: 17, category: '직무' },
+            { title: '기타/개별학습', count: 33, percentage: 20, category: '기타' },
+        ];
 
-// --- Components ---
+        const EFFECTIVENESS_METRICS = [
+            { label: '업무 적용도', score: 85, description: '교육 내용을 실무에 적용하고 있음' },
+            { label: '역량 향상도', score: 72, description: '교육 전 대비 스킬이 향상됨' },
+            { label: '조직 몰입도', score: 90, description: '교육 후 조직에 대한 긍정적 인식 증가' },
+        ];
 
-const StatCard = ({ title, value, change, icon: Icon, color, bg }) => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-    <div className="flex justify-between items-start">
-      <div>
-        <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
-      </div>
-      <div className={`p-3 rounded-lg ${bg}`}>
-        <Icon className={`w-6 h-6 ${color}`} />
-      </div>
-    </div>
-    <div className="mt-4 flex items-center text-sm">
-      <span className={change.includes('-') || change.includes('미참여') ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
-        {change}
-      </span>
-    </div>
-  </div>
-);
+        const INITIAL_USERS = [
+            { id: 1, name: '김철수', email: 'chulsoo@example.com', role: '프로', status: 'Active', date: '2023-10-25' },
+            { id: 2, name: '이영희', email: 'younghee@example.com', role: '팀장', status: 'Active', date: '2023-10-24' },
+            { id: 3, name: '박지성', email: 'jisung@example.com', role: '본부장', status: 'Inactive', date: '2023-10-24' },
+            { id: 4, name: '최민아', email: 'mina@example.com', role: 'CEO/총괄', status: 'Active', date: '2023-10-23' },
+            { id: 5, name: '정우성', email: 'woosung@example.com', role: '관리자', status: 'Active', date: '2023-10-22' },
+        ];
 
-const getRoleStyle = (role) => {
-  const styles = {
-    '프로': 'bg-blue-50 text-blue-700 border-blue-200',
-    '팀장': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    '본부장': 'bg-purple-50 text-purple-700 border-purple-200',
-    'CEO/총괄': 'bg-amber-50 text-amber-700 border-amber-200',
-    '관리자': 'bg-gray-800 text-white border-gray-700',
-  };
-  return styles[role] || 'bg-gray-100 text-gray-800 border-gray-200';
-};
+        const COURSES = [
+            { id: 1, title: 'React 기초 마스터', instructor: '이영희', students: 120, status: 'Published', rating: 4.8 },
+            { id: 2, title: '파이썬 데이터 분석', instructor: '정우성', students: 85, status: 'Published', rating: 4.6 },
+            { id: 3, title: 'UI/UX 디자인 입문', instructor: '강동원', students: 0, status: 'Draft', rating: 0.0 },
+        ];
 
-const Badge = ({ status }) => {
-  const styles = {
-    Active: 'bg-green-100 text-green-800',
-    Inactive: 'bg-gray-100 text-gray-800',
-    Published: 'bg-blue-100 text-blue-800',
-    Draft: 'bg-yellow-100 text-yellow-800',
-    published: 'bg-blue-100 text-blue-800',
-    draft: 'bg-yellow-100 text-yellow-800',
-  };
-  return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-      {status === 'published' ? '게시됨' : status === 'draft' ? '작성중' : status}
-    </span>
-  );
-};
+        const COMMUNITY_POSTS = [
+            { id: 1, title: '강의 질문있습니다!', author: '김철수', category: 'Q&A', reports: 0, date: '10분 전' },
+            { id: 2, title: '스터디 모집합니다 (서울)', author: '박지성', category: '스터디', reports: 0, date: '1시간 전' },
+            { id: 3, title: '이 사이트 별로네요;;', author: '익명123', category: '자유', reports: 5, date: '3시간 전' }, 
+        ];
 
-const ProgressBar = ({ value, color = "bg-blue-600", height = "h-2" }) => (
-  <div className={`w-full bg-gray-100 rounded-full ${height}`}>
-    <div 
-      className={`${color} ${height} rounded-full transition-all duration-500`} 
-      style={{ width: `${value}%` }}
-    ></div>
-  </div>
-);
+        const CONTENT_STRUCTURE = [
+            { 
+                id: 'c1', 
+                title: 'Chapter 1. React 시작하기', 
+                expanded: true,
+                items: [
+                { id: 'l1', title: '1-1. React란 무엇인가?', type: 'video', duration: '10:00', status: 'published' },
+                { id: 'l2', title: '1-2. 개발 환경 설정', type: 'doc', duration: '5 min', status: 'published' },
+                { id: 'l3', title: 'Chapter 1 퀴즈', type: 'quiz', duration: '-', status: 'draft' },
+                ]
+            },
+            { 
+                id: 'c2', 
+                title: 'Chapter 2. JSX와 컴포넌트', 
+                expanded: false,
+                items: [
+                { id: 'l4', title: '2-1. JSX 문법 기초', type: 'video', duration: '15:30', status: 'published' },
+                { id: 'l5', title: '2-2. 첫 번째 컴포넌트 만들기', type: 'video', duration: '12:00', status: 'draft' },
+                ]
+            },
+        ];
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
-  // User State
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const ROLES = ['프로', '팀장', '본부장', 'CEO/총괄', '관리자'];
+        // --- Sub Components ---
 
-  // Content Management State
-  const [selectedContentId, setSelectedContentId] = useState('l1');
-  const [contentStructure, setContentStructure] = useState(CONTENT_STRUCTURE);
-
-  const handleRoleChange = (userId, newRole) => {
-    setUsers(users.map(user => 
-      user.id === userId ? { ...user, role: newRole } : user
-    ));
-  };
-
-  const navItems = [
-    { id: 'dashboard', label: '교육 성과 대시보드', icon: LayoutDashboard },
-    { id: 'users', label: '사용자 관리', icon: Users },
-    { id: 'courses', label: '강의 관리', icon: BookOpen },
-    { id: 'contents', label: '콘텐츠 관리', icon: FolderOpen }, // New Tab
-    { id: 'community', label: '커뮤니티 관리', icon: MessageSquare },
-    { id: 'settings', label: '설정', icon: Settings },
-  ];
-
-  // --- Content Management Sub-components ---
-  const ContentIcon = ({ type }) => {
-    switch(type) {
-      case 'video': return <PlayCircle size={16} className="text-rose-500" />;
-      case 'doc': return <FileText size={16} className="text-blue-500" />;
-      case 'quiz': return <HelpCircle size={16} className="text-amber-500" />;
-      default: return <FileText size={16} className="text-gray-400" />;
-    }
-  };
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {STATS.map((stat, idx) => (
-                <StatCard key={idx} {...stat} />
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-blue-500" />
-                    분야별 교육 목표 달성률
-                  </h3>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">2024년 4분기 기준</span>
-                </div>
-                <div className="space-y-6">
-                  {GOAL_ACHIEVEMENT_DATA.map((item, idx) => (
-                    <div key={idx}>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="font-medium text-gray-700">{item.category}</span>
-                        <span className="font-bold text-gray-900">{item.current}% <span className="text-gray-400 font-normal">/ 100%</span></span>
-                      </div>
-                      <ProgressBar value={item.current} color={item.color} height="h-3" />
+        const StatCard = ({ title, value, change, icon, color, bg }) => (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
+                        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
                     </div>
-                  ))}
-                </div>
-                <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-                   <p className="text-sm text-gray-600">
-                     전체 구성원의 <span className="font-bold text-indigo-600">65%</span>가 직무 전문성 목표를 조기 달성했습니다.
-                   </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-indigo-500" />
-                    현재 수강 중인 교육 (Top 5)
-                  </h3>
-                  <button className="text-sm text-blue-600 hover:text-blue-700">전체보기</button>
-                </div>
-                <div className="space-y-4">
-                  {CURRENT_LEARNING_STATUS.map((course, idx) => (
-                    <div key={idx} className="flex items-center p-3 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-100">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm mr-4 flex-shrink-0">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between mb-1">
-                          <h4 className="text-sm font-semibold text-gray-900">{course.title}</h4>
-                          <span className="text-xs font-medium text-gray-500">{course.count}명 ({course.percentage}%)</span>
-                        </div>
-                        <ProgressBar value={course.percentage} color="bg-indigo-500" height="h-1.5" />
-                      </div>
+                    <div className={`p-3 rounded-lg ${bg}`}>
+                        <Icon name={icon} className={`w-6 h-6 ${color}`} />
                     </div>
-                  ))}
                 </div>
-              </div>
+                <div className="mt-4 flex items-center text-sm">
+                    <span className={change.includes('-') || change.includes('미참여') ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
+                        {change}
+                    </span>
+                </div>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6">
-                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                   <TrendingUp className="w-5 h-5 text-amber-500" />
-                   교육 효과성 분석
-                 </h3>
-                 <div className="flex gap-2">
-                   <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">업무 적용도 우수</span>
-                   <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">역량 향상 확인</span>
-                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {EFFECTIVENESS_METRICS.map((metric, idx) => (
-                  <div key={idx} className="bg-gray-50 rounded-xl p-5 border border-gray-100 flex flex-col items-center text-center">
-                    <div className="relative w-24 h-24 flex items-center justify-center mb-4">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="48" cy="48" r="40" stroke="#e5e7eb" strokeWidth="8" fill="transparent" />
-                        <circle 
-                          cx="48" cy="48" r="40" 
-                          stroke={idx === 0 ? '#3b82f6' : idx === 1 ? '#10b981' : '#f59e0b'} 
-                          strokeWidth="8" 
-                          fill="transparent" 
-                          strokeDasharray={251.2} 
-                          strokeDashoffset={251.2 - (251.2 * metric.score) / 100}
-                          className="transition-all duration-1000 ease-out"
-                        />
-                      </svg>
-                      <span className="absolute text-2xl font-bold text-gray-900">{metric.score}점</span>
-                    </div>
-                    <h4 className="font-bold text-gray-900 mb-1">{metric.label}</h4>
-                    <p className="text-xs text-gray-500">{metric.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         );
-      
-      case 'users':
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">전체 사용자 목록</h2>
-                <p className="text-sm text-gray-500 mt-1">사용자 역할을 클릭하여 직접 변경할 수 있습니다.</p>
-              </div>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                + 사용자 추가
-              </button>
+
+        const getRoleStyle = (role) => {
+            const styles = {
+                '프로': 'bg-blue-50 text-blue-700 border-blue-200',
+                '팀장': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                '본부장': 'bg-purple-50 text-purple-700 border-purple-200',
+                'CEO/총괄': 'bg-amber-50 text-amber-700 border-amber-200',
+                '관리자': 'bg-gray-800 text-white border-gray-700',
+            };
+            return styles[role] || 'bg-gray-100 text-gray-800 border-gray-200';
+        };
+
+        const Badge = ({ status }) => {
+            const styles = {
+                Active: 'bg-green-100 text-green-800',
+                Inactive: 'bg-gray-100 text-gray-800',
+                Published: 'bg-blue-100 text-blue-800',
+                Draft: 'bg-yellow-100 text-yellow-800',
+                published: 'bg-blue-100 text-blue-800',
+                draft: 'bg-yellow-100 text-yellow-800',
+            };
+            return (
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+                    {status === 'published' ? '게시됨' : status === 'draft' ? '작성중' : status}
+                </span>
+            );
+        };
+
+        const ProgressBar = ({ value, color = "bg-blue-600", height = "h-2" }) => (
+            <div className={`w-full bg-gray-100 rounded-full ${height}`}>
+                <div 
+                className={`${color} ${height} rounded-full transition-all duration-500`} 
+                style={{ width: `${value}%` }}
+                ></div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3">사용자 정보</th>
-                    <th className="px-6 py-3">역할 (변경 가능)</th>
-                    <th className="px-6 py-3">가입일</th>
-                    <th className="px-6 py-3">상태</th>
-                    <th className="px-6 py-3 text-right">관리</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {users.map((user) => (
-                    <tr key={user.id} className="bg-white hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                           <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
-                              {user.name[0]}
-                           </div>
-                           <div>
-                             <div className="font-semibold">{user.name}</div>
-                             <div className="text-xs text-gray-500">{user.email}</div>
-                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="relative inline-block w-32">
-                          <select
-                            value={user.role}
-                            onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                            className={`appearance-none w-full pl-3 pr-8 py-1.5 rounded-full text-xs font-bold border cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 transition-all ${getRoleStyle(user.role)}`}
-                          >
-                            {ROLES.map(role => (
-                              <option key={role} value={role} className="bg-white text-gray-900 font-normal">
-                                {role}
-                              </option>
+        );
+
+        // --- Main App Component ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+            const [users, setUsers] = useState(INITIAL_USERS);
+            const ROLES = ['프로', '팀장', '본부장', 'CEO/총괄', '관리자'];
+
+            // Content Management State
+            const [selectedContentId, setSelectedContentId] = useState('l1');
+            const [contentStructure, setContentStructure] = useState(CONTENT_STRUCTURE);
+
+            const handleRoleChange = (userId, newRole) => {
+                setUsers(users.map(user => 
+                user.id === userId ? { ...user, role: newRole } : user
+                ));
+            };
+
+            const navItems = [
+                { id: 'dashboard', label: '교육 성과 대시보드', icon: 'layout-dashboard' },
+                { id: 'users', label: '사용자 관리', icon: 'users' },
+                { id: 'courses', label: '교육 계획 관리', icon: 'book-open' }, // 명칭 변경
+                { id: 'contents', label: '콘텐츠 관리', icon: 'folder-open' },
+                { id: 'community', label: '커뮤니티 관리', icon: 'message-square' },
+                { id: 'settings', label: '설정', icon: 'settings' },
+            ];
+
+            const ContentIcon = ({ type }) => {
+                switch(type) {
+                case 'video': return <Icon name="play-circle" size={16} className="text-rose-500" />;
+                case 'doc': return <Icon name="file-text" size={16} className="text-blue-500" />;
+                case 'quiz': return <Icon name="help-circle" size={16} className="text-amber-500" />;
+                default: return <Icon name="file-text" size={16} className="text-gray-400" />;
+                }
+            };
+
+            const renderContent = () => {
+                switch (activeTab) {
+                case 'dashboard':
+                    return (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {STATS.map((stat, idx) => (
+                                <StatCard key={idx} {...stat} />
                             ))}
-                          </select>
-                          <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none ${user.role === '관리자' ? 'text-gray-400' : 'text-current opacity-60'}`} />
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500">{user.date}</td>
-                      <td className="px-6 py-4"><Badge status={user.status} /></td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="text-gray-400 hover:text-gray-600"><MoreVertical size={16} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-
-      case 'courses':
-        return (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-               <h2 className="text-xl font-bold text-gray-900">강의 콘텐츠 관리</h2>
-               <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                + 새 강의 개설
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {COURSES.map((course) => (
-                <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="h-32 bg-gray-200 flex items-center justify-center">
-                    <BookOpen className="text-gray-400 w-12 h-12" />
-                  </div>
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge status={course.status} />
-                      <div className="flex items-center text-amber-500 text-sm font-medium">
-                        ★ {course.rating}
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">{course.title}</h3>
-                    <p className="text-sm text-gray-500 mb-4">강사: {course.instructor}</p>
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Users className="w-4 h-4 mr-1" />
-                        {course.students}명 수강 중
-                      </div>
-                      <button className="text-blue-600 text-sm font-medium hover:underline">관리</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      // --- New Content Management Tab ---
-      case 'contents':
-        const currentContent = contentStructure.flatMap(c => c.items).find(i => i.id === selectedContentId);
-        
-        return (
-          <div className="h-[calc(100vh-200px)] flex flex-col lg:flex-row gap-6">
-            {/* Left: Content Tree Structure */}
-            <div className="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <FolderOpen size={18} className="text-blue-600" />
-                  React 기초 마스터
-                </h3>
-                <button className="text-xs bg-white border border-gray-200 hover:bg-gray-50 px-2 py-1 rounded flex items-center gap-1">
-                  <PlusCircle size={14} /> 챕터 추가
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                {contentStructure.map((chapter) => (
-                  <div key={chapter.id} className="rounded-lg border border-gray-100 overflow-hidden">
-                    <button 
-                      className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 text-left transition-colors"
-                      // Toggle expand logic would go here
-                    >
-                      <span className="font-semibold text-sm text-gray-800">{chapter.title}</span>
-                      <ChevronDown size={16} className="text-gray-500" />
-                    </button>
-                    {chapter.expanded && (
-                      <div className="bg-white divide-y divide-gray-50">
-                        {chapter.items.map((item) => (
-                          <div 
-                            key={item.id}
-                            onClick={() => setSelectedContentId(item.id)}
-                            className={`p-3 pl-6 flex items-center gap-3 cursor-pointer hover:bg-blue-50 transition-colors ${selectedContentId === item.id ? 'bg-blue-50 border-r-4 border-blue-500' : ''}`}
-                          >
-                            <ContentIcon type={item.type} />
-                            <div className="flex-1">
-                              <p className={`text-sm ${selectedContentId === item.id ? 'font-bold text-blue-700' : 'text-gray-600'}`}>
-                                {item.title}
-                              </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                                <span>{item.duration}</span>
-                                <span className={item.status === 'published' ? 'text-green-600' : 'text-amber-600'}>
-                                  • {item.status === 'published' ? '게시됨' : '작성중'}
-                                </span>
-                              </div>
                             </div>
-                          </div>
-                        ))}
-                        <button className="w-full py-2 text-xs text-gray-400 hover:text-blue-600 hover:bg-gray-50 flex items-center justify-center gap-1 border-t border-dashed border-gray-200">
-                          <PlusCircle size={14} /> 차시 추가
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Right: Content Editor */}
-            <div className="w-full lg:w-2/3 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
-              {currentContent ? (
-                <>
-                  <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <span>콘텐츠 관리</span>
-                      <ChevronRight size={14} />
-                      <span className="font-medium text-gray-900">{currentContent.title}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1 transition-colors">
-                        <Trash2 size={16} /> 삭제
-                      </button>
-                      <button className="px-4 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
-                        <Save size={16} /> 저장
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 p-6 overflow-y-auto">
-                    <div className="max-w-3xl mx-auto space-y-6">
-                      {/* Common Fields */}
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">차시 제목</label>
-                          <input 
-                            type="text" 
-                            defaultValue={currentContent.title}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
-                          />
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                                <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Icon name="target" className="w-5 h-5 text-blue-500" />
+                                    분야별 교육 목표 달성률
+                                </h3>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">2024년 4분기 기준</span>
+                                </div>
+                                <div className="space-y-6">
+                                {GOAL_ACHIEVEMENT_DATA.map((item, idx) => (
+                                    <div key={idx}>
+                                    <div className="flex justify-between text-sm mb-2">
+                                        <span className="font-medium text-gray-700">{item.category}</span>
+                                        <span className="font-bold text-gray-900">{item.current}% <span className="text-gray-400 font-normal">/ 100%</span></span>
+                                    </div>
+                                    <ProgressBar value={item.current} color={item.color} height="h-3" />
+                                    </div>
+                                ))}
+                                </div>
+                                <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+                                    <p className="text-sm text-gray-600">
+                                    전체 구성원의 <span className="font-bold text-indigo-600">65%</span>가 직무 전문성 목표를 조기 달성했습니다.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                                <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Icon name="book-open" className="w-5 h-5 text-indigo-500" />
+                                    현재 수강 중인 교육 (Top 5)
+                                </h3>
+                                <button className="text-sm text-blue-600 hover:text-blue-700">전체보기</button>
+                                </div>
+                                <div className="space-y-4">
+                                {CURRENT_LEARNING_STATUS.map((course, idx) => (
+                                    <div key={idx} className="flex items-center p-3 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-100">
+                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm mr-4 flex-shrink-0">
+                                        {idx + 1}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between mb-1">
+                                        <h4 className="text-sm font-semibold text-gray-900">{course.title}</h4>
+                                        <span className="text-xs font-medium text-gray-500">{course.count}명 ({course.percentage}%)</span>
+                                        </div>
+                                        <ProgressBar value={course.percentage} color="bg-indigo-500" height="h-1.5" />
+                                    </div>
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Icon name="trending-up" className="w-5 h-5 text-amber-500" />
+                                    교육 효과성 분석
+                                </h3>
+                                <div className="flex gap-2">
+                                    <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">업무 적용도 우수</span>
+                                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">역량 향상 확인</span>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {EFFECTIVENESS_METRICS.map((metric, idx) => (
+                                <div key={idx} className="bg-gray-50 rounded-xl p-5 border border-gray-100 flex flex-col items-center text-center">
+                                    <div className="relative w-24 h-24 flex items-center justify-center mb-4">
+                                    <svg className="w-full h-full transform -rotate-90">
+                                        <circle cx="48" cy="48" r="40" stroke="#e5e7eb" strokeWidth="8" fill="transparent" />
+                                        <circle 
+                                        cx="48" cy="48" r="40" 
+                                        stroke={idx === 0 ? '#3b82f6' : idx === 1 ? '#10b981' : '#f59e0b'} 
+                                        strokeWidth="8" 
+                                        fill="transparent" 
+                                        strokeDasharray={251.2} 
+                                        strokeDashoffset={251.2 - (251.2 * metric.score) / 100}
+                                        className="transition-all duration-1000 ease-out"
+                                        />
+                                    </svg>
+                                    <span className="absolute text-2xl font-bold text-gray-900">{metric.score}점</span>
+                                    </div>
+                                    <h4 className="font-bold text-gray-900 mb-1">{metric.label}</h4>
+                                    <p className="text-xs text-gray-500">{metric.description}</p>
+                                </div>
+                                ))}
+                            </div>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">콘텐츠 유형</label>
-                            <select 
-                              defaultValue={currentContent.type}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white outline-none"
-                            >
-                              <option value="video">동영상 (Video)</option>
-                              <option value="doc">문서/아티클 (Doc)</option>
-                              <option value="quiz">퀴즈/평가 (Quiz)</option>
-                            </select>
-                          </div>
-                          <div>
-                             <label className="block text-sm font-medium text-gray-700 mb-1">공개 상태</label>
-                             <select 
-                              defaultValue={currentContent.status}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white outline-none"
-                            >
-                              <option value="draft">작성중 (Draft)</option>
-                              <option value="published">게시됨 (Published)</option>
-                              <option value="private">비공개 (Private)</option>
-                            </select>
-                          </div>
+                    );
+                
+                case 'users':
+                    return (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">전체 사용자 목록</h2>
+                                <p className="text-sm text-gray-500 mt-1">사용자 역할을 클릭하여 직접 변경할 수 있습니다.</p>
+                            </div>
+                            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                                + 사용자 추가
+                            </button>
+                            </div>
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3">사용자 정보</th>
+                                    <th className="px-6 py-3">역할 (변경 가능)</th>
+                                    <th className="px-6 py-3">가입일</th>
+                                    <th className="px-6 py-3">상태</th>
+                                    <th className="px-6 py-3 text-right">관리</th>
+                                </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                {users.map((user) => (
+                                    <tr key={user.id} className="bg-white hover:bg-gray-50">
+                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                                            {user.name[0]}
+                                            </div>
+                                            <div>
+                                            <div className="font-semibold">{user.name}</div>
+                                            <div className="text-xs text-gray-500">{user.email}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="relative inline-block w-32">
+                                        <select
+                                            value={user.role}
+                                            onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                                            className={`appearance-none w-full pl-3 pr-8 py-1.5 rounded-full text-xs font-bold border cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 transition-all ${getRoleStyle(user.role)}`}
+                                        >
+                                            {ROLES.map(role => (
+                                            <option key={role} value={role} className="bg-white text-gray-900 font-normal">
+                                                {role}
+                                            </option>
+                                            ))}
+                                        </select>
+                                        <Icon name="chevron-down" className={`absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none ${user.role === '관리자' ? 'text-gray-400' : 'text-current opacity-60'}`} />
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-500">{user.date}</td>
+                                    <td className="px-6 py-4"><Badge status={user.status} /></td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button className="text-gray-400 hover:text-gray-600"><Icon name="more-vertical" size={16} /></button>
+                                    </td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                            </div>
                         </div>
-                      </div>
+                    );
 
-                      {/* Type Specific Editor */}
-                      <div className="pt-6 border-t border-gray-100">
-                        <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                          <ContentIcon type={currentContent.type} />
-                          {currentContent.type === 'video' ? '동영상 업로드 및 설정' : 
-                           currentContent.type === 'doc' ? '강의 자료 / 텍스트 에디터' : '퀴즈 문항 설정'}
-                        </h4>
+                case 'courses':
+                    return (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-xl font-bold text-gray-900">교육 계획 관리</h2>
+                                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                                + 새 교육 계획 개설
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {COURSES.map((course) => (
+                                <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                                <div className="h-32 bg-gray-200 flex items-center justify-center">
+                                    <Icon name="book-open" className="text-gray-400 w-12 h-12" />
+                                </div>
+                                <div className="p-5">
+                                    <div className="flex justify-between items-start mb-2">
+                                    <Badge status={course.status} />
+                                    <div className="flex items-center text-amber-500 text-sm font-medium">
+                                        ★ {course.rating}
+                                    </div>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">{course.title}</h3>
+                                    <p className="text-sm text-gray-500 mb-4">강사: {course.instructor}</p>
+                                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                                    <div className="flex items-center text-sm text-gray-500">
+                                        <Icon name="users" className="w-4 h-4 mr-1" />
+                                        {course.students}명 수강 중
+                                    </div>
+                                    <button className="text-blue-600 text-sm font-medium hover:underline">관리</button>
+                                    </div>
+                                </div>
+                                </div>
+                            ))}
+                            </div>
+                        </div>
+                    );
 
-                        {currentContent.type === 'video' && (
-                          <div className="space-y-4">
-                            <div className="aspect-video bg-slate-900 rounded-lg flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700">
-                              <PlayCircle size={48} className="mb-2 opacity-50" />
-                              <span className="text-sm">동영상 파일을 이곳에 드래그하거나 선택하세요</span>
-                              <button className="mt-4 px-4 py-2 bg-slate-800 text-slate-200 rounded text-sm hover:bg-slate-700 transition-colors">파일 선택</button>
+                case 'contents':
+                    const currentContent = contentStructure.flatMap(c => c.items).find(i => i.id === selectedContentId);
+                    
+                    return (
+                        <div className="h-[calc(100vh-200px)] flex flex-col lg:flex-row gap-6">
+                            {/* Left: Content Tree Structure */}
+                            <div className="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                <Icon name="folder-open" size={18} className="text-blue-600" />
+                                React 기초 마스터
+                                </h3>
+                                <button className="text-xs bg-white border border-gray-200 hover:bg-gray-50 px-2 py-1 rounded flex items-center gap-1">
+                                <Icon name="plus-circle" size={14} /> 챕터 추가
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                                {contentStructure.map((chapter) => (
+                                <div key={chapter.id} className="rounded-lg border border-gray-100 overflow-hidden">
+                                    <button 
+                                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 text-left transition-colors"
+                                    // Toggle expand logic would go here
+                                    >
+                                    <span className="font-semibold text-sm text-gray-800">{chapter.title}</span>
+                                    <Icon name="chevron-down" size={16} className="text-gray-500" />
+                                    </button>
+                                    {chapter.expanded && (
+                                    <div className="bg-white divide-y divide-gray-50">
+                                        {chapter.items.map((item) => (
+                                        <div 
+                                            key={item.id}
+                                            onClick={() => setSelectedContentId(item.id)}
+                                            className={`p-3 pl-6 flex items-center gap-3 cursor-pointer hover:bg-blue-50 transition-colors ${selectedContentId === item.id ? 'bg-blue-50 border-r-4 border-blue-500' : ''}`}
+                                        >
+                                            <ContentIcon type={item.type} />
+                                            <div className="flex-1">
+                                            <p className={`text-sm ${selectedContentId === item.id ? 'font-bold text-blue-700' : 'text-gray-600'}`}>
+                                                {item.title}
+                                            </p>
+                                            <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                                                <span>{item.duration}</span>
+                                                <span className={item.status === 'published' ? 'text-green-600' : 'text-amber-600'}>
+                                                • {item.status === 'published' ? '게시됨' : '작성중'}
+                                                </span>
+                                            </div>
+                                            </div>
+                                        </div>
+                                        ))}
+                                        <button className="w-full py-2 text-xs text-gray-400 hover:text-blue-600 hover:bg-gray-50 flex items-center justify-center gap-1 border-t border-dashed border-gray-200">
+                                        <Icon name="plus-circle" size={14} /> 차시 추가
+                                        </button>
+                                    </div>
+                                    )}
+                                </div>
+                                ))}
+                            </div>
+                            </div>
+
+                            {/* Right: Content Editor */}
+                            <div className="w-full lg:w-2/3 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                            {currentContent ? (
+                                <>
+                                <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <span>콘텐츠 관리</span>
+                                    <Icon name="chevron-right" size={14} />
+                                    <span className="font-medium text-gray-900">{currentContent.title}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                    <button className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1 transition-colors">
+                                        <Icon name="trash-2" size={16} /> 삭제
+                                    </button>
+                                    <button className="px-4 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+                                        <Icon name="save" size={16} /> 저장
+                                    </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex-1 p-6 overflow-y-auto">
+                                    <div className="max-w-3xl mx-auto space-y-6">
+                                    {/* Common Fields */}
+                                    <div className="space-y-4">
+                                        <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">차시 제목</label>
+                                        <input 
+                                            type="text" 
+                                            defaultValue={currentContent.title}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
+                                        />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">콘텐츠 유형</label>
+                                            <select 
+                                            defaultValue={currentContent.type}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white outline-none"
+                                            >
+                                            <option value="video">동영상 (Video)</option>
+                                            <option value="doc">문서/아티클 (Doc)</option>
+                                            <option value="quiz">퀴즈/평가 (Quiz)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">공개 상태</label>
+                                            <select 
+                                            defaultValue={currentContent.status}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white outline-none"
+                                            >
+                                            <option value="draft">작성중 (Draft)</option>
+                                            <option value="published">게시됨 (Published)</option>
+                                            <option value="private">비공개 (Private)</option>
+                                            </select>
+                                        </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Type Specific Editor */}
+                                    <div className="pt-6 border-t border-gray-100">
+                                        <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                        <ContentIcon type={currentContent.type} />
+                                        {currentContent.type === 'video' ? '동영상 업로드 및 설정' : 
+                                        currentContent.type === 'doc' ? '강의 자료 / 텍스트 에디터' : '퀴즈 문항 설정'}
+                                        </h4>
+
+                                        {currentContent.type === 'video' && (
+                                        <div className="space-y-4">
+                                            <div className="aspect-video bg-slate-900 rounded-lg flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700">
+                                            <Icon name="play-circle" size={48} className="mb-2 opacity-50" />
+                                            <span className="text-sm">동영상 파일을 이곳에 드래그하거나 선택하세요</span>
+                                            <button className="mt-4 px-4 py-2 bg-slate-800 text-slate-200 rounded text-sm hover:bg-slate-700 transition-colors">파일 선택</button>
+                                            </div>
+                                            <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">자막 파일 (VTT/SRT)</label>
+                                            <input type="file" className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                                            </div>
+                                        </div>
+                                        )}
+
+                                        {currentContent.type === 'doc' && (
+                                        <div className="border border-gray-200 rounded-lg min-h-[300px] p-4 bg-gray-50">
+                                            <div className="flex gap-2 mb-4 border-b border-gray-200 pb-2">
+                                                <button className="p-1 hover:bg-gray-200 rounded"><strong>B</strong></button>
+                                                <button className="p-1 hover:bg-gray-200 rounded"><em>I</em></button>
+                                                <button className="p-1 hover:bg-gray-200 rounded"><u>U</u></button>
+                                                <div className="w-px bg-gray-300 h-6 mx-1"></div>
+                                                <button className="text-xs bg-white border px-2 rounded">이미지 삽입</button>
+                                            </div>
+                                            <textarea 
+                                                className="w-full h-[250px] bg-transparent border-none outline-none resize-none" 
+                                                placeholder="강의 내용을 이곳에 작성하세요..."
+                                                defaultValue="React 환경 설정을 위해서는 Node.js 설치가 필수적입니다. 공식 홈페이지에서 LTS 버전을 다운로드 받아 설치해주세요."
+                                            ></textarea>
+                                        </div>
+                                        )}
+
+                                        {currentContent.type === 'quiz' && (
+                                        <div className="space-y-4">
+                                            <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
+                                            <div className="flex justify-between mb-2">
+                                                <span className="text-sm font-bold text-amber-800">Q1. 객관식 문항</span>
+                                                <button className="text-xs text-gray-500 hover:text-red-500">삭제</button>
+                                            </div>
+                                            <input type="text" className="w-full mb-3 p-2 border rounded text-sm" placeholder="질문을 입력하세요" defaultValue="React의 특징이 아닌 것은?" />
+                                            <div className="space-y-2">
+                                                {['Virtual DOM 사용', '단방향 데이터 흐름', '컴포넌트 기반', '데이터베이스 내장'].map((opt, i) => (
+                                                <div key={i} className="flex items-center gap-2">
+                                                    <input type="radio" name="q1" checked={i===3} readOnly />
+                                                    <input type="text" className="flex-1 p-1.5 border rounded text-sm" defaultValue={opt} />
+                                                </div>
+                                                ))}
+                                            </div>
+                                            </div>
+                                            <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2">
+                                            <Icon name="plus-circle" size={18} /> 문항 추가하기
+                                            </button>
+                                        </div>
+                                        )}
+                                    </div>
+                                    </div>
+                                </div>
+                                </>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                                <Icon name="folder-open" size={48} className="mb-4 opacity-20" />
+                                <p>좌측 메뉴에서 편집할 콘텐츠를 선택하세요</p>
+                                </div>
+                            )}
+                            </div>
+                        </div>
+                    );
+
+                case 'community':
+                    return (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px]">
+                            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                                <h2 className="text-xl font-bold text-gray-900">커뮤니티 모니터링</h2>
+                                <div className="flex gap-2">
+                                    <button className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">필터</button>
+                                    <button className="px-3 py-1.5 text-sm bg-rose-50 text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-100">신고글만 보기</button>
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-0">
+                                {COMMUNITY_POSTS.map((post) => (
+                                <div key={post.id} className={`p-6 border-b border-gray-50 hover:bg-gray-50 transition-colors ${post.reports > 0 ? 'bg-rose-50/30' : ''}`}>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{post.category}</span>
+                                            <span className="text-xs text-gray-400">{post.date}</span>
+                                        </div>
+                                        <h3 className="text-base font-semibold text-gray-900 mb-1">
+                                            {post.title}
+                                            {post.reports > 0 && <span className="ml-2 text-xs text-rose-600 font-bold">🚨 신고 {post.reports}건</span>}
+                                        </h3>
+                                        <p className="text-sm text-gray-600">작성자: {post.author}</p>
+                                        </div>
+                                        <button className="text-gray-400 hover:text-gray-600 p-2">
+                                        <Icon name="more-vertical" size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+
+                default:
+                    return <div className="p-10 text-center text-gray-500">준비 중인 페이지입니다.</div>;
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 text-gray-900 font-sans flex">
+                    {/* Sidebar */}
+                    <aside 
+                        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+                        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                        }`}
+                    >
+                        <div className="flex items-center justify-center h-16 border-b border-slate-800">
+                        <h1 className="text-xl font-bold tracking-wider flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">E</div>
+                            EduAdmin
+                        </h1>
+                        </div>
+                        <nav className="mt-6 px-4 space-y-2">
+                        {navItems.map((item) => {
+                            const isActive = activeTab === item.id;
+                            return (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                isActive 
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                }`}
+                            >
+                                <Icon name={item.icon} size={20} />
+                                {item.label}
+                            </button>
+                            );
+                        })}
+                        </nav>
+                        
+                        {/* Sidebar Footer */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center font-bold text-white">
+                            A
                             </div>
                             <div>
-                               <label className="block text-sm font-medium text-gray-700 mb-1">자막 파일 (VTT/SRT)</label>
-                               <input type="file" className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                            <p className="text-sm font-medium text-white">관리자</p>
+                            <p className="text-xs text-slate-500">admin@edu.com</p>
                             </div>
-                          </div>
-                        )}
+                        </div>
+                        </div>
+                    </aside>
 
-                        {currentContent.type === 'doc' && (
-                          <div className="border border-gray-200 rounded-lg min-h-[300px] p-4 bg-gray-50">
-                             <div className="flex gap-2 mb-4 border-b border-gray-200 pb-2">
-                                <button className="p-1 hover:bg-gray-200 rounded"><strong>B</strong></button>
-                                <button className="p-1 hover:bg-gray-200 rounded"><em>I</em></button>
-                                <button className="p-1 hover:bg-gray-200 rounded"><u>U</u></button>
-                                <div className="w-px bg-gray-300 h-6 mx-1"></div>
-                                <button className="text-xs bg-white border px-2 rounded">이미지 삽입</button>
-                             </div>
-                             <textarea 
-                                className="w-full h-[250px] bg-transparent border-none outline-none resize-none" 
-                                placeholder="강의 내용을 이곳에 작성하세요..."
-                                defaultValue="React 환경 설정을 위해서는 Node.js 설치가 필수적입니다. 공식 홈페이지에서 LTS 버전을 다운로드 받아 설치해주세요."
-                             ></textarea>
-                          </div>
-                        )}
+                    {/* Mobile Overlay */}
+                    {isSidebarOpen && (
+                        <div 
+                        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                        onClick={() => setIsSidebarOpen(false)}
+                        />
+                    )}
 
-                        {currentContent.type === 'quiz' && (
-                          <div className="space-y-4">
-                            <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
-                               <div className="flex justify-between mb-2">
-                                  <span className="text-sm font-bold text-amber-800">Q1. 객관식 문항</span>
-                                  <button className="text-xs text-gray-500 hover:text-red-500">삭제</button>
-                               </div>
-                               <input type="text" className="w-full mb-3 p-2 border rounded text-sm" placeholder="질문을 입력하세요" defaultValue="React의 특징이 아닌 것은?" />
-                               <div className="space-y-2">
-                                  {['Virtual DOM 사용', '단방향 데이터 흐름', '컴포넌트 기반', '데이터베이스 내장'].map((opt, i) => (
-                                    <div key={i} className="flex items-center gap-2">
-                                       <input type="radio" name="q1" checked={i===3} readOnly />
-                                       <input type="text" className="flex-1 p-1.5 border rounded text-sm" defaultValue={opt} />
-                                    </div>
-                                  ))}
-                               </div>
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                        {/* Header */}
+                        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8">
+                        <button 
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 rounded-md hover:bg-gray-100 lg:hidden"
+                        >
+                            <Icon name="menu" size={20} />
+                        </button>
+                        
+                        <div className="flex-1 max-w-xl mx-4 hidden md:block">
+                            <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Icon name="search" size={20} />
                             </div>
-                            <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2">
-                               <PlusCircle size={18} /> 문항 추가하기
+                            <input 
+                                type="text" 
+                                placeholder="사용자, 강의, 게시글 검색..." 
+                                className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none"
+                            />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                            <Icon name="bell" size={20} />
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                             </button>
-                          </div>
-                        )}
-                      </div>
+                            <div className="h-8 w-px bg-gray-200 mx-1"></div>
+                            <button className="text-sm font-medium text-gray-600 hover:text-blue-600">로그아웃</button>
+                        </div>
+                        </header>
+
+                        {/* Scrollable Content Area */}
+                        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 lg:p-8">
+                        <div className="max-w-7xl mx-auto">
+                            {/* Breadcrumb / Title */}
+                            <div className="mb-8">
+                            <h1 className="text-2xl font-bold text-gray-900">
+                                {navItems.find(i => i.id === activeTab)?.label}
+                            </h1>
+                            <p className="text-gray-500 text-sm mt-1">
+                                {activeTab === 'dashboard' ? '구성원 교육 현황 및 성과 분석 리포트입니다.' : 
+                                activeTab === 'contents' ? '강의별 커리큘럼 및 학습 자료를 등록/수정합니다.' :
+                                '시스템 데이터를 관리합니다.'}
+                            </p>
+                            </div>
+
+                            {renderContent()}
+                        </div>
+                        </main>
                     </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                  <FolderOpen size={48} className="mb-4 opacity-20" />
-                  <p>좌측 메뉴에서 편집할 콘텐츠를 선택하세요</p>
                 </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'community':
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px]">
-             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-900">커뮤니티 모니터링</h2>
-                <div className="flex gap-2">
-                   <button className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">필터</button>
-                   <button className="px-3 py-1.5 text-sm bg-rose-50 text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-100">신고글만 보기</button>
-                </div>
-             </div>
-             <div className="flex-1 overflow-y-auto p-0">
-                {COMMUNITY_POSTS.map((post) => (
-                  <div key={post.id} className={`p-6 border-b border-gray-50 hover:bg-gray-50 transition-colors ${post.reports > 0 ? 'bg-rose-50/30' : ''}`}>
-                    <div className="flex justify-between items-start">
-                       <div>
-                          <div className="flex items-center gap-2 mb-1">
-                             <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{post.category}</span>
-                             <span className="text-xs text-gray-400">{post.date}</span>
-                          </div>
-                          <h3 className="text-base font-semibold text-gray-900 mb-1">
-                            {post.title}
-                            {post.reports > 0 && <span className="ml-2 text-xs text-rose-600 font-bold">🚨 신고 {post.reports}건</span>}
-                          </h3>
-                          <p className="text-sm text-gray-600">작성자: {post.author}</p>
-                       </div>
-                       <button className="text-gray-400 hover:text-gray-600 p-2">
-                          <MoreVertical size={18} />
-                       </button>
-                    </div>
-                  </div>
-                ))}
-             </div>
-          </div>
-        );
-
-      default:
-        return <div className="p-10 text-center text-gray-500">준비 중인 페이지입니다.</div>;
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans flex">
-      {/* Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex items-center justify-center h-16 border-b border-slate-800">
-          <h1 className="text-xl font-bold tracking-wider flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">E</div>
-            EduAdmin
-          </h1>
-        </div>
-        <nav className="mt-6 px-4 space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <Icon size={20} />
-                {item.label}
-              </button>
             );
-          })}
-        </nav>
-        
-        {/* Sidebar Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center font-bold text-white">
-              A
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white">관리자</p>
-              <p className="text-xs text-slate-500">admin@edu.com</p>
-            </div>
-          </div>
-        </div>
-      </aside>
+        }
 
-      {/* Mobile Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8">
-          <button 
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 rounded-md hover:bg-gray-100 lg:hidden"
-          >
-            <Menu size={20} />
-          </button>
-          
-          <div className="flex-1 max-w-xl mx-4 hidden md:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input 
-                type="text" 
-                placeholder="사용자, 강의, 게시글 검색..." 
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-            <div className="h-8 w-px bg-gray-200 mx-1"></div>
-            <button className="text-sm font-medium text-gray-600 hover:text-blue-600">로그아웃</button>
-          </div>
-        </header>
-
-        {/* Scrollable Content Area */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {/* Breadcrumb / Title */}
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {navItems.find(i => i.id === activeTab)?.label}
-              </h1>
-              <p className="text-gray-500 text-sm mt-1">
-                {activeTab === 'dashboard' ? '구성원 교육 현황 및 성과 분석 리포트입니다.' : 
-                 activeTab === 'contents' ? '강의별 커리큘럼 및 학습 자료를 등록/수정합니다.' :
-                 '시스템 데이터를 관리합니다.'}
-              </p>
-            </div>
-
-            {renderContent()}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
