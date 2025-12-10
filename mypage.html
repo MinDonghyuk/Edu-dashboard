@@ -44,7 +44,7 @@
 
         // ********** GAS 연동 설정 (두 개의 주소 분리) **********
         
-        // 1. 계획서 저장용 (DB 저장, POST)
+        // 1. 계획서 저장 및 조회용 (DB, POST/GET)
         const GAS_SAVE_API_URL = "https://script.google.com/macros/s/AKfycbwU2V26MIQzI90nAs1T0z-1chcpd6448L6QEZci6Kpts6GVyyaFMkVledprKZkneqUj/exec";
 
         // 2. 프로필 정보 조회용 (사용자 정보, GET)
@@ -303,7 +303,7 @@
                     body: JSON.stringify(payload)
                 });
 
-                // 5. UI 업데이트 (성공 가정)
+                // 5. UI 업데이트 (성공 가정) - 저장 후 즉시 화면에 반영
                 const planContainer = document.getElementById('annual-plan-display');
                 if (planContainer) {
                     const today = new Date().toLocaleDateString();
@@ -354,6 +354,82 @@
                 submitBtn.innerHTML = originalBtnText;
             }
         };
+
+        // ********** [New] 내 계획서 조회 함수 (새로고침 시 데이터 유지) **********
+        async function fetchMyAnnualPlan() {
+            if (!LOGIN_USER_UID) return;
+
+            try {
+                // 저장용 GAS 주소로 GET 요청 (doGet 실행됨)
+                const response = await fetch(`${GAS_SAVE_API_URL}?userUid=${LOGIN_USER_UID}`);
+                
+                if (!response.ok) throw new Error('네트워크 응답 오류');
+                
+                const jsonResponse = await response.json();
+                
+                // 데이터가 있으면 화면 업데이트
+                if (jsonResponse.result === 'success' && jsonResponse.data) {
+                    const data = jsonResponse.data;
+                    const planContainer = document.getElementById('annual-plan-display');
+                    
+                    if (planContainer) {
+                        // 리스트 HTML 생성
+                        let actionsHtml = '';
+                        if (data.educationList && data.educationList.length > 0) {
+                             // educationList가 객체 배열인 경우 처리
+                             data.educationList.forEach((item, index) => {
+                                 actionsHtml += `${index + 1}. [${item.method}] ${item.name}`;
+                                 if(item.institution) actionsHtml += ` (${item.institution})`;
+                                 actionsHtml += `<br>`;
+                                 // 상세 정보는 들여쓰기로 표시
+                                 actionsHtml += `&nbsp;&nbsp;&nbsp;- 기간: ${item.period} / 시간: ${item.hours}h<br>`;
+                                 actionsHtml += `&nbsp;&nbsp;&nbsp;- 비용: ${parseInt(item.cost).toLocaleString()}원 (환급: ${item.refund})<br>`;
+                             });
+                        } else {
+                            // 구버전 데이터 호환
+                            actionsHtml = (data.actions || '상세 내용 없음').replace(/\n/g, '<br>');
+                        }
+                        
+                        const today = new Date().toLocaleDateString();
+
+                        planContainer.innerHTML = `
+                            <div class="p-4 bg-white border border-indigo-300 rounded-xl shadow-inner space-y-3 h-full flex flex-col justify-between">
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-start border-b border-gray-100 pb-2">
+                                        <div>
+                                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 mb-1 inline-block">🎯 연간계획</span>
+                                            <p class="text-lg font-bold text-gray-800 leading-tight">${data.title}</p>
+                                        </div>
+                                        <span class="text-xs font-semibold px-2 py-1 rounded bg-blue-500 text-white shadow-sm flex-shrink-0">${data.status || '결재대기'}</span>
+                                    </div>
+                                    <div class="bg-yellow-50 p-2 rounded border border-yellow-100">
+                                        <p class="text-xs font-bold text-yellow-700 mb-1">🏁 연간 핵심 목표</p>
+                                        <p class="text-sm text-gray-700 font-medium">${data.goal}</p>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <p class="text-xs font-bold text-gray-500 mb-1">📋 교육 이수 계획 목록</p>
+                                        <div class="text-sm text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 max-h-32 overflow-y-auto custom-scrollbar">
+                                            ${actionsHtml}
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-end text-xs text-gray-500 font-medium">
+                                        <span>💰 총 예상 예산: ${data.budget ? parseInt(data.budget).toLocaleString() : '0'}원</span>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                    <span>불러옴: ${today}</span>
+                                    <button onclick="openModal('annual-plan-modal')" class="px-3 py-1 text-sm font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition duration-150 flex items-center">
+                                        수정 (덮어쓰기)
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error("계획서 조회 실패:", error);
+            }
+        }
 
         window.saveUserSchedule = function(e) {
             e.preventDefault();
@@ -702,6 +778,8 @@
             renderUpcomingTrainingList(); 
             // ********** 프로필 데이터 호출 **********
             fetchUserProfile();
+            // ********** [New] 내 계획서 호출 **********
+            fetchMyAnnualPlan();
         }
 
         // --- 탭 전환 함수 ---
