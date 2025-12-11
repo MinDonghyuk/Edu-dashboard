@@ -39,13 +39,15 @@
             </button>
         </form>
 
-        <div id="msg" class="mt-4 text-center text-sm font-medium hidden p-3 rounded-lg"></div>
+        <!-- 메시지 박스 -->
+        <div id="msg" class="mt-4 text-center text-sm font-medium hidden p-3 rounded-lg break-keep"></div>
     </div>
 
     <script>
         // ▼▼▼▼▼▼ 설정 영역 ▼▼▼▼▼▼
         
-        // 사용자님이 주신 주소 그대로 (URL 변경 X)
+        // ★★★ [주의] Apps Script에서 "새 배포"를 하지 않으면 코드를 아무리 바꿔도 적용되지 않습니다.
+        // 이 주소가 최신 배포 버전의 주소인지 꼭 확인해주세요.
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUnNHEyJgc924PmepmrBJddvfkSjotby6lAhriEoR4VlBGnhLtT-Ft4IO24Lt-JDhX/exec";
 
         const TARGET_URL = "community.html";
@@ -68,20 +70,24 @@
             const msgBox = document.getElementById('msg');
             const btn = document.getElementById('loginBtn');
 
-            // UI 업데이트
-            msgBox.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-green-50', 'text-green-700');
+            // UI 초기화
+            msgBox.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-green-50', 'text-green-700', 'bg-yellow-50', 'text-yellow-700');
             msgBox.className = "mt-4 text-center text-sm font-medium text-blue-600 block bg-blue-50 p-3 rounded-lg";
-            msgBox.innerHTML = `<span class="inline-block animate-spin mr-2">↻</span>정보 확인 중...`;
+            msgBox.innerHTML = `<span class="inline-block animate-spin mr-2">↻</span>서버 연결 중...`;
             
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
 
-            // ★★★ 필살기: action과 데이터를 모두 보냅니다 ★★★
-            // 서버가 구버전이든 신버전이든 무조건 처리되도록 합니다.
-            fetch(SCRIPT_URL, {
+            // 캐시 방지를 위한 타임스탬프 추가
+            const requestUrl = `${SCRIPT_URL}?t=${new Date().getTime()}`;
+
+            fetch(requestUrl, {
                 method: "POST",
+                headers: {
+                    "Content-Type": "text/plain;charset=utf-8", // CORS 문제 방지용 헤더
+                },
                 body: JSON.stringify({ 
-                    action: "login",  // 구버전을 위한 안전장치
+                    action: "login", 
                     userName: name, 
                     userUid: uid 
                 }) 
@@ -106,13 +112,33 @@
                     }, 1000);
 
                 } else {
-                    throw new Error(data.message || "정보가 일치하지 않습니다.");
+                    // 서버가 에러 메시지를 보낸 경우
+                    throw new Error(data.message || "로그인 실패");
                 }
             })
             .catch(error => {
                 console.error("Login Error:", error);
-                msgBox.className = "mt-4 text-center text-sm font-medium text-red-600 block bg-red-50 p-3 rounded-lg";
-                msgBox.innerHTML = `⚠️ <b>로그인 실패</b><br>${error.message}`;
+                
+                let errorHtml = `⚠️ <b>오류 발생</b><br>${error.message}`;
+                let bgClass = "bg-red-50";
+                let textClass = "text-red-600";
+
+                // ★ 서버 구버전 감지 로직 ★
+                // "Unknown Action" 에러가 뜬다면, 서버 배포가 안 된 것임.
+                if (error.message.includes("Unknown Action")) {
+                    bgClass = "bg-yellow-50";
+                    textClass = "text-yellow-700";
+                    errorHtml = `
+                        ⚠️ <b>서버 업데이트 필요</b><br>
+                        현재 서버가 구버전 코드로 실행 중입니다.<br>
+                        <hr class="border-yellow-200 my-2">
+                        Apps Script에서 <b>[배포 관리]</b> → <b>[새 버전]</b> 선택 후<br>
+                        다시 배포해야만 해결됩니다.
+                    `;
+                }
+
+                msgBox.className = `mt-4 text-center text-sm font-medium ${textClass} block ${bgClass} p-3 rounded-lg`;
+                msgBox.innerHTML = errorHtml;
                 
                 btn.disabled = false;
                 btn.classList.remove('opacity-50', 'cursor-not-allowed');
